@@ -1,0 +1,13 @@
+# SamChe AI sales assistant
+
+The public website assistant is implemented in `app/components/samche-chat-widget.tsx`. Its deterministic sales flow and lead helpers live in `lib/samche-sales-assistant.mjs`; approved prices and product descriptions come from `lib/site-data.mjs`. Conversation and qualification state remain in the active browser session. The contact handoff is stored in `sessionStorage` and is prefilled into the existing Formspree contact form only after the visitor chooses **Request Demo**.
+
+The widget currently does not write leads into SamChe CRM. The available CRM lead routes require tenant access; the public marketing website has no verified tenant/assistant binding or anonymous public lead endpoint. No duplicate CRM model was created. The site uses the existing Formspree enquiry flow, and the visitor must explicitly click the WhatsApp link to open a prefilled message to `+971 50 694 1372`; the site does not send the WhatsApp message.
+
+The assistant answers from curated website data and asks one qualification question at a time. Its supported topics are SamChe AI products, pricing, plans, demos, and verified platform capabilities. It stores the known business, market, website, channels, product interests, approximate volume, integration needs, languages, team size, timeline, contact preference, and plan recommendation in session state. The lead summary is available in the chat before requesting a demo or continuing to WhatsApp.
+
+Website presentation defaults are in `lib/samche-chat-config.mjs`. The field names reuse existing Dashboard Guide Experience and Web Chat Appearance fields (`brand_name`, `assistant_display_name`, `assistant_status_label`, `welcome_title`, `welcome_message`, `input_placeholder`, `launcher_label`, `logo_url`, and `avatar_url`). The widget does not currently read dashboard settings: those settings are tenant/assistant or channel scoped, and no public SamChe AI product-assistant binding exists. `quick_actions` and product-level `product_scope` remain website presentation settings; they are not admin-editable today. No competing persisted dashboard configuration was added.
+
+The approved orb markup follows the user's existing `C:\Users\smttb\OneDrive\Masaüstü\aisamche.txt` (orb markup near line 2600, styles near line 2481). No standalone approved orb image was found. The round launcher uses the approved SAM/CHE/ASK ME construction with red and white side glow; safe `avatar_url` or `logo_url` values can replace it if a website-level dashboard binding becomes available.
+
+Automation / Agentic AI remains labeled Roadmap / Upcoming. Product capability responses and plan guidance must continue to use the current verified product implementation and approved plan structure.

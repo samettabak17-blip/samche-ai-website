@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://samche.ai/sitemap.xml

@@ -1,0 +1,23 @@
+export type Plan = {
+  slug: string;
+  name: string;
+  description: string;
+  monthly: number;
+  setup: number;
+  interactions: string;
+  yearly: number;
+  cta: string;
+  badge?: string;
+  from?: boolean;
+  setupNote?: string;
+  features: string[];
+};
+export const plans: Plan[];
+export const addons: { name: string; price: string; setup?: string; description: string }[];
+export const addonNotes: string[];
+export const productModules: { name: string; status: string; description: string }[];
+export const demoLinks: { webChatbot: string; whatsapp: string; aiGuide: string };
+export function planFromSearch(search: string): string;
+export function yearlyPrice(plan: Plan): string;
+export function monthlyPrice(plan: Plan): string;
+export function setupPrice(plan: Plan): string;
