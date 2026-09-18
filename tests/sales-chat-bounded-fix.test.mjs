@@ -5,7 +5,8 @@ import { resolveSalesChatTurn } from '../lib/samche-sales-chat-client.mjs';
 
 const userMessage = { role: 'user', text: 'We are a real estate company in Dubai.', time: '10:00 AM' };
 const messages = [{ role: 'assistant', text: 'How can I help?', time: '9:59 AM' }];
-const stateCandidate = generateSalesTurn(createInitialSalesState(), userMessage.text, messages, 'en');
+const initialState = createInitialSalesState();
+const stateCandidate = generateSalesTurn(initialState, userMessage.text, messages, 'en');
 const validReply = {
   reply: 'I can help qualify your requirements.', intent: 'qualification', responseMode: 'qualification_answer',
   extractedFields: {}, requestedNextField: 'channels', actionIntent: [], resumePendingQuestion: true,
@@ -51,7 +52,7 @@ for (const reply of finalUnsafeClaims) {
 
 
 async function resolveWith(fetchImpl) {
-  return resolveSalesChatTurn({ stateCandidate, messages, userMessage, locale: 'en', time: '10:01 AM', apiBaseUrl: 'https://api.example', fetchImpl });
+  return resolveSalesChatTurn({ state: initialState, stateCandidate, messages, userMessage, locale: 'en', time: '10:01 AM', apiBaseUrl: 'https://api.example', fetchImpl });
 }
 
 function jsonResponse(body) {
@@ -101,7 +102,8 @@ test('final regression: every required response key includes resumePendingQuesti
     const body = { ...validReply };
     delete body[key];
     const resolved = await resolveWith(async () => jsonResponse(body));
-    assert.equal(resolved.usedFallback, true, key);
+    assert.equal(resolved.usedFallback, false, key);
+    assert.equal(resolved.providerFailed, true, key);
     assert.deepEqual(resolved.diagnostic, { source: 'contract', contractReason: 'missing-required-fields' });
   }
 });
@@ -116,15 +118,17 @@ for (const [name, fields] of [
 ]) {
   test(`final regression: client rejects extracted ${name}`, async () => {
     const resolved = await resolveWith(async () => jsonResponse({ ...validReply, extractedFields: fields }));
-    assert.equal(resolved.usedFallback, true);
-    assert.deepEqual(resolved.state, stateCandidate.state);
+    assert.equal(resolved.usedFallback, false);
+    assert.equal(resolved.providerFailed, true);
+    assert.deepEqual(resolved.state, initialState);
     assert.deepEqual(resolved.diagnostic, { source: 'provider', contractReason: 'invalid-response' });
   });
 }
 
 test('final regression: client rejects obsolete demo_request response mode', async () => {
   const resolved = await resolveWith(async () => jsonResponse({ ...validReply, responseMode: 'demo_request' }));
-  assert.equal(resolved.usedFallback, true);
+    assert.equal(resolved.usedFallback, false);
+    assert.equal(resolved.providerFailed, true);
 });
 
 test('final regression: outbound demo mode matches backend contract', async () => {
@@ -139,7 +143,7 @@ test('final regression: outbound demo mode matches backend contract', async () =
 });
 
 
-test('client persists the deterministic turn for network, HTTP, JSON, and missing-contract failures', async () => {
+test('client preserves state without adding a conversational reply for provider failures', async () => {
   const cases = [
     ['network', async () => { throw new Error('offline'); }, { source: 'network' }],
     ['http', async () => ({ ok: false, status: 503 }), { source: 'http', httpStatus: 503 }],
@@ -153,21 +157,18 @@ test('client persists the deterministic turn for network, HTTP, JSON, and missin
 
   for (const [name, fetchImpl, diagnostic] of cases) {
     const resolved = await resolveWith(fetchImpl);
-    assert.equal(resolved.usedFallback, true, name);
+    assert.equal(resolved.usedFallback, false, name);
+    assert.equal(resolved.providerFailed, true, name);
     assert.deepEqual(resolved.diagnostic, diagnostic, name);
-    assert.deepEqual(resolved.state, stateCandidate.state, name);
-    assert.deepEqual(resolved.actions, stateCandidate.actions, name);
-    assert.deepEqual(resolved.messages, [
-      ...messages,
-      userMessage,
-      { role: 'assistant', text: validateSalesReply(stateCandidate.reply), time: '10:01 AM' },
-    ], name);
+    assert.deepEqual(resolved.state, initialState, name);
+    assert.deepEqual(resolved.actions, [], name);
+    assert.deepEqual(resolved.messages, [...messages, userMessage], name);
     assert.equal(resolved.retryMessage, 'AI response is unavailable right now. Please try again.', name);
     assert.equal(resolved.messages.some((message) => message.text === resolved.retryMessage), false, name);
   }
 });
 
-test('client rejects invalid provider enums and disallowed handoff actions into the deterministic fallback', async () => {
+test('client rejects invalid provider replies without generating a conversational fallback', async () => {
   const cases = [
     ['intent', { ...validReply, intent: 'COLD' }],
     ['response mode', { ...validReply, responseMode: 'anything_else' }],
@@ -177,10 +178,11 @@ test('client rejects invalid provider enums and disallowed handoff actions into 
 
   for (const [name, response] of cases) {
     const resolved = await resolveWith(async () => jsonResponse(response));
-    assert.equal(resolved.usedFallback, true, name);
+    assert.equal(resolved.usedFallback, false, name);
     assert.deepEqual(resolved.diagnostic, { source: 'provider', contractReason: 'invalid-response' }, name);
-    assert.deepEqual(resolved.state, stateCandidate.state, name);
-    assert.equal(resolved.messages.at(-1).text, validateSalesReply(stateCandidate.reply), name);
+    assert.deepEqual(resolved.state, initialState, name);
+    assert.deepEqual(resolved.messages, [...messages, userMessage], name);
+    assert.equal(resolved.providerFailed, true, name);
   }
 });
 

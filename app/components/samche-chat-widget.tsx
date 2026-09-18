@@ -132,7 +132,7 @@ export function SamCheChatWidget({ configuration = defaultSamcheChatConfig }: { 
     setSending(true);
     setProcessingStatus('Understanding your requirements…');
     const stateCandidate = generateSalesTurn(salesStateRef.current, trimmed, messages, locale);
-    const resolved = await resolveSalesChatTurn({ stateCandidate, messages, userMessage, locale, time: timestamp(), apiBaseUrl: salesChatApiBaseUrl });
+    const resolved = await resolveSalesChatTurn({ state: salesStateRef.current, stateCandidate, messages, userMessage, locale, time: timestamp(), apiBaseUrl: salesChatApiBaseUrl });
     salesStateRef.current = resolved.state;
     setMessages(resolved.messages as Message[]);
     setSalesState(resolved.state);
