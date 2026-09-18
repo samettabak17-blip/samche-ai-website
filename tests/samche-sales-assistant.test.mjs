@@ -554,6 +554,7 @@ test('response mode explicitly identifies current-turn interrupt priority', () =
   assert.equal(getSalesResponseMode('How does AI Guide work?'), 'in_scope_interrupt');
   assert.equal(getSalesResponseMode('How much does Growth cost?'), 'pricing_interrupt');
   assert.equal(getSalesResponseMode('I want a demo'), 'demo_interrupt');
+  assert.equal(getSalesResponseMode('Ürünleri hemen teslim ediyor musunuz?'), 'in_scope_interrupt');
   assert.equal(getSalesResponseMode('I want to speak to sales on WhatsApp'), 'handoff');
   assert.equal(getSalesResponseMode('How many enquiries do you receive?'), 'qualification_answer');
 });

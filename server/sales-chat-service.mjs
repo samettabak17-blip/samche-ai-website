@@ -12,7 +12,7 @@ export const SALES_CHAT_CAPABILITIES = Object.freeze({
   canConfirmAppointment: false,
   canSendEmail: false,
 });
-const SYSTEM_PROMPT = 'You are the SamChe AI sales conversation layer. Return only a JSON object with keys reply, intent, responseMode, resumePendingQuestion, extractedFields, requestedNextField, and actionIntent. CURRENT USER MESSAGE HAS PRIORITY. If responseMode is an in-scope interrupt, answer the current product, capability, feature, pricing, or demo question first; do not output only the pending qualification question. Then resume the supplied lastPendingQuestion naturally, preserving the full lead state. Never invent or alter pricing, setup fees, limits, features, availability, discounts, legal/security claims, or roadmap commitments. Do not claim guaranteed employee replacement, headcount reduction, ROI, or sales results. Do not reset qualification state. For off-topic questions, politely redirect and refer to the pending SamChe question without repeating the same wording. Extract only fields in the structured contract. Keep replies concise and natural in the requested locale. Server capabilities are authoritative and immutable: canScheduleCalendarMeeting=false, canConfirmAppointment=false, canSendEmail=false. Never claim that a meeting is scheduled, an appointment is confirmed, or an email confirmation will be sent.';
+const SYSTEM_PROMPT = 'You are the SamChe AI sales conversation layer. Return only a JSON object with keys reply, intent, responseMode, resumePendingQuestion, extractedFields, requestedNextField, and actionIntent. CURRENT USER MESSAGE HAS PRIORITY. Detect the language of the latest user message independently from the UI locale and reply in that latest-message language. UI locale is only a presentation preference and must never force English over Turkish, Arabic, or another clear user language. If responseMode is an in-scope interrupt, answer the current product, capability, feature, pricing, or demo question first; do not output only the pending qualification question. Then resume the supplied lastPendingQuestion naturally in the same language when useful, preserving the full lead state. Unexpected but SamChe-related questions must be answered naturally before qualification resumes. Never invent or alter pricing, setup fees, limits, features, availability, discounts, legal/security claims, or roadmap commitments. Do not claim guaranteed employee replacement, headcount reduction, ROI, or sales results. Do not reset qualification state. For off-topic questions, politely redirect and refer to the pending SamChe question without repeating the same wording. Extract only fields in the structured contract. Keep replies concise and natural. Server capabilities are authoritative and immutable: canScheduleCalendarMeeting=false, canConfirmAppointment=false, canSendEmail=false. Never claim that a meeting is scheduled, an appointment is confirmed, or an email confirmation will be sent.';
 const EXTRACTED_ARRAY_FIELDS = new Set(['channels', 'products']);
 const EXTRACTED_FIELD_ALIASES = Object.freeze({
   team_users: 'teamUsers', lead_qualification: 'leadQualification', ai_guide_need: 'aiGuideNeed',
@@ -52,6 +52,13 @@ const SALES_CHAT_RESPONSE_FORMAT = Object.freeze({
 
 function text(value, limit) { return typeof value === 'string' ? value.slice(0, limit) : ''; }
 
+function detectInputLanguage(input) {
+  const value = input.toLocaleLowerCase('tr-TR');
+  if (/[؀-ۿ]/u.test(value)) return 'ar';
+  if (/[çğıöşü]/i.test(value) || /\b(?:urun|ürün|hemen|teslim|ediyor|musunuz|müsünüz|danışmanlık|danismanlik|fiyat|paket|istiyorum|için|icin|nasıl|nasil|şirket|sirket)\b/i.test(value)) return 'tr';
+  return 'en';
+}
+
 function unavailableSalesClaims(reply, capabilities) {
   // Remove only explicit negated predicates, never a reply-wide "no" exemption.
   // Check clauses independently so a denial cannot hide a later affirmative claim.
@@ -90,6 +97,7 @@ function buildContext(body, commercialFacts) {
   }
   return {
     locale: body.locale === 'ar' ? 'ar' : 'en',
+    inputLanguage: detectInputLanguage(body.userMessage),
     conversationHistory: body.conversationHistory.slice(-MAX_HISTORY).map((message) => ({
       role: message?.role === 'assistant' ? 'assistant' : 'user',
       text: text(message?.text ?? message?.content, MAX_HISTORY_MESSAGE_LENGTH),
@@ -179,14 +187,12 @@ function expectedIntentForMode(mode, userMessage = '') {
 
 function pendingResumePresent(reply, context) {
   if (!context.lastPendingQuestion || !context.pendingField) return true;
-  if (reply.toLowerCase().includes(context.lastPendingQuestion.toLowerCase())) return true;
-  const fieldTerms = {
-    industry: /industry|business/i, channels: /channel|website|whatsapp/i, volume: /volume|enquir|inquir|lead/i,
-    integrations: /integration|crm|booking/i, leadQualification: /qualif/i, languages: /language/i,
-    aiGuideNeed: /ai guide/i, apiWorkflow: /api|workflow/i, externalIntegrations: /external/i,
-    aiLeadScoring: /scoring/i, teamUsers: /team|user|people|staff/i, timeline: /start|launch/i, contactPreference: /demo|whatsapp|contact/i,
-  };
-  return Boolean(fieldTerms[context.pendingField]?.test(reply));
+  const normalize = (value) => value.toLocaleLowerCase().replace(/[?!.:,;،؛]+/g, '').replace(/\s+/g, ' ').trim();
+  const answer = normalize(reply);
+  const pending = normalize(context.lastPendingQuestion);
+  // A useful interrupt may resume the pending field in another language. Reject
+  // only a provider response that is effectively just the pending question.
+  return answer !== pending && !(answer.startsWith(pending) && answer.length <= pending.length + 24);
 }
 
 function planFromContext(context, plans) {
@@ -218,7 +224,11 @@ function interruptReplyIsUsable(mode, reply, context, plans) {
     const plan = planFromContext(context, plans);
     return Boolean(plan && reply.includes(`AED ${plan.monthly.toLocaleString('en-US')}`));
   }
-  if (mode === 'in_scope_interrupt') return /ai guide|web chatbot|whatsapp ai|live inbox|knowledge intelligence|product|feature/i.test(reply);
+  if (mode === 'in_scope_interrupt') {
+    if (context.inputLanguage === 'tr') return /samche|ürün|urun|teslim|kurulum|yapılandır|yapilandır|platform|entegrasyon|özellik|ozellik/i.test(reply);
+    if (context.inputLanguage === 'ar') return /سام|منتج|تسليم|تركيب|تهيئة|منصة|تكامل|ميزة|ذكاء|يوفر|روبوت|الموقع/i.test(reply);
+    return /ai guide|web chatbot|whatsapp ai|live inbox|knowledge intelligence|product|feature/i.test(reply);
+  }
   return true;
 }
 

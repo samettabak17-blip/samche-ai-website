@@ -344,3 +344,37 @@ test('server enforcement keeps AI Guide as a product interrupt even when the mod
   assert.match(result.body.reply, /AI Guide/i);
   assert.match(result.body.reply, /languages/i);
 });
+
+test('latest user language overrides UI locale for Turkish product questions', async () => {
+  const service = createSalesChatService({
+    openaiClient: providerWith(JSON.stringify({
+      reply: 'SamChe AI fiziksel bir ürün değil; kurulum ve yapılandırma süreci işletmenizin ihtiyaçlarına göre tamamlanır. Hangi sektörde faaliyet gösteriyorsunuz?',
+      intent: 'product_question', extractedFields: {}, requestedNextField: 'industry', actionIntent: [],
+      responseMode: 'in_scope_interrupt', resumePendingQuestion: true,
+    })), commercialFacts,
+  });
+  const result = await service.handle({ body: requestBody({
+    locale: 'en', inputLanguage: 'tr', responseMode: 'in_scope_interrupt', detectedIntent: 'product_question',
+    userMessage: 'Ürünleri hemen teslim ediyor musunuz?', pendingQualificationField: 'industry',
+    lastPendingQuestion: 'What type of business do you operate?',
+  }) });
+  assert.equal(result.status, 200);
+  assert.equal(result.context.inputLanguage, 'tr');
+  assert.match(result.body.reply, /fiziksel bir ürün değil|kurulum/i);
+  assert.doesNotMatch(result.body.reply, /^What type of business/i);
+});
+
+test('provider replies in the latest language for English and Arabic questions', async () => {
+  for (const [locale, userMessage, reply, expected] of [
+    ['en', 'What products are available?', 'SamChe AI offers Web Chatbot, WhatsApp AI, and AI Guide.', /Web Chatbot/],
+    ['ar', 'ما المنتجات المتاحة؟', 'يوفر SamChe AI روبوت الموقع وWhatsApp AI وAI Guide.', /يوفر|المنتجات/],
+  ]) {
+    const service = createSalesChatService({
+      openaiClient: providerWith(JSON.stringify({ reply, intent: 'product_question', extractedFields: {}, requestedNextField: null, actionIntent: [], responseMode: 'in_scope_interrupt', resumePendingQuestion: true })),
+      commercialFacts,
+    });
+    const result = await service.handle({ body: requestBody({ locale, userMessage, responseMode: 'in_scope_interrupt', detectedIntent: 'product_question' }) });
+    assert.equal(result.status, 200);
+    assert.match(result.body.reply, expected);
+  }
+});
