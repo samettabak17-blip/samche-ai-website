@@ -139,6 +139,80 @@ test('rewrites future-tense and Arabic scheduling or email promises', () => {
   }
 });
 
+test('rewrites Turkish future scheduling promises to preference-only language', () => {
+  for (const unsafe of [
+    'Yarın saat 18:00 için demonuzu planlayacağım.',
+    'Randevunuzu oluşturacağım ve onaylayacağım.',
+    'Demo planlandı, yarın görüşürüz.',
+    'Randevunuz onaylandı.',
+    'Yarın size bir onay e-postası göndereceğiz.',
+  ]) {
+    const safe = salesChat.sanitizeSalesReply(unsafe, undefined, 'tr');
+    assert.notEqual(safe, unsafe, unsafe);
+    assert.match(safe, /tercih|uygunluğ|satış ekib/i, unsafe);
+    assert.doesNotMatch(safe, /planlayacağım|oluşturacağım|planlandı|onaylandı|göndereceğiz|rezervasyon/i, unsafe);
+  }
+});
+
+test('rewrites Turkish physical-delivery claims to SaaS implementation language', () => {
+  const unsafe = 'Evet, ürünlerimizi hemen teslim ediyoruz. Şimdi, iş türünüz hakkında daha fazla bilgi verebilir misiniz?';
+  const safe = salesChat.sanitizeSalesReply(unsafe, undefined, 'tr');
+  assert.notEqual(safe, unsafe);
+  assert.match(safe, /fiziksel bir ürün değil|kurulum|devreye alma/i);
+  assert.doesNotMatch(safe, /hemen teslim|stok|kargo|gönder/i);
+});
+
+test('server uses the latest Turkish language for unsafe product and demo replies', async () => {
+  const cases = [
+    ['Ürünleri hemen teslim ediyor musunuz?', 'Evet, ürünlerimizi hemen teslim ediyoruz.', /fiziksel bir ürün değil|kurulum|devreye alma/i],
+    ['Yarın saat 18:00 demo istiyorum', 'Yarın saat 18:00 için demonuzu planlayacağım.', /tercih|uygunluğ|satış ekib/i],
+  ];
+  for (const [userMessage, reply, expected] of cases) {
+    const service = createSalesChatService({
+      openaiClient: providerWith(JSON.stringify({
+        reply, intent: 'product_question', extractedFields: {}, requestedNextField: 'industry',
+        actionIntent: [], responseMode: 'in_scope_interrupt', resumePendingQuestion: true,
+      })), commercialFacts,
+    });
+    const result = await service.handle({ body: requestBody({
+      locale: 'en', userMessage, responseMode: 'in_scope_interrupt', detectedIntent: 'product_question',
+      inputLanguage: 'tr', pendingQualificationField: 'industry', lastPendingQuestion: 'What type of business do you operate?',
+    }) });
+    assert.equal(result.status, 200);
+    assert.match(result.body.reply, expected, userMessage);
+    assert.doesNotMatch(result.body.reply, /teslim ediyoruz|planlayacağım|onaylandı|scheduled|booked|confirmed/i, userMessage);
+  }
+});
+
+test('server localizes an unusable Turkish product response instead of returning an English fallback', async () => {
+  const service = createSalesChatService({
+    openaiClient: providerWith(JSON.stringify({
+      reply: 'SamChe AI can answer common questions.', intent: 'product_question', extractedFields: {}, requestedNextField: 'industry',
+      actionIntent: [], responseMode: 'in_scope_interrupt', resumePendingQuestion: true,
+    })), commercialFacts,
+  });
+  const result = await service.handle({ body: requestBody({
+    locale: 'en', userMessage: 'Ürünleri hemen teslim ediyor musunuz?', responseMode: 'in_scope_interrupt', detectedIntent: 'product_question', inputLanguage: 'tr',
+  }) });
+  assert.equal(result.status, 200);
+  assert.match(result.body.reply, /SamChe AI|fiziksel|kurulum|teslim/i);
+  assert.doesNotMatch(result.body.reply, /^SamChe AI can answer common questions/i);
+});
+
+test('does not classify English AI product questions as Turkish', async () => {
+  const service = createSalesChatService({
+    openaiClient: providerWith(JSON.stringify({
+      reply: 'AI Guide provides a guided product experience.', intent: 'feature_question', extractedFields: {}, requestedNextField: 'languages',
+      actionIntent: [], responseMode: 'in_scope_interrupt', resumePendingQuestion: true,
+    })), commercialFacts,
+  });
+  const result = await service.handle({ body: requestBody({
+    locale: 'en', userMessage: 'How does AI Guide work?', responseMode: 'in_scope_interrupt', detectedIntent: 'product_question',
+  }) });
+  assert.equal(result.context.inputLanguage, 'en');
+  assert.match(result.body.reply, /AI Guide/);
+});
+
 test('does not return provider-selected actions for usable interrupt responses', async () => {
   const service = createSalesChatService({
     openaiClient: providerWith(JSON.stringify({

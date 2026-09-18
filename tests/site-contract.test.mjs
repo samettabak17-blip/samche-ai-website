@@ -252,7 +252,7 @@ test('Sales Chat frontend targets the configured backend and never bundles a dir
   const salesClient = await readFile(new URL('../lib/samche-sales-chat-client.mjs', import.meta.url), 'utf8');
   assert.match(widget, /const salesChatApiBaseUrl = ''/);
   assert.match(salesClient, /\/api\/sales-chat/);
-  assert.match(salesClient, /validateSalesReply\(request\.reply\.reply, SALES_ACTION_CAPABILITIES\)/);
+  assert.match(salesClient, /validateSalesReply\(request\.reply\.reply, SALES_ACTION_CAPABILITIES/);
   assert.match(salesClient, /actionCapabilities: SALES_ACTION_CAPABILITIES/);
   const form = await readFile(new URL('../app/components/contact-form.tsx', import.meta.url), 'utf8');
   assert.match(form, /preferredDemoDate/);

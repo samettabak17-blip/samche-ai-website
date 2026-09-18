@@ -29,7 +29,10 @@ const finalUnsafeClaims = [
   "سيتم تحديد موعد العرض غداً.",
   "قام فريقنا بحجز اجتماعك غداً.",
   "موعدك مؤكد غداً.",
-  "لا مشكلة، تم حجز موعد العرض."
+  "لا مشكلة، تم حجز موعد العرض.",
+  "Evet, ürünlerimizi hemen teslim ediyoruz.",
+  "Yarın saat 18:00 için demonuzu planlayacağım.",
+  "Randevunuz onaylandı ve size bir onay e-postası göndereceğiz."
 ];
 const finalSafeReplies = [
   "Your demo has not been confirmed.",
@@ -49,6 +52,12 @@ for (const reply of finalUnsafeClaims) {
     for (const safeReply of finalSafeReplies) assert.equal(validateSalesReply(safeReply), safeReply);
   });
 }
+
+test('final regression: frontend rewrites Turkish unsafe claims safely', () => {
+  const safe = validateSalesReply('Yarın saat 18:00 için demonuzu planlayacağım.', undefined, 'tr');
+  assert.match(safe, /tercih|uygunluğ|satış ekib/i);
+  assert.doesNotMatch(safe, /planlayacağım|onaylandı|göndereceğiz/i);
+});
 
 
 async function resolveWith(fetchImpl) {
