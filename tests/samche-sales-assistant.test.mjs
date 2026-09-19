@@ -84,7 +84,8 @@ test('website and WhatsApp channels alone do not trigger a plan or sales escalat
   assert.equal(turn.state.lead.recommendedPlan, '');
   assert.match(turn.reply, /both your website and WhatsApp/i);
   assert.match(turn.reply, /how many.*enquiries/i);
-  assert.match(turn.reply, /CRM|lead qualification/i);
+  assert.match(turn.reply, /how many customer enquiries/i);
+  assert.doesNotMatch(turn.reply, /and do you need CRM|lead qualification/i);
   assert.equal(isLeadSummaryReady(turn.state.lead), false);
   assert.equal(turn.actions.some((action) => ['REQUEST DEMO', 'TALK TO SALES ON WHATSAPP'].includes(action.label)), false);
 });
