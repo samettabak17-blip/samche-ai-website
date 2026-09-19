@@ -279,6 +279,13 @@ test('explicit negative requirements remain known and are never re-asked', () =>
   assert.equal(state.lead.aiGuideNeed, false);
   assert.notEqual(getPendingQualificationField({ lead: state.lead }), 'aiGuideNeed');
   assert.equal(getSalesInputLanguage('هل يمكن أن يدعم الموقع شركتي؟'), 'ar');
+
+  const qualifiedLead = {
+    ...createInitialSalesState(),
+    lead: { ...createInitialSalesState().lead, industry: 'Real Estate', channels: ['Website'], volume: '500/month', integrations: 'CRM / booking integration requested', leadQualification: 'Lead qualification requested', languages: 'English', aiGuideNeed: false },
+  };
+  const nextTurn = generateSalesTurn(qualifiedLead, 'We have 3 users.');
+  assert.doesNotMatch(nextTurn.reply, /AI Guide/i);
 });
 
 test('WhatsApp summary contains only selected BMP-safe replacement icons', () => {
