@@ -243,7 +243,7 @@ button, a, select, summary { -webkit-tap-highlight-color: transparent; }
 .comparison-heading .eyebrow { margin-bottom:12px; }
 .comparison-heading h2 { margin:0; font-size:clamp(28px,3vw,40px); font-weight:500; letter-spacing:-.05em; }
 .comparison-heading > p { margin:8px 0 0; color:var(--muted); font-size:13px; }
-.comparison-scroll { overflow-x:auto; border:1px solid rgba(220,185,145,.14); border-radius:10px; scrollbar-color:#8d3945 #100b0e; }
+.comparison-scroll { overflow:hidden; border:1px solid rgba(220,185,145,.14); border-radius:10px; scrollbar-color:#8d3945 #100b0e; }
 .plan-comparison { width:100%; min-width:850px; border-collapse:separate; border-spacing:0; background:rgba(7,7,9,.28); }
 .plan-comparison th, .plan-comparison td { padding:12px 14px; border-bottom:1px solid rgba(220,185,145,.1); font-size:11px; line-height:1.5; text-align:left; vertical-align:middle; }
 .plan-comparison thead th { position:sticky; top:0; z-index:3; color:#f8f2ef; background:#1b1015; font-size:10px; letter-spacing:.09em; }
@@ -946,4 +946,40 @@ body { background:radial-gradient(ellipse at 50% -22%,rgba(143,10,30,.23),transp
   .new-hero .hero-actions .button { padding-inline:7px; font-size:8px; }
   .samche-chat-root { right:8px; bottom:8px; }
   .samche-chat-panel { right:8px; bottom:88px; width:calc(100% - 16px); max-height:calc(100dvh - 104px); }
+}
+
+/* Final mobile safety contract: the comparison is a compact matrix, never a swipe surface. */
+@media (max-width:760px) {
+  .new-hero, .new-hero-copy { min-width:0; }
+  .new-hero-copy h1 { overflow-wrap:anywhere; }
+  .comparison-scroll { width:100%; max-width:100%; overflow:hidden; }
+  .plan-comparison { width:100%; min-width:0; table-layout:fixed; }
+  .plan-comparison th:first-child { width:31%; min-width:0; position:static; }
+  .plan-comparison th[data-plan], .plan-comparison td[data-plan] { width:17.25%; min-width:0; }
+  .plan-comparison th, .plan-comparison td { padding:8px 4px; overflow-wrap:anywhere; word-break:break-word; font-size:9px; line-height:1.35; }
+  .plan-comparison thead th { font-size:8px; letter-spacing:.02em; }
+  .table-scroll-hint { display:none; }
+
+  .samche-chat-root { right:max(10px,env(safe-area-inset-right)); bottom:max(10px,env(safe-area-inset-bottom)); width:72px; height:72px; }
+  .samche-chat-panel { position:fixed; right:max(12px,env(safe-area-inset-right)); bottom:calc(82px + env(safe-area-inset-bottom)); width:min(390px,calc(100% - 24px)); height:min(560px,72dvh); max-height:min(560px,calc(100dvh - 96px - env(safe-area-inset-bottom))); padding-bottom:env(safe-area-inset-bottom); }
+  .samche-chat-messages { min-height:0; flex:1 1 auto; overscroll-behavior:contain; }
+  .samche-chat-header, .samche-chat-actions, .samche-lead-card, .samche-chat-form, .samche-chat-disclaimer, .samche-sales-actions { flex:none; }
+  .samche-chat-form { margin-bottom:4px; }
+}
+@media (max-width:430px) {
+  .comparison-section { padding-inline:10px; }
+  .plan-comparison th:first-child { width:30%; }
+  .plan-comparison th[data-plan], .plan-comparison td[data-plan] { width:17.5%; }
+  .plan-comparison th, .plan-comparison td { padding-inline:3px; font-size:8px; }
+  .plan-comparison thead th { font-size:7px; }
+  .samche-chat-panel { right:max(8px,env(safe-area-inset-right)); width:min(390px,calc(100% - 16px)); }
+  .samche-chat-messages { padding-inline:9px; }
+  .samche-message-content { max-width:90%; }
+}
+@media (max-width:350px) {
+  .plan-comparison th:first-child { width:29%; }
+  .plan-comparison th[data-plan], .plan-comparison td[data-plan] { width:17.75%; }
+  .plan-comparison th, .plan-comparison td { padding-inline:2px; font-size:7px; }
+  .plan-comparison thead th { font-size:6.5px; }
+  .samche-chat-panel { right:max(8px,env(safe-area-inset-right)); width:calc(100% - 16px); }
 }

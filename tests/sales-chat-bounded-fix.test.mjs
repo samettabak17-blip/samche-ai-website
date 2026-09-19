@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildLeadSummary, buildWhatsAppSalesUrl, createInitialSalesState, generateSalesTurn, getSalesInputLanguage, validateSalesReply, WHATSAPP_ICON_DIAGNOSTIC_MATRIX, WHATSAPP_SAFE_ICONS } from '../lib/samche-sales-assistant.mjs';
+import { buildLeadSummary, buildWhatsAppSalesUrl, createInitialSalesState, generateSalesTurn, getSalesDetectedIntent, getSalesInputLanguage, getSalesResponseMode, validateSalesReply, WHATSAPP_ICON_DIAGNOSTIC_MATRIX, WHATSAPP_SAFE_ICONS } from '../lib/samche-sales-assistant.mjs';
 import { resolveSalesChatTurn } from '../lib/samche-sales-chat-client.mjs';
 
 const userMessage = { role: 'user', text: 'We are a real estate company in Dubai.', time: '10:00 AM' };
@@ -57,6 +57,19 @@ test('final regression: frontend rewrites Turkish unsafe claims safely', () => {
   const safe = validateSalesReply('Yarın saat 18:00 için demonuzu planlayacağım.', undefined, 'tr');
   assert.match(safe, /tercih|uygunluğ|satış ekib/i);
   assert.doesNotMatch(safe, /planlayacağım|onaylandı|göndereceğiz/i);
+});
+
+test('turn isolation: Turkish product question does not contaminate a later English demo request', () => {
+  const initial = createInitialSalesState();
+  const first = generateSalesTurn(initial, 'Ürünleri hemen teslim ediyor musunuz?', [], 'en');
+  const latest = 'I want a demo tomorrow at 6 PM';
+  const second = generateSalesTurn(first.state, latest, [{ role: 'assistant', text: first.reply }], 'en');
+  assert.equal(getSalesInputLanguage(latest), 'en');
+  assert.equal(getSalesResponseMode(latest), 'demo_interrupt');
+  assert.equal(getSalesDetectedIntent(latest), 'demo_question');
+  assert.equal(second.state.lead.preferredDemoDate, 'Tomorrow');
+  assert.equal(second.state.lead.preferredDemoTime, '6:00 PM');
+  assert.doesNotMatch(second.reply, /fiziksel bir ürün değil|kurulum|teslim/i);
 });
 
 

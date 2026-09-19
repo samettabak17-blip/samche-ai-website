@@ -47,7 +47,6 @@ export function PricingTable() {
     </div>
     <section className="comparison-section" aria-labelledby="compare-plans-heading">
       <div className="comparison-heading"><SectionEyebrow>Plan details</SectionEyebrow><h2 id="compare-plans-heading">COMPARE PLANS</h2><p>Compare the approved subscriptions, included allowances, and plan features side by side. An em dash marks a feature not listed as included for that plan.</p></div>
-      <p className="table-scroll-hint">Swipe to compare plans <span aria-hidden="true">→</span></p>
       <div className="comparison-scroll" role="region" aria-label="SamChe AI plan comparison" tabIndex={0}>
         <table className="plan-comparison">
           <thead><tr><th scope="col">FEATURE</th>{plans.map((plan) => <th scope="col" data-plan={plan.slug} key={plan.slug}>{plan.name}</th>)}</tr></thead>

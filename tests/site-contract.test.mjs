@@ -244,6 +244,14 @@ test('website chat presentation defaults cover dashboard-compatible content and 
   assert.match(css, /@media\s*\(max-width:\s*350px\)[\s\S]*?\.samche-chat-panel/);
   assert.match(css, /\.samche-chat-header\s*>\s*\.samche-header-orb\s*\{[^}]*width:\s*42px[^}]*height:\s*42px/s);
   assert.doesNotMatch(css, /@media\s*\(max-width:\s*430px\)[\s\S]*?\.samche-chat-title small\s*\{\s*display:\s*none/);
+  assert.doesNotMatch(css, /\.comparison-scroll\s*\{[^}]*overflow-x\s*:\s*auto/s);
+  assert.match(css, /\.plan-comparison\s*\{[^}]*table-layout\s*:\s*fixed/s);
+  assert.match(css, /@media\s*\(max-width:\s*430px\)[\s\S]*?\.plan-comparison\s*\{[^}]*min-width\s*:\s*0/s);
+  assert.match(css, /\.samche-chat-panel\s*\{[^}]*100dvh/s);
+  assert.match(css, /\.samche-chat-panel[\s\S]*env\(safe-area-inset-bottom/s);
+  assert.match(css, /\.samche-chat-panel\s*\{[^}]*calc\(100%\s*-\s*24px\)/s);
+  const pricingComponent = await readFile(new URL('../app/components/pricing-table.tsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(pricingComponent, /Swipe to compare plans/);
 });
 
 test('Sales Chat frontend targets the configured backend and never bundles a direct OpenAI transport', async () => {
