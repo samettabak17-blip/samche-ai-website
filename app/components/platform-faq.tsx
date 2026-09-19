@@ -28,8 +28,8 @@ export const platformFaqItems = [
     answer: 'Human handover is included in Starter, and Growth includes shared inbox capabilities for team follow-through where configured. Higher-scope arrangements can be reviewed with sales.',
   },
   {
-    question: 'What happens if I exceed my monthly interaction limit?',
-    answer: 'Each plan has a monthly interaction allowance. If your expected volume is higher, the sales team can review the next suitable plan or a custom Enterprise scope.',
+    question: 'What happens if I exceed my monthly AI interaction allowance?',
+    answer: 'If your usage approaches or exceeds your plan allowance, SamChe AI can recommend a higher plan or a custom usage arrangement. Exact commercial terms depend on the selected plan and agreed scope.',
   },
   {
     question: 'How long does implementation take?',

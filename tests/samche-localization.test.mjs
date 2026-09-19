@@ -63,6 +63,16 @@ test('Arabic resource strings translate navigation, prices, and plan copy', () =
   assert.equal(translateText('Custom Workflows', 'ar'), 'مسارات عمل مخصصة');
 });
 
+test('Arabic localization covers every AI interaction allowance concept', () => {
+  for (const text of [
+    'Understanding Your Monthly AI Interactions',
+    'Each plan includes a monthly allowance for AI-powered customer interactions across supported SamChe AI channels.',
+    'Monthly Allowance', 'What Counts', 'What Does Not Count', 'Voice AI Usage', 'Higher Usage', 'Billing Period',
+    'OpenAI tokens', 'Gemini tokens', 'website visits', 'human-only inbox activity',
+    'What happens if I exceed my monthly AI interaction allowance?',
+  ]) assert.match(translateText(text, 'ar'), /\p{Script=Arabic}/u, `Arabic translation missing for: ${text}`);
+});
+
 test('Arabic page copy covers privacy, platform, security, contact and orb helper text', () => {
   const sourceCopy = [
     'This policy covers the SamChe AI website and the demo/contact links presented here.',

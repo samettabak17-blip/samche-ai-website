@@ -118,12 +118,20 @@ test('expanded platform comparison uses cumulative explicit capability states', 
 });
 
 test('interaction allowance explanation is present and separates Voice AI usage', async () => {
-  assert.equal(interactionAllowanceCards.length, 4);
+  assert.equal(interactionAllowanceCards.length, 6);
   const copy = interactionAllowanceCards.map((card) => `${card.title} ${card.body}`).join(' ');
-  for (const value of ['5,000 interactions / month', '20,000 interactions / month', '50,000 interactions / month', '100,000+ interactions / month']) assert.match(copy, new RegExp(value.replace(/[+,]/g, '\\$&')));
+  for (const value of ['5,000 AI interactions / month', '20,000 AI interactions / month', '50,000 AI interactions / month', '100,000+ AI interactions / month']) assert.match(copy, new RegExp(value.replace(/[+,]/g, '\\$&')));
+  for (const title of ['Monthly Allowance', 'What Counts', 'What Does Not Count', 'Voice AI Usage', 'Higher Usage', 'Billing Period']) assert.ok(interactionAllowanceCards.some((card) => card.title === title), `missing ${title}`);
+  assert.match(copy, /OpenAI.*Gemini|Gemini.*OpenAI/i);
+  assert.match(copy, /website visits|website page views/i);
+  assert.match(copy, /human-only inbox activity/i);
   assert.match(copy, /Voice AI/);
-  assert.match(copy, /priced separately/i);
-  assert.doesNotMatch(copy, /automatic rollover|automatic billing|fair use/i);
+  assert.match(copy, /separate usage-based pricing/i);
+  assert.match(copy, /commercial agreement/i);
+  assert.doesNotMatch(copy, /automatic overage billing|automatic suspension|fair use|1 message\s*=\s*1 interaction/i);
+  const faq = await import('node:fs/promises').then(({ readFile }) => readFile(new URL('../app/components/platform-faq.tsx', import.meta.url), 'utf8'));
+  assert.match(faq, /What happens if I exceed my monthly AI interaction allowance\?/);
+  assert.match(faq, /If your usage approaches or exceeds your plan allowance, SamChe AI can recommend a higher plan or a custom usage arrangement\. Exact commercial terms depend on the selected plan and agreed scope\./);
 });
 
 test('platform page renders the same shared FAQ component as pricing', async () => {
