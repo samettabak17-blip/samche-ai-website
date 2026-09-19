@@ -66,7 +66,7 @@ export function PricingTable() {
       <div className="comparison-state-legend" aria-label="Comparison state legend">{comparisonStateLegend.map((item) => <div className="comparison-legend-item" key={item.state}><span className={`comparison-state comparison-state-${comparisonStateClass(item.state)}`}>{item.state}</span><span>{item.description}</span></div>)}</div>
     </section>
     <section className="interaction-explanation" aria-labelledby="interaction-explanation-heading">
-      <div className="comparison-heading"><SectionEyebrow>Usage explained</SectionEyebrow><h2 id="interaction-explanation-heading">Understanding Your AI Interaction Allowance</h2><p>SamChe AI measures customer-facing AI usage by enabled channel and service configuration, not by provider token count.</p></div>
+      <div className="comparison-heading"><SectionEyebrow>Usage explained</SectionEyebrow><h2 id="interaction-explanation-heading">Understanding Your Monthly AI Interactions</h2><p>Each plan includes a monthly allowance for AI-powered customer interactions across supported SamChe AI channels.</p></div>
       <div className="interaction-explanation-grid">{interactionAllowanceCards.map((card) => <article className="interaction-explanation-card" key={card.title}><h3>{card.title}</h3><p>{card.body}</p></article>)}</div>
     </section>
     <section className="addons" aria-labelledby="addons-heading">

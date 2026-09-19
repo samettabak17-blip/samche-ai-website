@@ -150,8 +150,16 @@ test('comparison and allowance sections declare bilingual and mobile-safe contra
   const data = await readFile(new URL('../lib/site-data.mjs', import.meta.url), 'utf8');
   const localization = await readFile(new URL('../lib/samche-localization.mjs', import.meta.url), 'utf8');
   const css = await readFile(new URL('../app/globals.css', import.meta.url), 'utf8');
-  for (const text of ['Core AI foundation', 'Everything in Starter + growth capabilities', 'Understanding Your AI Interaction Allowance', 'Monthly Allowance', 'What Counts', 'Voice AI', 'Higher Usage']) assert.ok(component.includes(text) || data.includes(text), `missing ${text}`);
+  for (const text of ['Core AI foundation', 'Everything in Starter + growth capabilities', 'Understanding Your Monthly AI Interactions', 'Monthly Allowance', 'What Counts', 'Voice AI Usage', 'Higher Usage']) assert.ok(component.includes(text) || data.includes(text), `missing ${text}`);
   for (const text of ['مقارنة ميزات المنصة', 'فهم حصة تفاعلات الذكاء الاصطناعي', 'البدل الشهري', 'ما الذي يُحتسب؟']) assert.ok(localization.includes(text), `missing Arabic ${text}`);
+  assert.match(component, /<section className="interaction-explanation"[\s\S]*<section className="addons"/);
+  assert.match(component, /interactionAllowanceCards\.map/);
+  assert.match(component, /Understanding Your Monthly AI Interactions/);
+  assert.match(component, /Each plan includes a monthly allowance for AI-powered customer interactions across supported SamChe AI channels\./);
+  assert.match(css, /\.interaction-explanation-grid\s*\{[^}]*display:\s*grid/s);
+  assert.match(css, /@media\s*\(max-width:\s*760px\)[\s\S]*?\.interaction-explanation-grid\s*\{[^}]*grid-template-columns:\s*1fr/s);
+  assert.match(css, /\.interaction-explanation-card\s*\{[^}]*min-width:\s*0/s);
+  assert.doesNotMatch(css, /\.interaction-explanation-card\s*\{[^}]*min-width:\s*\d{3,}px/s);
   assert.doesNotMatch(css, /@media\s*\(max-width:\s*760px\)[\s\S]*?\.plan-comparison\s*\{[^}]*min-width:\s*820px/s);
   assert.doesNotMatch(css, /\.plan-comparison\s*\{[^}]*min-width:\s*(?:790|820)px/s);
   assert.match(css, /\.plan-comparison\s*\{[^}]*table-layout:\s*fixed/s);
