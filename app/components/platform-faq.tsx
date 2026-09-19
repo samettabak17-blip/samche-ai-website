@@ -1,4 +1,4 @@
-const faqItems = [
+export const platformFaqItems = [
   {
     question: 'What is SamChe AI Platform?',
     answer: 'SamChe AI Platform is a multi-tenant SaaS workspace for customer-facing AI assistants, business knowledge, conversations, leads and connected customer operations.',
@@ -49,7 +49,7 @@ export function PlatformFAQ() {
       <p>Clear answers about channels, knowledge, integrations and implementation scope.</p>
     </div>
     <div className="platform-faq-list">
-      {faqItems.map((item, index) => {
+      {platformFaqItems.map((item, index) => {
         const answerId = `platform-faq-answer-${index + 1}`;
         return <details className="platform-faq-item" key={item.question}>
           <summary aria-controls={answerId}><span>{item.question}</span><b aria-hidden="true">+</b></summary>

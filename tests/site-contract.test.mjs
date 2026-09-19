@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { plans, addons, demoLinks, planComparisonRows, planFromSearch, productScreenshots, yearlyPrice } from '../lib/site-data.mjs';
+import { plans, addons, demoLinks, planComparisonRows, platformFeatureGroups, interactionAllowanceCards, planFromSearch, productScreenshots, yearlyPrice } from '../lib/site-data.mjs';
 import { getSamcheChatReply, sendSamcheChatMessage } from '../lib/samche-chat.mjs';
 import { defaultSamcheChatConfig } from '../lib/samche-chat-config.mjs';
 
@@ -65,19 +65,18 @@ test('comparison source data remains limited to approved plan features', () => {
   assert.ok(planComparisonRows.length >= 22);
   assert.ok(planComparisonRows.every((row) => row.values.length === 4));
   const rows = Object.fromEntries(planComparisonRows.map((row) => [row.label, row.values]));
-  assert.deepEqual(rows.Languages, ['Up to 2 Languages', 'Up to 3 Languages', 'Up to 5 Languages', 'Extended Multilingual Support']);
-  assert.deepEqual(rows['AI Guide'], ['—', '—', 'Included', '—']);
-  assert.deepEqual(rows['Custom Data Retention'], ['—', '—', '—', 'Custom Data Retention']);
-  assert.equal(rows['Team Users'][1], 'Up to 5 Team Users');
-  assert.equal(rows['Team Users'][2], 'Up to 10 Team Users');
+  assert.deepEqual(rows.Languages, ['Up to 2', 'Up to 3', 'Up to 5', 'Extended / Custom']);
+  assert.deepEqual(rows['AI Guide'], ['Not included', 'Not included', 'Included', 'Included']);
+  assert.deepEqual(rows['Custom Data Retention'], ['Not included', 'Not included', 'Not included', 'Custom']);
+  assert.equal(rows['Team Users'][0], 'Standard access');
+  assert.equal(rows['Team Users'][1], 'Up to 5');
+  assert.equal(rows['Team Users'][2], 'Up to 10');
 });
 
 test('platform feature comparison replaces the old pricing-only matrix', async () => {
   const { readFile } = await import('node:fs/promises');
   const component = await readFile(new URL('../app/components/pricing-table.tsx', import.meta.url), 'utf8');
-  for (const label of ['Platform Feature Comparison', 'AI Channels', 'Knowledge & Intelligence', 'CRM & Lead Management', 'Integrations & Automation', 'Team & Operations', 'Usage & Language']) {
-    assert.ok(component.includes(label), `comparison should include ${label}`);
-  }
+  for (const label of ['Platform Feature Comparison', 'platformFeatureGroups', 'interactionAllowanceCards']) assert.ok(component.includes(label), `comparison should include ${label}`);
   for (const plan of ['STARTER', 'GROWTH', 'BUSINESS', 'ENTERPRISE']) assert.ok(component.includes(`data-plan={plan.slug}`) || component.includes(plan), `comparison should include ${plan}`);
   assert.doesNotMatch(component, /Monthly subscription.*Yearly subscription.*One-time setup/s);
   assert.match(component, /Platform Feature Comparison/);
@@ -100,6 +99,54 @@ test('platform comparison and FAQ provide accessible bilingual contracts', async
   assert.match(pricingTable, /<PlatformFAQ \/>/);
   assert.match(css, /\.platform-faq/);
   assert.match(css, /\.platform-faq.*data-locale="ar"|data-locale="ar".*\.platform-faq/s);
+});
+
+test('expanded platform comparison uses cumulative explicit capability states', () => {
+  assert.ok(platformFeatureGroups.length >= 6);
+  const rows = platformFeatureGroups.flatMap((group) => group.rows);
+  assert.ok(rows.length >= 30);
+  assert.ok(rows.every((row) => row.values.length === 4));
+  const rank = { 'Not included': 0, Roadmap: 0, 'Add-on': 1, 'By scope': 1, Custom: 1, Included: 2 };
+  for (const row of rows) {
+    for (let index = 1; index < row.values.length; index += 1) {
+      if (rank[row.values[index - 1]] === 2) assert.match(row.values[index], /^Included/, `${row.label} must be inherited by ${index}`);
+    }
+  }
+  assert.ok(rows.every((row) => row.values.every((value) => value !== '—' && value !== '-')));
+  assert.ok(rows.some((row) => row.label === 'Agentic AI / Skills / Actions / Workflow Engine' && row.note));
+  assert.deepEqual(rows.find((row) => row.label === 'Monthly AI Interactions')?.values, ['5,000 / month', '20,000 / month', '50,000 / month', '100,000+ / month']);
+});
+
+test('interaction allowance explanation is present and separates Voice AI usage', async () => {
+  assert.equal(interactionAllowanceCards.length, 4);
+  const copy = interactionAllowanceCards.map((card) => `${card.title} ${card.body}`).join(' ');
+  for (const value of ['5,000 interactions / month', '20,000 interactions / month', '50,000 interactions / month', '100,000+ interactions / month']) assert.match(copy, new RegExp(value.replace(/[+,]/g, '\\$&')));
+  assert.match(copy, /Voice AI/);
+  assert.match(copy, /separate usage-based pricing/i);
+  assert.doesNotMatch(copy, /automatic rollover|automatic billing|fair use/i);
+});
+
+test('platform page renders the same shared FAQ component as pricing', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const faq = await readFile(new URL('../app/components/platform-faq.tsx', import.meta.url), 'utf8');
+  const platform = await readFile(new URL('../app/platform/page.tsx', import.meta.url), 'utf8');
+  assert.match(faq, /export const platformFaqItems/);
+  assert.match(platform, /import \{ PlatformFAQ \} from ['"]\.\.\/components\/platform-faq['"];?/);
+  assert.match(platform, /<PlatformFAQ \/>/);
+  assert.doesNotMatch(platform, /What is SamChe AI Platform\?/);
+});
+
+test('comparison and allowance sections declare bilingual and mobile-safe contracts', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const component = await readFile(new URL('../app/components/pricing-table.tsx', import.meta.url), 'utf8');
+  const data = await readFile(new URL('../lib/site-data.mjs', import.meta.url), 'utf8');
+  const localization = await readFile(new URL('../lib/samche-localization.mjs', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../app/globals.css', import.meta.url), 'utf8');
+  for (const text of ['Core AI foundation', 'Everything in Starter + growth capabilities', 'Understanding Your AI Interaction Allowance', 'Monthly Allowance', 'What Counts', 'Voice AI', 'Higher Usage']) assert.ok(component.includes(text) || data.includes(text), `missing ${text}`);
+  for (const text of ['مقارنة ميزات المنصة', 'فهم حصة تفاعلات الذكاء الاصطناعي', 'البدل الشهري', 'ما الذي يُحتسب؟']) assert.ok(localization.includes(text), `missing Arabic ${text}`);
+  assert.doesNotMatch(css, /@media\s*\(max-width:\s*760px\)[\s\S]*?\.plan-comparison\s*\{[^}]*min-width:\s*820px/s);
+  assert.doesNotMatch(css, /\.plan-comparison\s*\{[^}]*min-width:\s*(?:790|820)px/s);
+  assert.match(css, /\.plan-comparison\s*\{[^}]*table-layout:\s*fixed/s);
 });
 
 test('homepage is a product-led SaaS sales journey with real-product evidence', async () => {
@@ -131,10 +178,10 @@ test('comparison table includes all approved commercial rows', () => {
   const labels = new Set(planComparisonRows.map((row) => row.label));
   for (const label of [
     'Languages', 'Web Chatbot', 'WhatsApp AI', 'AI Guide', 'Advanced Knowledge Intelligence',
-    'Entity-aware Intelligence', 'Page-aware context', 'Lead capture', 'Shared Inbox',
-    'Lead qualification', 'AI lead scoring', 'CRM / Booking integration',
-    'External integrations', 'API access', 'Custom workflows', 'Team Users',
-    'Multiple brands / sites', 'ERP / Payment integrations', 'Support', 'Custom Data Retention',
+    'Entity-aware Intelligence', 'Page-aware Context', 'Basic Lead Capture', 'SamChe Shared Inbox',
+    'Lead Qualification', 'AI Lead Scoring', 'CRM Integration',
+    'External Integrations', 'API Access', 'Custom Workflows', 'Team Users',
+    'Multiple Websites / Brands', 'ERP Integrations', 'Support Level', 'Custom Data Retention',
   ]) assert.ok(labels.has(label), `comparison should include ${label}`);
 });
 

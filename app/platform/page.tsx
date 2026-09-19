@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from '../components/internal-link';
 import { demoLinks, productModules } from '../../lib/site-data.mjs';
 import { ProductScreenshot } from '../components/product-screenshot';
+import { PlatformFAQ } from '../components/platform-faq';
 import { PageIntro, ProductCTA, SectionEyebrow, SiteShell } from '../components/site-shell';
 
 export const metadata: Metadata = {
@@ -25,6 +26,7 @@ export default function PlatformPage() {
       <div className="content-block"><SectionEyebrow>Live Inbox + CRM</SectionEyebrow><h2>Move between AI handling and team follow-up.</h2><p>Conversations are organized by channel in the tenant dashboard. Team members can review conversations, reply, take over from AI, and return handling to AI where the conversation supports those actions. Leads and pipeline records have dedicated workspace views.</p></div>
       <div className="content-block"><SectionEyebrow>Connected experiences</SectionEyebrow><h2>Use the live demos to explore customer-facing experiences.</h2><p>Explore the Web Chatbot, WhatsApp AI and existing AI Guide customer experiences. The Guide offers structured Roadmap, Planning, Assistant, and Analyze modes for a business-specific journey.</p><div className="hero-actions"><a className="button button-demo-gold" href={demoLinks.aiGuide} target="_blank" rel="noreferrer">TRY AI GUIDE <span aria-hidden="true">↗</span></a><a className="button button-demo-red" href={demoLinks.webChatbot} target="_blank" rel="noreferrer">TRY WEB CHATBOT <span aria-hidden="true">↗</span></a><a className="button button-demo-green" href={demoLinks.whatsapp} target="_blank" rel="noreferrer">TRY WHATSAPP AI <span aria-hidden="true">↗</span></a></div></div>
       <div className="architecture-note"><p><strong>Current product status:</strong> Dashboard &amp; Tenant Analytics, AI Assistants, Knowledge Intelligence, Live Inbox, CRM &amp; Pipeline, and AI Guide experience management are represented in the existing dashboard implementation. Automation / Agentic AI is labeled Roadmap / Upcoming.</p></div>
+      <PlatformFAQ />
       <div className="center-action"><ProductCTA href="/pricing" secondary>See Pricing</ProductCTA><Link className="text-link" href="/contact">Request Demo <span aria-hidden="true">↗</span></Link></div>
     </section>
   </main></SiteShell>;
