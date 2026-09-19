@@ -2,7 +2,7 @@
 
 import Link from './internal-link';
 import { Fragment, useState } from 'react';
-import { addons, addonNotes, interactionAllowanceCards, planInheritanceNotes, plans, platformFeatureGroups, setupPrice } from '../../lib/site-data.mjs';
+import { addons, addonNotes, agenticExpansionNote, comparisonStateLegend, interactionAllowanceCards, planInheritanceNotes, plans, platformFeatureGroups, setupPrice } from '../../lib/site-data.mjs';
 import { PlatformFAQ } from './platform-faq';
 import { SectionEyebrow } from './site-shell';
 
@@ -20,6 +20,17 @@ function priceParts(plan: (typeof plans)[number], yearly: boolean) {
 
 function indexForPlan(slug: string) {
   return plans.findIndex((plan) => plan.slug === slug);
+}
+
+function comparisonStateClass(value: string) {
+  const normalized = value.toLowerCase();
+  if (normalized.startsWith('included')) return 'included';
+  if (normalized.startsWith('not included')) return 'not-included';
+  if (normalized.startsWith('add-on')) return 'add-on';
+  if (normalized.startsWith('by scope')) return 'by-scope';
+  if (normalized.startsWith('custom')) return 'custom';
+  if (normalized.startsWith('roadmap')) return 'roadmap';
+  return 'neutral';
 }
 
 export function PricingTable() {
@@ -49,9 +60,10 @@ export function PricingTable() {
       <div className="comparison-scroll" role="region" aria-label="SamChe AI plan comparison" tabIndex={0}>
         <table className="plan-comparison">
           <thead><tr><th scope="col">FEATURE</th>{plans.map((plan) => <th scope="col" data-plan={plan.slug} key={plan.slug}>{plan.name}</th>)}</tr></thead>
-          <tbody>{platformFeatureGroups.map((group) => <Fragment key={group.label}><tr className="comparison-group"><th colSpan={5}>{group.label}</th></tr>{group.rows.map((row) => <tr key={`${group.label}-${row.label}`}><th scope="row">{row.label}{row.note && <small className="comparison-note">{row.note}</small>}</th>{row.values.map((value, index) => <td data-plan={plans[index].slug} key={plans[index].slug}>{value}</td>)}</tr>)}</Fragment>)}</tbody>
+          <tbody>{platformFeatureGroups.map((group) => <Fragment key={group.label}><tr className="comparison-group"><th colSpan={5}>{group.label}</th></tr>{group.rows.map((row) => <tr key={`${group.label}-${row.label}`}><th scope="row">{row.label}</th>{row.values.map((value, index) => <td data-plan={plans[index].slug} key={plans[index].slug}><span className={`comparison-state comparison-state-${comparisonStateClass(value)}`}>{value}</span></td>)}</tr>)}{group.label === 'Integrations & Automation' && <tr className="comparison-group-note"><th colSpan={5}>{agenticExpansionNote}</th></tr>}</Fragment>)}</tbody>
         </table>
       </div>
+      <div className="comparison-state-legend" aria-label="Comparison state legend">{comparisonStateLegend.map((item) => <div className="comparison-legend-item" key={item.state}><span className={`comparison-state comparison-state-${comparisonStateClass(item.state)}`}>{item.state}</span><span>{item.description}</span></div>)}</div>
     </section>
     <section className="interaction-explanation" aria-labelledby="interaction-explanation-heading">
       <div className="comparison-heading"><SectionEyebrow>Usage explained</SectionEyebrow><h2 id="interaction-explanation-heading">Understanding Your AI Interaction Allowance</h2><p>SamChe AI measures customer-facing AI usage by enabled channel and service configuration, not by provider token count.</p></div>

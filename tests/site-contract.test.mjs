@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { plans, addons, demoLinks, planComparisonRows, platformFeatureGroups, interactionAllowanceCards, planFromSearch, productScreenshots, yearlyPrice } from '../lib/site-data.mjs';
+import { plans, addons, comparisonStateLegend, demoLinks, planComparisonRows, platformFeatureGroups, interactionAllowanceCards, planFromSearch, productScreenshots, yearlyPrice } from '../lib/site-data.mjs';
 import { getSamcheChatReply, sendSamcheChatMessage } from '../lib/samche-chat.mjs';
 import { defaultSamcheChatConfig } from '../lib/samche-chat-config.mjs';
 
@@ -113,7 +113,7 @@ test('expanded platform comparison uses cumulative explicit capability states', 
     }
   }
   assert.ok(rows.every((row) => row.values.every((value) => value !== '—' && value !== '-')));
-  assert.ok(rows.some((row) => row.label === 'Agentic AI / Skills / Actions / Workflow Engine' && row.note));
+  assert.ok(rows.some((row) => row.label === 'Agentic AI'));
   assert.deepEqual(rows.find((row) => row.label === 'Monthly AI Interactions')?.values, ['5,000 / month', '20,000 / month', '50,000 / month', '100,000+ / month']);
 });
 
@@ -122,7 +122,7 @@ test('interaction allowance explanation is present and separates Voice AI usage'
   const copy = interactionAllowanceCards.map((card) => `${card.title} ${card.body}`).join(' ');
   for (const value of ['5,000 interactions / month', '20,000 interactions / month', '50,000 interactions / month', '100,000+ interactions / month']) assert.match(copy, new RegExp(value.replace(/[+,]/g, '\\$&')));
   assert.match(copy, /Voice AI/);
-  assert.match(copy, /separate usage-based pricing/i);
+  assert.match(copy, /priced separately/i);
   assert.doesNotMatch(copy, /automatic rollover|automatic billing|fair use/i);
 });
 
@@ -147,6 +147,41 @@ test('comparison and allowance sections declare bilingual and mobile-safe contra
   assert.doesNotMatch(css, /@media\s*\(max-width:\s*760px\)[\s\S]*?\.plan-comparison\s*\{[^}]*min-width:\s*820px/s);
   assert.doesNotMatch(css, /\.plan-comparison\s*\{[^}]*min-width:\s*(?:790|820)px/s);
   assert.match(css, /\.plan-comparison\s*\{[^}]*table-layout:\s*fixed/s);
+});
+
+test('final comparison content preserves availability through Enterprise scale', async () => {
+  const rows = platformFeatureGroups.flatMap((group) => group.rows);
+  const byLabel = Object.fromEntries(rows.map((row) => [row.label, row]));
+  const included = (value) => /^Included(?:\s·|$)/.test(value);
+  for (const row of rows) {
+    for (let index = 1; index < row.values.length; index += 1) {
+      if (included(row.values[index - 1])) assert.ok(included(row.values[index]), `${row.label} loses Included at ${index}`);
+    }
+  }
+  assert.equal(byLabel['CRM Integration'].values[3], 'Included · Custom scale');
+  assert.equal(byLabel['Booking Integration'].values[3], 'Included · Custom scale');
+  assert.equal(byLabel['API Access'].values[3], 'Included');
+  assert.equal(byLabel['Custom Workflows'].values[3], 'Included · By scope');
+  assert.equal(rows.filter((row) => /Page-aware/i.test(row.label)).length, 1);
+  assert.ok(byLabel['Approved Knowledge Workflow']);
+  assert.deepEqual(['Agentic AI', 'Skills', 'Actions', 'Workflow Engine'].map((label) => byLabel[label]?.values), [
+    ['Roadmap', 'Roadmap', 'Roadmap / By scope', 'Roadmap / By scope'],
+    ['Roadmap', 'Roadmap', 'Roadmap / By scope', 'Roadmap / By scope'],
+    ['Roadmap', 'Roadmap', 'Roadmap / By scope', 'Roadmap / By scope'],
+    ['Roadmap', 'Roadmap', 'Roadmap / By scope', 'Roadmap / By scope'],
+  ]);
+});
+
+test('comparison legend and agentic note are rendered from shared content', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const component = await readFile(new URL('../app/components/pricing-table.tsx', import.meta.url), 'utf8');
+  const data = await readFile(new URL('../lib/site-data.mjs', import.meta.url), 'utf8');
+  assert.equal(comparisonStateLegend.length, 6);
+  for (const state of ['Included', 'Not included', 'Add-on', 'By scope', 'Custom', 'Roadmap']) assert.ok(comparisonStateLegend.some((item) => item.state === state));
+  assert.match(data, /These capabilities represent SamChe AI's platform expansion direction/);
+  assert.match(component, /comparisonStateLegend/);
+  assert.match(component, /comparison-state-legend/);
+  assert.match(component, /agenticExpansionNote/);
 });
 
 test('homepage is a product-led SaaS sales journey with real-product evidence', async () => {
@@ -181,7 +216,7 @@ test('comparison table includes all approved commercial rows', () => {
     'Entity-aware Intelligence', 'Page-aware Context', 'Basic Lead Capture', 'SamChe Shared Inbox',
     'Lead Qualification', 'AI Lead Scoring', 'CRM Integration',
     'External Integrations', 'API Access', 'Custom Workflows', 'Team Users',
-    'Multiple Websites / Brands', 'ERP Integrations', 'Support Level', 'Custom Data Retention',
+    'Multiple Brands / Sites', 'ERP Integrations', 'Support Level', 'Custom Data Retention',
   ]) assert.ok(labels.has(label), `comparison should include ${label}`);
 });
 
