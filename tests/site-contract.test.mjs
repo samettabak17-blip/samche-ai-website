@@ -61,7 +61,7 @@ test('approved add-ons and external demos use the approved values', () => {
   assert.match(productScreenshots.knowledgeIntelligence, /^https:\/\/assets\.zyrosite\.com\//);
 });
 
-test('comparison table is limited to approved plan features', () => {
+test('comparison source data remains limited to approved plan features', () => {
   assert.ok(planComparisonRows.length >= 22);
   assert.ok(planComparisonRows.every((row) => row.values.length === 4));
   const rows = Object.fromEntries(planComparisonRows.map((row) => [row.label, row.values]));
@@ -70,6 +70,36 @@ test('comparison table is limited to approved plan features', () => {
   assert.deepEqual(rows['Custom Data Retention'], ['—', '—', '—', 'Custom Data Retention']);
   assert.equal(rows['Team Users'][1], 'Up to 5 Team Users');
   assert.equal(rows['Team Users'][2], 'Up to 10 Team Users');
+});
+
+test('platform feature comparison replaces the old pricing-only matrix', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const component = await readFile(new URL('../app/components/pricing-table.tsx', import.meta.url), 'utf8');
+  for (const label of ['Platform Feature Comparison', 'AI Channels', 'Knowledge & Intelligence', 'CRM & Lead Management', 'Integrations & Automation', 'Team & Operations', 'Usage & Language']) {
+    assert.ok(component.includes(label), `comparison should include ${label}`);
+  }
+  for (const plan of ['STARTER', 'GROWTH', 'BUSINESS', 'ENTERPRISE']) assert.ok(component.includes(`data-plan={plan.slug}`) || component.includes(plan), `comparison should include ${plan}`);
+  assert.doesNotMatch(component, /Monthly subscription.*Yearly subscription.*One-time setup/s);
+  assert.match(component, /Platform Feature Comparison/);
+  assert.doesNotMatch(component, /overflow-x\s*:\s*auto/);
+});
+
+test('platform comparison and FAQ provide accessible bilingual contracts', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const faq = await readFile(new URL('../app/components/platform-faq.tsx', import.meta.url), 'utf8');
+  const pricing = await readFile(new URL('../app/pricing/page.tsx', import.meta.url), 'utf8');
+  const pricingTable = await readFile(new URL('../app/components/pricing-table.tsx', import.meta.url), 'utf8');
+  const localization = await readFile(new URL('../lib/samche-localization.mjs', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../app/globals.css', import.meta.url), 'utf8');
+  for (const text of ['What is SamChe AI Platform?', 'Which AI channels can I use?', 'Can SamChe AI learn from my business documents?', 'Can a human take over an AI conversation?', 'Can SamChe AI be configured for multiple brands or websites?']) assert.ok(faq.includes(text), `FAQ should include ${text}`);
+  for (const text of ['ما هي منصة SamChe AI؟', 'ما القنوات التي يدعمها SamChe AI؟', 'هل يستطيع SamChe AI التعلم من مستندات أعمالي؟', 'هل يمكن للإنسان تولي المحادثة؟', 'هل يمكن إعداد SamChe AI لعلامات أو مواقع متعددة؟']) assert.ok(localization.includes(text), `Arabic FAQ should include ${text}`);
+  assert.match(faq, /<details/);
+  assert.match(faq, /<summary/);
+  assert.match(faq, /aria-controls/);
+  assert.match(pricing, /PricingTable/);
+  assert.match(pricingTable, /<PlatformFAQ \/>/);
+  assert.match(css, /\.platform-faq/);
+  assert.match(css, /\.platform-faq.*data-locale="ar"|data-locale="ar".*\.platform-faq/s);
 });
 
 test('homepage is a product-led SaaS sales journey with real-product evidence', async () => {
