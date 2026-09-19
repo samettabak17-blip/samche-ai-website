@@ -452,3 +452,17 @@ test('provider replies in the latest language for English and Arabic questions',
     assert.match(result.body.reply, expected);
   }
 });
+
+test('server rejects a provider reply that ignores the latest user-message language', async () => {
+  const service = createSalesChatService({
+    openaiClient: providerWith(JSON.stringify({
+      reply: 'Anladım, hangi kanalları kullanıyorsunuz?', intent: 'qualification', extractedFields: {},
+      requestedNextField: 'channels', actionIntent: [], responseMode: 'qualification_answer', resumePendingQuestion: true,
+    })), commercialFacts,
+  });
+  const result = await service.handle({ body: requestBody({
+    locale: 'en', userMessage: 'I run a real estate business in Dubai.', responseMode: 'qualification_answer',
+  }) });
+  assert.equal(result.status, 422);
+  assert.deepEqual(result.body, { error: 'Sales assistant response was not usable.' });
+});

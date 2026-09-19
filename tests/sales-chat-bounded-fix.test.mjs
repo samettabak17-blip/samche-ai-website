@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildLeadSummary, buildWhatsAppSalesUrl, createInitialSalesState, generateSalesTurn, getSalesDetectedIntent, getSalesInputLanguage, getSalesResponseMode, validateSalesReply, WHATSAPP_ICON_DIAGNOSTIC_MATRIX, WHATSAPP_SAFE_ICONS } from '../lib/samche-sales-assistant.mjs';
+import { applyValidatedSalesFields, buildLeadSummary, buildWhatsAppSalesUrl, createInitialSalesState, generateSalesTurn, getPendingQualificationField, getSalesDetectedIntent, getSalesInputLanguage, getSalesResponseMode, validateSalesReply, WHATSAPP_ICON_DIAGNOSTIC_MATRIX, WHATSAPP_SAFE_ICONS } from '../lib/samche-sales-assistant.mjs';
 import { resolveSalesChatTurn } from '../lib/samche-sales-chat-client.mjs';
 
 const userMessage = { role: 'user', text: 'We are a real estate company in Dubai.', time: '10:00 AM' };
@@ -70,6 +70,59 @@ test('turn isolation: Turkish product question does not contaminate a later Engl
   assert.equal(second.state.lead.preferredDemoDate, 'Tomorrow');
   assert.equal(second.state.lead.preferredDemoTime, '6:00 PM');
   assert.doesNotMatch(second.reply, /fiziksel bir ürün değil|kurulum|teslim/i);
+});
+
+test('continuous human sales sequence preserves fields, language, interruptions, and one-question pacing', () => {
+  const messages = [
+    "Hi, I'm not sure what I need yet.",
+    'I run a real estate business in Dubai.',
+    'We get leads from our website and WhatsApp.',
+    'Can this actually replace one of my sales staff?',
+    'We receive around 2,000 enquiries a month.',
+    'We use a CRM.',
+    'We need lead qualification.',
+    'English and Arabic.',
+    "I don't need AI Guide.",
+    'We have 3 users.',
+    'I want a demo tomorrow at 6 PM.',
+  ];
+  let state = createInitialSalesState();
+  let previousReply = '';
+  const requestedFields = [];
+  const replies = [];
+  for (const message of messages) {
+    const turn = generateSalesTurn(state, message, [], 'en');
+    state = turn.state;
+    requestedFields.push(state.pendingQualificationField);
+    replies.push(turn.reply);
+    previousReply = turn.reply;
+  }
+
+  assert.equal(state.lead.industry, 'Real Estate');
+  assert.deepEqual(state.lead.channels, ['Website', 'WhatsApp']);
+  assert.equal(state.lead.country, 'United Arab Emirates');
+  assert.equal(state.lead.volume, '2,000/month');
+  assert.equal(state.lead.integrations, 'CRM / booking integration requested');
+  assert.equal(state.lead.leadQualification, 'Lead qualification requested');
+  assert.equal(state.lead.languages, 'English / Arabic');
+  assert.equal(state.lead.aiGuideNeed, 'Not required');
+  assert.equal(state.lead.teamUsers, '3');
+  assert.equal(state.lead.preferredDemoDate, 'Tomorrow');
+  assert.equal(state.lead.preferredDemoTime, '6:00 PM');
+  assert.match(replies[0], /happy to help|work out|explore/i);
+  assert.doesNotMatch(replies[0], /can't reliably help|focused on SamChe AI rather than/i);
+  assert.match(replies[2], /website and WhatsApp/i);
+  assert.doesNotMatch(replies[2], /what type of business|which channels/i);
+  assert.equal((replies[2].match(/\?/g) || []).length, 1);
+  assert.doesNotMatch(replies[2], /and do you need/i);
+  assert.notEqual(replies[2], replies[1]);
+  assert.match(replies[3], /support layer|sales staff|negotiat|closing/i);
+  assert.doesNotMatch(replies[3], /replace one of my sales staff/i);
+  assert.equal(requestedFields.includes('industry'), true);
+  assert.equal(requestedFields.includes('channels'), true);
+  assert.equal(requestedFields.at(-1), 'apiWorkflow');
+  assert.match(previousReply, /preferred demo time|preferred time|sales team/i);
+  assert.doesNotMatch(previousReply, /scheduled|confirmed|booked|will schedule|will send/i);
 });
 
 
@@ -219,6 +272,13 @@ test('Turkish input is detected independently of the selected locale', () => {
   assert.equal(getSalesInputLanguage('urunleri hemen teslim ediyor musunuz?'), 'tr');
   assert.equal(getSalesInputLanguage('danismanlik'), 'tr');
   assert.equal(getSalesInputLanguage('Which plan is right for us?'), 'en');
+});
+
+test('explicit negative requirements remain known and are never re-asked', () => {
+  const state = applyValidatedSalesFields(createInitialSalesState(), { aiGuideNeed: false });
+  assert.equal(state.lead.aiGuideNeed, false);
+  assert.notEqual(getPendingQualificationField({ lead: state.lead }), 'aiGuideNeed');
+  assert.equal(getSalesInputLanguage('هل يمكن أن يدعم الموقع شركتي؟'), 'ar');
 });
 
 test('WhatsApp summary contains only selected BMP-safe replacement icons', () => {

@@ -52,6 +52,17 @@ const SALES_CHAT_RESPONSE_FORMAT = Object.freeze({
 
 function text(value, limit) { return typeof value === 'string' ? value.slice(0, limit) : ''; }
 
+function replyMatchesInputLanguage(reply, language) {
+  const value = String(reply || '');
+  if (language === 'ar') return /[؀-ۿ]/u.test(value);
+  if (language === 'tr') return /[çğıöşü]/i.test(value) || /\b(?:anladım|müşteri|sorularınız|için|hangi|talepleriniz|uygunluğu|satış ekibimiz)\b/i.test(value);
+  return !/[؀-ۿ]/u.test(value) && !/[çğıöşü]/i.test(value) && !/\b(?:anladım|müşteri|sorularınız|uygunluğu|satış ekibimiz)\b/i.test(value);
+}
+
+function hasAtMostOneQuestion(reply) {
+  return (String(reply || '').match(/[?؟]/g) || []).length <= 1;
+}
+
 function detectInputLanguage(input) {
   const value = input.toLowerCase();
   if (/[؀-ۿ]/u.test(value)) return 'ar';
@@ -298,8 +309,11 @@ export function createSalesChatService({ openaiClient, commercialFacts, timeoutM
       }
       const result = validateSalesLlmOutput(content, { plans: commercialFacts.plans, products: commercialFacts.products });
       if (!result.ok) logValidationFailure(result, { environment, logger });
-      if (isInterruptMode(context.responseMode)) return { status: 200, body: enforceInterruptResponse(result.ok ? result.value : null, context, commercialFacts), context };
-      if (result.ok) {
+      const languageValid = result.ok && replyMatchesInputLanguage(result.value.reply, context.inputLanguage);
+      const questionCountValid = result.ok && hasAtMostOneQuestion(result.value.reply);
+      if (result.ok && (!languageValid || !questionCountValid)) logValidationFailure(failure(!languageValid ? 'invalid_language' : 'too_many_questions'), { environment, logger });
+      if (isInterruptMode(context.responseMode)) return { status: 200, body: enforceInterruptResponse(languageValid && questionCountValid ? result.value : null, context, commercialFacts), context };
+      if (result.ok && languageValid && questionCountValid) {
         const reply = sanitizeSalesReply(result.value.reply, SALES_CHAT_CAPABILITIES, context.inputLanguage);
         return { status: 200, body: { ...result.value, reply, actionIntent: reply === result.value.reply ? result.value.actionIntent : [] }, context };
       }
