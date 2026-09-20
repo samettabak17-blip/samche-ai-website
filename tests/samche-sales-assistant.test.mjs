@@ -710,3 +710,19 @@ test('repeated yes does not create booking state or booking claims', () => {
   assert.equal(turn.state.lead.preferredDemoDate, 'Tomorrow');
   assert.equal(turn.state.lead.preferredDemoTime, '6:00 PM');
 });
+
+test('human sales sequence acknowledges known channels and asks one new question', () => {
+  let state = createInitialSalesState();
+  let turn = generateSalesTurn(state, "Hi, I'm not sure what I need yet.");
+  state = turn.state;
+  turn = generateSalesTurn(state, 'I run a real estate business in Dubai.');
+  state = turn.state;
+  turn = generateSalesTurn(state, 'We get leads from our website and WhatsApp.');
+
+  assert.equal(turn.state.lead.industry, 'Real Estate');
+  assert.deepEqual(turn.state.lead.channels, ['Website', 'WhatsApp']);
+  assert.match(turn.reply, /website and WhatsApp|both/i);
+  assert.match(turn.reply, /how many.*(?:enquiries|inquiries)/i);
+  assert.doesNotMatch(turn.reply, /what type of business|where do most customer enquiries arrive/i);
+  assert.equal((turn.reply.match(/\?/g) || []).length, 1);
+});

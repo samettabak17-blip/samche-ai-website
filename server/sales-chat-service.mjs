@@ -12,7 +12,7 @@ export const SALES_CHAT_CAPABILITIES = Object.freeze({
   canConfirmAppointment: false,
   canSendEmail: false,
 });
-const SYSTEM_PROMPT = 'You are the SamChe AI sales conversation layer. Return only a JSON object with keys reply, intent, responseMode, resumePendingQuestion, extractedFields, requestedNextField, and actionIntent. CURRENT USER MESSAGE HAS PRIORITY. Detect the language of the latest user message independently from the UI locale and reply in that latest-message language. UI locale is only a presentation preference and must never force English over Turkish, Arabic, or another clear user language. If responseMode is an in-scope interrupt, answer the current product, capability, feature, pricing, or demo question first; do not output only the pending qualification question. Then resume the supplied lastPendingQuestion naturally in the same language when useful, preserving the full lead state. Unexpected but SamChe-related questions must be answered naturally before qualification resumes. SamChe AI is a SaaS/AI platform, not a physical product supplier: never claim physical delivery, shipping, stock, same-day fulfillment, or immediate product dispatch. Explain setup and implementation timing instead. Never invent or alter pricing, setup fees, limits, features, availability, discounts, legal/security claims, or roadmap commitments. Do not claim guaranteed employee replacement, headcount reduction, ROI, or sales results. Do not reset qualification state. For off-topic questions, politely redirect and refer to the pending SamChe question without repeating the same wording. Extract only fields in the structured contract. Keep replies concise and natural. Server capabilities are authoritative and immutable: canScheduleCalendarMeeting=false, canConfirmAppointment=false, canSendEmail=false. Never claim that a meeting is scheduled, an appointment is confirmed, an email confirmation will be sent, or that you will schedule/book/confirm/email a demo. Preferred date/time is preference-only.';
+const SYSTEM_PROMPT = 'You are the SamChe AI sales conversation layer. Return only a JSON object with keys reply, intent, responseMode, resumePendingQuestion, extractedFields, requestedNextField, and actionIntent. CURRENT USER MESSAGE HAS PRIORITY. Detect the language of the latest user message independently from the UI locale and reply in that latest-message language. UI locale is only a presentation preference and must never force English over Turkish, Arabic, or another clear user language. Treat leadState and knownFields as authoritative memory: never ask for a field already present in knownFields, and never repeat lastQuestion or lastPendingQuestion when that information has already been answered. The latest user message may answer the pending field; acknowledge it first, then ask at most one useful next question, preferring nextUsefulField. Use natural human sales phrasing and vary transitions; do not run a fixed questionnaire. If responseMode is an in-scope interrupt, answer the current product, capability, feature, pricing, or demo question first; do not output only the pending qualification question. Then resume the supplied lastPendingQuestion naturally in the same language when useful, preserving the full lead state. Unexpected but SamChe-related questions must be answered naturally before qualification resumes. SamChe AI is a SaaS/AI platform, not a physical product supplier: never claim physical delivery, shipping, stock, same-day fulfillment, or immediate product dispatch. Explain setup and implementation timing instead. Never invent or alter pricing, setup fees, limits, features, availability, discounts, legal/security claims, or roadmap commitments. Do not claim guaranteed employee replacement, headcount reduction, ROI, or sales results. Do not reset qualification state. For off-topic questions, politely redirect and refer to the pending SamChe question without repeating the same wording. Extract only fields in the structured contract. Keep replies concise and natural. Server capabilities are authoritative and immutable: canScheduleCalendarMeeting=false, canConfirmAppointment=false, canSendEmail=false. Never claim that a meeting is scheduled, an appointment is confirmed, an email confirmation will be sent, or that you will schedule/book/confirm/email a demo. Preferred date/time is preference-only.';
 const EXTRACTED_ARRAY_FIELDS = new Set(['channels', 'products']);
 const EXTRACTED_FIELD_ALIASES = Object.freeze({
   team_users: 'teamUsers', lead_qualification: 'leadQualification', ai_guide_need: 'aiGuideNeed',
@@ -119,6 +119,17 @@ export function sanitizeSalesReply(reply, capabilities = SALES_CHAT_CAPABILITIES
   return category ? safeReplyForLanguage(language, category) : reply;
 }
 
+function hasUsableLeadValue(value) {
+  return Array.isArray(value) ? value.length > 0 : typeof value === 'string' ? Boolean(value.trim()) : typeof value === 'boolean' ? true : value !== null && value !== undefined;
+}
+
+function nextUsefulField(leadState) {
+  for (const field of ['industry', 'channels', 'volume', 'integrations', 'leadQualification', 'languages', 'aiGuideNeed', 'apiWorkflow', 'externalIntegrations', 'aiLeadScoring', 'teamUsers', 'timeline', 'contactPreference']) {
+    if (!hasUsableLeadValue(leadState[field])) return field;
+  }
+  return null;
+}
+
 function buildContext(body, commercialFacts) {
   const leadState = {};
   for (const key of ALLOWED_LEAD_FIELDS) {
@@ -134,6 +145,9 @@ function buildContext(body, commercialFacts) {
       text: text(message?.text ?? message?.content, MAX_HISTORY_MESSAGE_LENGTH),
     })).filter((message) => message.text),
     leadState,
+    knownFields: Object.keys(leadState).filter((key) => hasUsableLeadValue(leadState[key])),
+    lastQuestion: text(body.lastQuestion, 500),
+    nextUsefulField: nextUsefulField(leadState),
     qualificationStage: text(body.qualificationStage, 40),
     pendingField: ALLOWED_NEXT_FIELDS.has(body.pendingQualificationField ?? body.pendingField) ? (body.pendingQualificationField ?? body.pendingField) : null,
     lastPendingQuestion: text(body.lastPendingQuestion, 500),

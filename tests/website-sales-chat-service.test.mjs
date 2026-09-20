@@ -243,6 +243,35 @@ test('builds bounded context from server-owned commercial facts and returns vali
   assert.equal(result.context.leadState.industry, 'Real Estate');
 });
 
+test('passes known fields, last question, and next useful field to the sales provider', async () => {
+  let request;
+  const service = createSalesChatService({
+    openaiClient: { chat: { completions: { create: async (payload) => {
+      request = payload;
+      return { choices: [{ message: { content: JSON.stringify({
+        reply: 'That makes sense. SamChe AI can support both your website and WhatsApp from one platform. Roughly how many customer enquiries do you receive in a typical month?',
+        intent: 'qualification', responseMode: 'qualification_answer', resumePendingQuestion: true,
+        extractedFields: {}, requestedNextField: 'volume', actionIntent: [],
+      }) } }] };
+    } } } },
+    commercialFacts,
+  });
+  const result = await service.handle({ body: requestBody({
+    userMessage: 'We get leads from our website and WhatsApp.',
+    leadState: { industry: 'Real Estate', country: 'United Arab Emirates', channels: ['Website', 'WhatsApp'] },
+    pendingQualificationField: 'volume',
+    lastPendingQuestion: 'Roughly how many customer enquiries do you receive in a typical month?',
+    lastQuestion: 'Where do most customer enquiries arrive today: your website, WhatsApp, or both?',
+  }) });
+  assert.equal(result.status, 200);
+  const context = JSON.parse(request.messages[1].content);
+  assert.equal(context.inputLanguage, 'en');
+  assert.equal(context.lastQuestion, 'Where do most customer enquiries arrive today: your website, WhatsApp, or both?');
+  assert.deepEqual(context.knownFields.sort(), ['channels', 'country', 'industry'].sort());
+  assert.equal(context.nextUsefulField, 'volume');
+  assert.match(request.messages[0].content, /never repeat|already known/i);
+});
+
 test('rejects provider output with unsupported commercial claims without exposing provider details', async () => {
   const service = createSalesChatService({
     openaiClient: providerWith(JSON.stringify({
