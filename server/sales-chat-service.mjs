@@ -215,9 +215,18 @@ export function validateSalesLlmOutput(output, { plans, products, allowedActions
 }
 
 function logValidationFailure(result, { environment, logger }) {
-  if (environment?.RENDER_SERVICE_NAME !== 'samche-api-staging' && environment?.NODE_ENV !== 'staging') return;
-  // Reasons are fixed literals produced by this module. Never forward provider values or keys.
-  logger?.warn?.('sales_chat_validation_failed', { reason: result.reason });
+  // Reasons are fixed literals produced by this module. Never forward provider values, prompts, or keys.
+  if (environment?.RENDER_SERVICE_NAME === 'samche-api-staging' || environment?.NODE_ENV === 'staging') {
+    logger?.warn?.('sales_chat_validation_failed', { reason: result.reason });
+    return;
+  }
+  logger?.warn?.('sales_chat_provider_unusable', { category: 'validator', reason: result.reason });
+}
+
+function logProviderFailure(error, logger) {
+  const diagnostic = error?.salesChatDiagnostic;
+  if (diagnostic) return logger?.warn?.('sales_chat_provider_failure', diagnostic);
+  return logger?.warn?.('sales_chat_provider_failure', { category: error?.name === 'AbortError' ? 'timeout' : 'request_failed' });
 }
 
 function isInterruptMode(mode) { return ['capability_interrupt', 'pricing_interrupt', 'in_scope_interrupt', 'demo_interrupt'].includes(mode); }
@@ -332,7 +341,8 @@ export function createSalesChatService({ openaiClient, commercialFacts, timeoutM
         return { status: 200, body: { ...result.value, reply, actionIntent: reply === result.value.reply ? result.value.actionIntent : [] }, context };
       }
       return { status: 422, body: { error: 'Sales assistant response was not usable.' }, context };
-    } catch {
+    } catch (error) {
+      logProviderFailure(error, logger);
       return { status: 503, body: { error: 'Sales assistant is temporarily unavailable.' }, context };
     } finally { clearTimeout(timer); }
   }

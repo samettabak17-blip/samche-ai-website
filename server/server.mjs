@@ -64,9 +64,23 @@ async function serveAsset(req, res) {
   return true;
 }
 
-const openaiClient = process.env.OPENAI_API_KEY ? { chat: { completions: { create: async (payload, options = {}) => {
-  const response = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'content-type': 'application/json' }, body: JSON.stringify({ ...payload, model: process.env.OPENAI_MODEL || 'gpt-4o-mini' }), signal: options.signal });
-  if (!response.ok) throw new Error(`provider_http_${response.status}`);
+const openaiApiKey = process.env.OPENAI_API_KEY?.trim();
+const openaiModel = process.env.OPENAI_MODEL?.trim() || 'gpt-4o-mini';
+const salesChatConfigured = Boolean(openaiApiKey);
+if (!salesChatConfigured) console.warn('sales_chat_provider_not_configured', { reason: 'missing_openai_api_key' });
+else console.info('sales_chat_provider_configured', { model: openaiModel });
+const openaiClient = salesChatConfigured ? { chat: { completions: { create: async (payload, options = {}) => {
+  const response = await fetch('https://api.openai.com/v1/chat/completions', { method: 'POST', headers: { authorization: `Bearer ${openaiApiKey}`, 'content-type': 'application/json' }, body: JSON.stringify({ ...payload, model: openaiModel }), signal: options.signal });
+  if (!response.ok) {
+    let providerError = {};
+    try {
+      const body = await response.json();
+      providerError = { type: typeof body?.error?.type === 'string' ? body.error.type.slice(0, 80) : undefined, code: typeof body?.error?.code === 'string' ? body.error.code.slice(0, 80) : undefined };
+    } catch { /* A status code is sufficient when the provider error body is not JSON. */ }
+    const error = new Error(`provider_http_${response.status}`);
+    error.salesChatDiagnostic = { category: 'provider_http', status: response.status, requestId: response.headers.get('x-request-id') || undefined, ...providerError };
+    throw error;
+  }
   return response.json();
 } } } } : null;
 const salesChatService = createSalesChatService({ openaiClient, commercialFacts, environment: process.env });
@@ -83,7 +97,7 @@ async function serveFramework(req, res) {
 
 const server = createServer(async (req, res) => {
   try {
-    if (req.method === 'GET' && req.url === '/api/health') return json(res, 200, { ok: true, service: 'samche-ai-website' });
+    if (req.method === 'GET' && req.url === '/api/health') return json(res, 200, { ok: true, service: 'samche-ai-website', salesChatConfigured });
     if (req.method === 'POST' && req.url === '/api/sales-chat') {
       if (!rateLimiter.allow(req.socket.remoteAddress || 'unknown')) return json(res, 429, { error: 'Sales assistant is temporarily unavailable.' });
       return json(res, ...(await salesChatService.handle({ body: await readBody(req) }).then((result) => [result.status, result.body])));

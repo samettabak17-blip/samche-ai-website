@@ -996,15 +996,35 @@ body { background:radial-gradient(ellipse at 50% -22%,rgba(143,10,30,.23),transp
   .plan-comparison { width:100%; min-width:0; table-layout:fixed; }
   .plan-comparison th:first-child { width:31%; min-width:0; position:static; }
   .plan-comparison th[data-plan], .plan-comparison td[data-plan] { width:17.25%; min-width:0; }
-  .plan-comparison th, .plan-comparison td { padding:8px 4px; overflow-wrap:anywhere; word-break:break-word; font-size:9px; line-height:1.35; }
+  .plan-comparison th, .plan-comparison td { padding:7px 3px; overflow-wrap:normal; word-break:normal; font-size:10px; line-height:1.3; }
   .plan-comparison thead th { font-size:8px; letter-spacing:.02em; }
   .table-scroll-hint { display:none; }
 
   .samche-chat-root { right:max(10px,env(safe-area-inset-right)); bottom:max(10px,env(safe-area-inset-bottom)); width:72px; height:72px; }
-  .samche-chat-panel { position:fixed; right:max(12px,env(safe-area-inset-right)); bottom:calc(82px + env(safe-area-inset-bottom)); width:min(390px,calc(100% - 24px)); height:min(560px,72dvh); max-height:min(560px,calc(100dvh - 96px - env(safe-area-inset-bottom))); padding-bottom:env(safe-area-inset-bottom); }
+  .samche-chat-panel { position:fixed; right:max(12px,env(safe-area-inset-right)); bottom:calc(82px + env(safe-area-inset-bottom)); width:min(390px,calc(100% - 24px)); height:min(540px,68dvh); max-height:min(540px,calc(100dvh - 96px - env(safe-area-inset-bottom))); padding-bottom:env(safe-area-inset-bottom); }
   .samche-chat-messages { min-height:0; flex:1 1 auto; overscroll-behavior:contain; }
   .samche-chat-header, .samche-chat-actions, .samche-lead-card, .samche-chat-form, .samche-chat-disclaimer, .samche-sales-actions { flex:none; }
   .samche-chat-form { margin-bottom:4px; }
+}
+
+/* Final mobile comparison and iOS keyboard layout. */
+.comparison-mobile-label { display:none; }
+.samche-chat-panel { display:grid; grid-template-rows:auto minmax(0,1fr) auto; }
+.samche-chat-messages { min-height:0; overscroll-behavior:contain; }
+.samche-chat-composer { min-height:0; overflow:auto; }
+.samche-chat-form input { font-size:16px; }
+@media (max-width:760px) {
+  .comparison-desktop-label { display:none; }
+  .comparison-mobile-label { display:inline; }
+  .plan-comparison th:first-child { width:31%; }
+  .plan-comparison th[data-plan], .plan-comparison td[data-plan] { width:17.25%; }
+  .plan-comparison th, .plan-comparison td { overflow-wrap:normal; word-break:normal; }
+  .plan-comparison .comparison-group th { padding-block:7px; font-size:11px; }
+  .comparison-state { display:inline; padding:0; border:0; border-radius:0; background:transparent; font-size:10px; line-height:1.3; }
+  .samche-chat-panel.samche-keyboard-open { bottom:max(10px,calc(100vh - var(--samche-visual-viewport-height) + 10px)); height:min(420px,calc(var(--samche-visual-viewport-height) * .62)); max-height:calc(var(--samche-visual-viewport-height) * .62); }
+  .samche-chat-panel.samche-keyboard-open .samche-chat-header { min-height:58px; }
+  .samche-chat-panel.samche-keyboard-open .samche-chat-composer { max-height:108px; }
+  .samche-chat-panel.samche-keyboard-open .samche-chat-disclaimer { display:none; }
 }
 @media (max-width:430px) {
   .comparison-section { padding-inline:10px; }

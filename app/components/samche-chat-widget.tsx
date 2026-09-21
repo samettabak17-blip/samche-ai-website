@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, type CSSProperties, useEffect, useRef, useState } from 'react';
 import { defaultSamcheChatConfig, resolveSamcheChatConfig } from '../../lib/samche-chat-config.mjs';
 import { buildWhatsAppSalesUrl, createInitialSalesState, editLeadField, filterSalesActionsForLead, generateSalesTurn, getSalesInputLanguage, getSalesProcessingStatus, hasRequiredDemoContact, isDemoQualificationReady, isLeadSummaryReady, toContactHandoff } from '../../lib/samche-sales-assistant.mjs';
 import { clearChatSession, LEAD_HANDOFF_KEY, loadChatSession, saveChatSession } from '../../lib/samche-chat-persistence.mjs';
@@ -68,6 +68,8 @@ export function SamCheChatWidget({ configuration = defaultSamcheChatConfig }: { 
   const [sending, setSending] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [processingStatus, setProcessingStatus] = useState('Matching your requirements to SamChe AI products…');
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [visualViewportHeight, setVisualViewportHeight] = useState(0);
   const salesStateRef = useRef<SalesState>(createInitialSalesState());
   const sessionIdRef = useRef('');
   const listRef = useRef<HTMLDivElement>(null);
@@ -121,6 +123,20 @@ export function SamCheChatWidget({ configuration = defaultSamcheChatConfig }: { 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [open, confirmReset, menuOpen]);
+
+  useEffect(() => {
+    if (!open) { setKeyboardOpen(false); return; }
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const updateViewport = () => {
+      setVisualViewportHeight(Math.round(viewport.height));
+      setKeyboardOpen(window.innerHeight - viewport.height > 140);
+    };
+    updateViewport();
+    viewport.addEventListener('resize', updateViewport);
+    viewport.addEventListener('scroll', updateViewport);
+    return () => { viewport.removeEventListener('resize', updateViewport); viewport.removeEventListener('scroll', updateViewport); };
+  }, [open]);
 
   async function ask(question: string) {
     const trimmed = question.trim();
@@ -196,7 +212,7 @@ export function SamCheChatWidget({ configuration = defaultSamcheChatConfig }: { 
     : salesState.turns >= 2 ? config.quick_actions.filter((action) => action !== 'Pricing') : [];
 
   return <div className="samche-chat-root">
-    {open && <section className="samche-chat-panel" role="dialog" aria-label={config.assistant_display_name} aria-modal="false">
+    {open && <section className={`samche-chat-panel${keyboardOpen ? ' samche-keyboard-open' : ''}`} style={{ '--samche-visual-viewport-height': `${visualViewportHeight || window.innerHeight}px` } as CSSProperties} role="dialog" aria-label={config.assistant_display_name} aria-modal="false">
       <header className="samche-chat-header"><Orb small header avatarUrl={config.avatar_url || config.logo_url} /><div className="samche-chat-title"><strong>{config.assistant_display_name}</strong><span><i /> {config.assistant_status_label}</span><small>{config.subtitle}</small></div><div className="samche-chat-menu-wrap"><button className="samche-icon-button samche-menu" type="button" aria-label={config.more_options_label} aria-expanded={menuOpen} title={config.more_options_label} onClick={() => setMenuOpen((value) => !value)}>···</button>{menuOpen && <div className="samche-chat-menu"><button type="button" onClick={() => { setMenuOpen(false); setConfirmReset(true); }}>Clear conversation</button></div>}</div><button className="samche-icon-button" type="button" aria-label="Close chat" onClick={() => setOpen(false)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button></header>
       {confirmReset && <div className="samche-reset-backdrop"><section className="samche-reset-dialog" role="alertdialog" aria-modal="true" aria-labelledby="samche-reset-title" aria-describedby="samche-reset-copy"><h2 id="samche-reset-title">Clear conversation?</h2><p id="samche-reset-copy">Clear this conversation and start again?</p><div><button type="button" onClick={() => setConfirmReset(false)}>CANCEL</button><button type="button" onClick={resetConversation}>CLEAR CONVERSATION</button></div></section></div>}
       <div className="samche-chat-messages" ref={listRef} aria-live="polite">
@@ -208,12 +224,14 @@ export function SamCheChatWidget({ configuration = defaultSamcheChatConfig }: { 
         {sending && <div className="samche-message-row assistant" role="status" aria-live="polite"><Orb small /><div className="samche-typing"><span>{processingStatus}</span><i /><i /><i /></div></div>}
         {!sending && errorMessage && <div className="samche-message-row assistant" role="status" aria-live="polite"><Orb small /><div className="samche-message-content"><div className="samche-message-bubble">{errorMessage}</div></div></div>}
       </div>
+      <div className="samche-chat-composer">
       {summaryReady && <section className="samche-lead-card" aria-label="Your requirements"><div className="samche-lead-heading"><strong>YOUR REQUIREMENTS</strong><button type="button" onClick={() => setEditing((value) => !value)}>{editing ? 'Done' : 'Edit details'}</button></div>{editing ? <div className="samche-lead-edit">{leadEditFields.map(([key,label]) => <label key={key}>{label}<input value={leadInputValue(salesState.lead, key)} onChange={(event) => updateLead(key, event.target.value)} /></label>)}</div> : <dl>{leadSummaryFields(salesState.lead).map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}{salesActions.length > 0 && <div className="samche-lead-actions">{salesActions.map((action) => action.type === 'demo' ? <button type="button" key={action.label} onClick={openDemoRequest}>{action.label}</button> : <a key={action.label} href={buildWhatsAppSalesUrl(salesState.lead, locale)} target="_blank" rel="noreferrer">{action.label}</a>)}</div>}</section>}
       {contextualQuickActions.length > 0 && <div className="samche-chat-actions" aria-label="Product shortcuts">{contextualQuickActions.map((action, index) => <button className={index === 0 ? 'selected' : ''} type="button" key={action} onClick={() => void ask(action)} disabled={sending || !hydrated}>{action}</button>)}</div>}
       {actions.some((action) => action.type === 'link') && <div className="samche-sales-actions" aria-label="Product demos">{actions.filter((action) => action.type === 'link').map((action) => <a key={action.label} href={action.href} target="_blank" rel="noreferrer">{action.label}</a>)}</div>}
       {!summaryReady && salesActions.length > 0 && <div className="samche-sales-actions" aria-label="Sales next steps">{salesActions.map((action) => action.type === 'demo' ? <button type="button" key={action.label} onClick={openDemoRequest}>{action.label}</button> : <a key={action.label} href={buildWhatsAppSalesUrl(salesState.lead, locale)} target="_blank" rel="noreferrer">{action.label}</a>)}</div>}
       <form className="samche-chat-form" onSubmit={handleSubmit}><label className="sr-only" htmlFor="samche-chat-input">Ask {config.assistant_display_name}</label><span className="samche-clip" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m8 12.5 6.8-6.8a3.2 3.2 0 0 1 4.5 4.5l-8.5 8.5a5 5 0 0 1-7.1-7.1l8-8" /></svg></span><input ref={inputRef} id="samche-chat-input" value={input} onChange={(event) => setInput(event.target.value)} placeholder={config.input_placeholder} autoComplete="off" disabled={!hydrated} /><button className="samche-send" type="submit" aria-label="Send message" disabled={!hydrated || sending || !input.trim()}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 4 17 8-17 8 3-8-3-8Zm3 8h14" /></svg></button></form>
       <p className="samche-chat-disclaimer">{config.scope_disclaimer}</p>
+      </div>
     </section>}
     <button className={`samche-chat-launcher${open ? ' is-open' : ''}`} type="button" aria-label={open ? `Close ${config.assistant_display_name} chat` : config.launcher_label} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{open ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg> : <Orb avatarUrl={config.avatar_url || config.logo_url} />}</button>
   </div>;

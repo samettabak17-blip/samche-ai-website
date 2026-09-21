@@ -396,3 +396,27 @@ test('Sales Chat frontend targets the configured backend and never bundles a dir
   assert.doesNotMatch(widget, /api\.openai\.com|OPENAI_API_KEY|chat\.completions/);
   assert.equal(await import('node:fs/promises').then(({ access }) => access(new URL('../app/api/sales-chat/route.ts', import.meta.url)).then(() => true).catch(() => false)), false);
 });
+
+test('mobile comparison uses concise labels without internal authoring notes', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const data = await readFile(new URL('../lib/site-data.mjs', import.meta.url), 'utf8');
+  const component = await readFile(new URL('../app/components/pricing-table.tsx', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../app/globals.css', import.meta.url), 'utf8');
+  assert.doesNotMatch(data, /if authoritative|current authoritative plan data|if current product data supports it/i);
+  assert.match(component, /comparisonMobileLabel/);
+  assert.match(component, /aria-label=\{value\}/);
+  assert.match(css, /@media \(max-width:760px\)[\s\S]*?\.plan-comparison th, \.plan-comparison td \{[^}]*overflow-wrap:normal[^}]*word-break:normal/s);
+  assert.match(css, /@media \(max-width:760px\)[\s\S]*?\.comparison-state \{[^}]*padding:0[^}]*border:0/s);
+});
+
+test('chat supports a compact visual viewport keyboard mode', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const widget = await readFile(new URL('../app/components/samche-chat-widget.tsx', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../app/globals.css', import.meta.url), 'utf8');
+  assert.match(widget, /visualViewport/);
+  assert.match(widget, /keyboardOpen/);
+  assert.match(widget, /samche-keyboard-open/);
+  assert.match(css, /\.samche-chat-panel\.samche-keyboard-open/);
+  assert.match(css, /\.samche-chat-panel \{[^}]*display:grid[^}]*grid-template-rows:auto minmax\(0,1fr\) auto/s);
+  assert.match(css, /\.samche-chat-form input \{[^}]*font-size:16px/s);
+});

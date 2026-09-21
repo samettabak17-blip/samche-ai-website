@@ -495,3 +495,17 @@ test('server rejects a provider reply that ignores the latest user-message langu
   assert.equal(result.status, 422);
   assert.deepEqual(result.body, { error: 'Sales assistant response was not usable.' });
 });
+
+test('production diagnostics record a safe validator category without provider content', async () => {
+  const logs = [];
+  const service = createSalesChatService({
+    openaiClient: providerWith(JSON.stringify({
+      reply: 'I can help.', intent: 'not-a-valid-intent', extractedFields: {}, requestedNextField: null,
+      actionIntent: [], responseMode: 'qualification_answer', resumePendingQuestion: true,
+    })),
+    commercialFacts, environment: { NODE_ENV: 'production' }, logger: { warn: (...args) => logs.push(args) },
+  });
+  const result = await service.handle({ body: requestBody() });
+  assert.equal(result.status, 422);
+  assert.deepEqual(logs, [['sales_chat_provider_unusable', { category: 'validator', reason: 'invalid_intent' }]]);
+});

@@ -33,6 +33,16 @@ function comparisonStateClass(value: string) {
   return 'neutral';
 }
 
+function comparisonMobileLabel(value: string) {
+  const labels: Record<string, string> = {
+    'Not included': 'No', 'Included': 'Yes', 'Included · Custom scale': 'Yes · Custom', 'Included · By scope': 'Yes · Scope',
+    '1 CRM OR Booking Integration': '1 CRM/Booking', 'Included within up to 3 external integrations': 'Up to 3',
+    '100,000+ / month': '100K+', '50,000 / month': '50K', '20,000 / month': '20K', '5,000 / month': '5K',
+    'Extended / Custom': 'Custom', 'Standard access': 'Standard', 'Roadmap / By scope': 'Roadmap', 'Add-on / By scope': 'Add-on',
+  };
+  return labels[value] || value;
+}
+
 export function PricingTable() {
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('monthly');
   const yearly = billing === 'yearly';
@@ -60,7 +70,7 @@ export function PricingTable() {
       <div className="comparison-scroll" role="region" aria-label="SamChe AI plan comparison" tabIndex={0}>
         <table className="plan-comparison">
           <thead><tr><th scope="col">FEATURE</th>{plans.map((plan) => <th scope="col" data-plan={plan.slug} key={plan.slug}>{plan.name}</th>)}</tr></thead>
-          <tbody>{platformFeatureGroups.map((group) => <Fragment key={group.label}><tr className="comparison-group"><th colSpan={5}>{group.label}</th></tr>{group.rows.map((row) => <tr key={`${group.label}-${row.label}`}><th scope="row">{row.label}</th>{row.values.map((value, index) => <td data-plan={plans[index].slug} key={plans[index].slug}><span className={`comparison-state comparison-state-${comparisonStateClass(value)}`}>{value}</span></td>)}</tr>)}{group.label === 'Integrations & Automation' && <tr className="comparison-group-note"><th colSpan={5}>{agenticExpansionNote}</th></tr>}</Fragment>)}</tbody>
+          <tbody>{platformFeatureGroups.map((group) => <Fragment key={group.label}><tr className="comparison-group"><th colSpan={5}>{group.label}</th></tr>{group.rows.map((row) => <tr key={`${group.label}-${row.label}`}><th scope="row">{row.label}</th>{row.values.map((value, index) => <td data-plan={plans[index].slug} key={plans[index].slug}><span className={`comparison-state comparison-state-${comparisonStateClass(value)}`} aria-label={value}><span className="comparison-desktop-label">{value}</span><span className="comparison-mobile-label">{comparisonMobileLabel(value)}</span></span></td>)}</tr>)}{group.label === 'Integrations & Automation' && <tr className="comparison-group-note"><th colSpan={5}>{agenticExpansionNote}</th></tr>}</Fragment>)}</tbody>
         </table>
       </div>
       <div className="comparison-state-legend" aria-label="Comparison state legend">{comparisonStateLegend.map((item) => <div className="comparison-legend-item" key={item.state}><span className={`comparison-state comparison-state-${comparisonStateClass(item.state)}`}>{item.state}</span><span>{item.description}</span></div>)}</div>
