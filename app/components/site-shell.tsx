@@ -16,7 +16,7 @@ export function SiteHeader() {
     <Link className="brand" href="/" aria-label="SamChe AI Platform home"><Image className="brand-logo" src="/samche-ai-platform-approved.png" alt="SamChe AI Platform" width={1800} height={900} priority /></Link>
     <nav className="desktop-nav" aria-label="Main navigation">{navigation.map((item) => <Link key={item.href} href={item.href}>{item.label}</Link>)}</nav>
     <LanguageSwitcher />
-    <details className="mobile-nav"><summary aria-label="Open navigation"><span /><span /></summary><nav aria-label="Mobile navigation">{navigation.map((item) => <Link key={item.href} href={item.href}>{item.label}</Link>)}<LanguageSwitcher compact /></nav></details>
+    <details className="mobile-nav"><summary aria-label="Open navigation"><span /><span /></summary><nav aria-label="Mobile navigation">{navigation.map((item) => <Link key={item.href} href={item.href}>{item.label}</Link>)}</nav></details>
   </header>;
 }
 

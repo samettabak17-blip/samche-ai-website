@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { DEFAULT_LOCALE, readLocale, readLocaleFromSearch, translateText, translationSourceForNode, writeLocale } from '../../lib/samche-localization.mjs';
 
-type Locale = 'en' | 'ar';
+type Locale = 'en' | 'ar' | 'tr';
 const LocaleContext = createContext<{ locale: Locale; setLocale: (locale: Locale) => void }>({ locale: DEFAULT_LOCALE, setLocale: () => {} });
 const translatedNodes = new WeakMap<Text, { source: string; translated: string }>();
 const translatedAttributes = new WeakMap<Element, Map<string, string>>();
@@ -45,7 +45,7 @@ export function SiteLocalizationProvider({ children }: { children: ReactNode }) 
     setCurrentLocale(selected);
     try {
       const url = new URL(window.location.href);
-      if (selected === 'ar') url.searchParams.set('locale', 'ar');
+      if (selected !== 'en') url.searchParams.set('locale', selected);
       else url.searchParams.delete('locale');
       window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
     } catch { /* Browser URL persistence is an additional fallback to local storage. */ }
@@ -82,7 +82,7 @@ export function SiteLocalizationProvider({ children }: { children: ReactNode }) 
       try {
         const destination = new URL(rawHref, window.location.href);
         if (destination.origin !== window.location.origin) return;
-        if (locale === 'ar') destination.searchParams.set('locale', 'ar');
+        if (locale !== 'en') destination.searchParams.set('locale', locale);
         else destination.searchParams.delete('locale');
         if (destination.href === anchor.href) return;
         event.preventDefault();
@@ -109,8 +109,9 @@ export function useSiteLocale() { return useContext(LocaleContext); }
 
 export function LanguageSwitcher({ compact = false }: { compact?: boolean }) {
   const { locale, setLocale } = useSiteLocale();
-  return <div className={`language-switcher${compact ? ' compact' : ''}`} role="group" aria-label={locale === 'ar' ? 'اختيار اللغة' : 'Choose language'}>
+  return <div className={`language-switcher${compact ? ' compact' : ''}`} role="group" aria-label={locale === 'ar' ? 'اختيار اللغة' : locale === 'tr' ? 'Dil seçin' : 'Choose language'}>
     <button type="button" lang="en" aria-pressed={locale === 'en'} onClick={() => setLocale('en')}>EN</button>
     <button type="button" lang="ar" aria-pressed={locale === 'ar'} onClick={() => setLocale('ar')}>العربية</button>
+    <button type="button" lang="tr" aria-pressed={locale === 'tr'} onClick={() => setLocale('tr')}>TR</button>
   </div>;
 }

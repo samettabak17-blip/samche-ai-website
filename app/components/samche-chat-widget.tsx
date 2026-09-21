@@ -20,7 +20,8 @@ function Orb({ small = false, header = false, avatarUrl }: { small?: boolean; he
   // Approved tenant avatar URLs are public-configurable; Next image optimization requires allow-listing each host.
   // eslint-disable-next-line @next/next/no-img-element
   if (avatarUrl) return <img className={`samche-orb-image${small ? ' samche-orb-small' : ''}${header ? ' samche-header-orb' : ''}`} src={avatarUrl} alt="" aria-hidden="true" />;
-  return <span className={`samche-orb${small ? ' samche-orb-small' : ''}${header ? ' samche-header-orb' : ''}`} aria-hidden="true"><span className="samche-mobile-orb" dir="ltr"><span className="samche-orb-logo-wrap" dir="ltr"><span className="samche-logo-sam">SAM</span><span className="samche-logo-che">CHE</span></span>{!small && <span className="samche-orb-ai-tag" dir={locale === 'ar' ? 'rtl' : 'ltr'}>{locale === 'ar' ? 'اسألني' : 'ASK ME'}</span>}</span></span>;
+  const askLabel = locale === 'ar' ? 'اسألني' : locale === 'tr' ? 'BANA SOR' : 'ASK ME';
+  return <span className={`samche-orb${small ? ' samche-orb-small' : ''}${header ? ' samche-header-orb' : ''}`} aria-hidden="true"><span className="samche-mobile-orb" dir="ltr"><span className="samche-orb-logo-wrap" dir="ltr"><span className="samche-logo-sam">SAM</span><span className="samche-logo-che">CHE</span></span>{!small && <span className="samche-orb-ai-tag" dir={locale === 'ar' ? 'rtl' : 'ltr'}>{askLabel}</span>}</span></span>;
 }
 
 function timestamp() {

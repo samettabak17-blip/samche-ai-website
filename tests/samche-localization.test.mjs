@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, readLocale, readLocaleFromSearch, translateText, translationSourceForNode, writeLocale } from '../lib/samche-localization.mjs';
+import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, readLocale, readLocaleFromSearch, translateText, translationSourceForNode, trText, turkishRequiredKeys, writeLocale } from '../lib/samche-localization.mjs';
 import { buildLeadSummary, buildWhatsAppSalesUrl, createInitialSalesState, generateSalesTurn } from '../lib/samche-sales-assistant.mjs';
 
 function storageMock() {
@@ -17,6 +17,35 @@ test('English is the default locale and Arabic preference persists independently
   assert.equal(readLocale(storage), 'ar');
   assert.equal(writeLocale('en', storage), 'en');
   assert.equal(readLocale(storage), 'en');
+});
+
+test('Turkish is a persistent LTR locale with complete core pricing and chat copy', () => {
+  const storage = storageMock();
+  assert.equal(writeLocale('tr', storage), 'tr');
+  assert.equal(readLocale(storage), 'tr');
+  assert.equal(readLocaleFromSearch('?locale=tr'), 'tr');
+  for (const [english, turkish] of [
+    ['Platform Feature Comparison', 'Platform Özellik Karşılaştırması'], ['Included', 'Dahil'], ['Not included', 'Dahil değil'],
+    ['Monthly AI Interactions', 'Aylık AI Etkileşimleri'], ['Dedicated Support', 'Özel Destek'],
+    ['Human Handover', 'İnsan Temsilciye Devir'], ['Lead Qualification', 'Potansiyel Müşteri Nitelendirme'],
+    ['Product demos, plans & recommendations', 'Ürün demoları, planlar ve öneriler'], ['Ask SamChe AI', 'SamChe AI’ye Sor'],
+  ]) assert.equal(translateText(english, 'tr'), turkish, english);
+});
+
+test('Turkish selector is always available outside the mobile menu and keeps LTR direction', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const localization = await readFile(new URL('../app/components/site-localization.tsx', import.meta.url), 'utf8');
+  const shell = await readFile(new URL('../app/components/site-shell.tsx', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../app/globals.css', import.meta.url), 'utf8');
+  assert.match(localization, /type Locale = 'en' \| 'ar' \| 'tr'/);
+  assert.match(localization, />TR</);
+  assert.doesNotMatch(shell, /<details className="mobile-nav">[\s\S]*<LanguageSwitcher compact/);
+  assert.doesNotMatch(css, /\.site-header > \.language-switcher \{ display:none/);
+  assert.match(css, /\[data-locale="tr"\][^{]*\{[^}]*direction:ltr/);
+});
+
+test('every required Turkish public string has an explicit dictionary entry', () => {
+  for (const source of turkishRequiredKeys) assert.ok(Object.hasOwn(trText, source), source);
 });
 
 test('DOM localization preserves React updates to dynamic text and restores its source across locales', () => {

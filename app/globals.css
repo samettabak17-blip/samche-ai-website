@@ -788,6 +788,22 @@ body { background:radial-gradient(ellipse at 50% -22%,rgba(143,10,30,.23),transp
   .new-hero-copy h1 { font-size:clamp(35px,11vw,38px); }
 }
 
+/* The selector remains a first-level header control at every mobile width. */
+@media (max-width:760px) {
+  .site-header > .language-switcher { display:inline-flex; order:2; margin-left:auto; }
+  .site-header .brand-logo { width:112px; }
+  .site-header > .language-switcher button { min-width:25px; min-height:30px; padding-inline:4px; font-size:8px; }
+  .site-header > .language-switcher button[lang="ar"] { min-width:49px; }
+  .site-header > .mobile-nav { display:block; order:3; }
+}
+@media (max-width:350px) {
+  .site-header .brand-logo { width:91px; }
+  .site-header > .language-switcher { padding:1px; }
+  .site-header > .language-switcher button { min-width:22px; padding-inline:3px; font-size:7px; }
+  .site-header > .language-switcher button[lang="ar"] { min-width:43px; }
+  .site-header > .mobile-nav summary { width:36px; height:36px; }
+}
+
 /* Keep long plan prices inside narrow plan cards in both locales. */
 .plan-price,
 .home-plan-price {
@@ -892,8 +908,9 @@ body { background:radial-gradient(ellipse at 50% -22%,rgba(143,10,30,.23),transp
 .localized-site[data-locale="ar"] .mobile-nav nav { text-align:right; }
 .localized-site[data-locale="ar"] .samche-typing { direction:rtl; }
 .localized-site[data-locale="ar"] .language-switcher { direction:ltr; }
-@media (max-width:760px) { .site-header > .language-switcher { display:none; }.mobile-nav .language-switcher { display:inline-flex; } }
-@media (min-width:761px) { .mobile-nav .language-switcher { display:none; } }
+@media (max-width:760px) { .site-header { gap:5px; }.site-header > .language-switcher { display:inline-flex; order:2; margin-left:auto; }.mobile-nav { order:3; }.site-header .brand { min-width:0; }.site-header .brand-logo { width:112px; }.language-switcher button { min-width:25px; min-height:30px; padding-inline:4px; font-size:8px; }.language-switcher button[lang="ar"] { min-width:49px; } }
+@media (max-width:350px) { .site-header .brand-logo { width:91px; }.language-switcher { padding:1px; }.language-switcher button { min-width:22px; padding-inline:3px; font-size:7px; }.language-switcher button[lang="ar"] { min-width:43px; }.mobile-nav summary { width:36px; height:36px; } }
+.localized-site[data-locale="tr"] { direction:ltr; }
 @media (max-width:430px) { .language-switcher button { min-height:32px; padding-inline:9px; } }
 
 /* Compact, accessible header controls. */
