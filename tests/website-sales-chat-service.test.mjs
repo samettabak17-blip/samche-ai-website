@@ -44,8 +44,11 @@ for (const [reason, override] of [
       commercialFacts, environment: { NODE_ENV: 'staging' }, logger: { warn: (...args) => logs.push(args) },
     });
     const result = await service.handle({ body: requestBody() });
-    assert.equal(result.status, 422);
-    assert.deepEqual(logs, [['sales_chat_validation_failed', { reason }]]);
+    assert.equal(result.status, 200);
+    assert.deepEqual(logs, [
+      ['sales_chat_validation_failed', { reason }],
+      ['sales_chat_provider_salvaged', { category: 'validator', stage: 'optional_metadata', reason }],
+    ]);
     assert.doesNotMatch(JSON.stringify(logs), /synthetic\.person@example\.com|secret/);
   });
 }
@@ -280,8 +283,8 @@ test('rejects provider output with unsupported commercial claims without exposin
     })), commercialFacts,
   });
   const result = await service.handle({ body: requestBody({ userMessage: 'What is the price?' }) });
-  assert.equal(result.status, 422);
-  assert.deepEqual(result.body, { error: 'Sales assistant response was not usable.' });
+  assert.equal(result.status, 502);
+  assert.deepEqual(result.body, { error: 'Sales assistant is temporarily unavailable.' });
 });
 
 test('returns a safe response when the OpenAI client fails', async () => {
@@ -360,8 +363,11 @@ test('logs only sanitized validation diagnostics in the staging environment', as
     logger: { warn: (...args) => logs.push(args) },
   });
   const result = await service.handle({ body: requestBody() });
-  assert.equal(result.status, 422);
-  assert.deepEqual(logs, [['sales_chat_validation_failed', { reason: 'invalid_intent' }]]);
+  assert.equal(result.status, 200);
+  assert.deepEqual(logs, [
+    ['sales_chat_validation_failed', { reason: 'invalid_intent' }],
+    ['sales_chat_provider_salvaged', { category: 'validator', stage: 'optional_metadata', reason: 'invalid_intent' }],
+  ]);
 });
 
 test('preserves an explicit capability interrupt mode and pending-question resume contract', async () => {
@@ -492,8 +498,8 @@ test('server rejects a provider reply that ignores the latest user-message langu
   const result = await service.handle({ body: requestBody({
     locale: 'en', userMessage: 'I run a real estate business in Dubai.', responseMode: 'qualification_answer',
   }) });
-  assert.equal(result.status, 422);
-  assert.deepEqual(result.body, { error: 'Sales assistant response was not usable.' });
+  assert.equal(result.status, 502);
+  assert.deepEqual(result.body, { error: 'Sales assistant is temporarily unavailable.' });
 });
 
 test('production diagnostics record a safe validator category without provider content', async () => {
@@ -506,6 +512,46 @@ test('production diagnostics record a safe validator category without provider c
     commercialFacts, environment: { NODE_ENV: 'production' }, logger: { warn: (...args) => logs.push(args) },
   });
   const result = await service.handle({ body: requestBody() });
-  assert.equal(result.status, 422);
-  assert.deepEqual(logs, [['sales_chat_provider_unusable', { category: 'validator', reason: 'invalid_intent' }]]);
+  assert.equal(result.status, 200);
+  assert.deepEqual(logs, [
+    ['sales_chat_provider_unusable', { category: 'validator', stage: 'provider_contract', field: undefined, reason: 'invalid_intent' }],
+    ['sales_chat_provider_salvaged', { category: 'validator', stage: 'optional_metadata', reason: 'invalid_intent' }],
+  ]);
+});
+
+test('safely salvages natural baseline replies when only optional provider metadata is malformed', async () => {
+  const cases = [
+    ['Hello', 'Welcome to SamChe AI. What type of business do you operate?', 'en'],
+    ['Merhaba', 'Merhaba, SamChe AI ile size yardımcı olabilirim. Ne tür bir işletme işletiyorsunuz?', 'tr'],
+    ['مرحبا', 'مرحباً، يمكنني مساعدتك مع SamChe AI. ما نوع نشاطك التجاري؟', 'ar'],
+  ];
+  for (const [userMessage, reply, language] of cases) {
+    const service = createSalesChatService({
+      openaiClient: providerWith(JSON.stringify({
+        reply, intent: 'general', responseMode: 'unexpected_mode', resumePendingQuestion: 'true',
+        extractedFields: { unknownField: 'ignore me' }, requestedNextField: 'unknownField', actionIntent: ['UNSAFE_ACTION'],
+      })), commercialFacts,
+    });
+    const result = await service.handle({ body: requestBody({ userMessage }) });
+    assert.equal(result.status, 200, userMessage);
+    assert.equal(result.body.reply, reply);
+    assert.equal(result.body.intent, 'qualification');
+    assert.equal(result.body.responseMode, 'qualification_answer');
+    assert.deepEqual(result.body.extractedFields, {});
+    assert.equal(result.body.requestedNextField, null);
+    assert.deepEqual(result.body.actionIntent, []);
+    assert.equal(result.context.inputLanguage, language);
+  }
+});
+
+test('does not salvage a reply with an unsupported commercial claim', async () => {
+  const service = createSalesChatService({
+    openaiClient: providerWith(JSON.stringify({
+      reply: 'Growth is free and unlimited.', intent: 'general', responseMode: 'unexpected_mode', resumePendingQuestion: false,
+      extractedFields: {}, requestedNextField: null, actionIntent: [],
+    })), commercialFacts,
+  });
+  const result = await service.handle({ body: requestBody({ userMessage: 'Hello' }) });
+  assert.equal(result.status, 502);
+  assert.deepEqual(result.body, { error: 'Sales assistant is temporarily unavailable.' });
 });

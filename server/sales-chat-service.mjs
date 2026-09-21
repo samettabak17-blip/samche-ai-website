@@ -66,7 +66,7 @@ function hasAtMostOneQuestion(reply) {
 function detectInputLanguage(input) {
   const value = input.toLowerCase();
   if (/[؀-ۿ]/u.test(value)) return 'ar';
-  if (/[çğıöşü]/i.test(value) || /\b(?:urun|ürün|hemen|teslim|ediyor|musunuz|müsünüz|danışmanlık|danismanlik|fiyat|paket|istiyorum|için|icin|nasıl|nasil|şirket|sirket)\b/i.test(value)) return 'tr';
+  if (/[çğıöşü]/i.test(value) || /\b(?:merhaba|urun|ürün|hemen|teslim|ediyor|musunuz|müsünüz|danışmanlık|danismanlik|fiyat|paket|istiyorum|için|icin|nasıl|nasil|şirket|sirket)\b/i.test(value)) return 'tr';
   return 'en';
 }
 
@@ -188,7 +188,8 @@ export function validateSalesLlmOutput(output, { plans, products, allowedActions
   if (typeof value === 'string') { try { value = JSON.parse(value); } catch { return failure('invalid_json'); } }
   value = normalizeSalesLlmOutput(value);
   if (!value || typeof value !== 'object' || Array.isArray(value)) return failure('invalid_shape');
-  if (typeof value.reply !== 'string' || !value.reply.trim() || value.reply.length > 3000) return failure('invalid_reply', { field: 'reply' });
+  const replyValidation = validateSalesReplyText(value.reply, { plans, products });
+  if (!replyValidation.ok) return replyValidation;
   if (!ALLOWED_INTENTS.has(value.intent)) return failure('invalid_intent', { value: safeDiagnosticValue(value.intent) });
   if (!ALLOWED_RESPONSE_MODES.has(value.responseMode)) return failure('invalid_response_mode', { value: safeDiagnosticValue(value.responseMode) });
   if (typeof value.resumePendingQuestion !== 'boolean') return failure('invalid_resume_pending_question');
@@ -202,16 +203,21 @@ export function validateSalesLlmOutput(output, { plans, products, allowedActions
       if (!Array.isArray(fieldValue) || fieldValue.some((item) => typeof item !== 'string')) return failure('invalid_field_value', { field: key, type: Array.isArray(fieldValue) ? 'array_item' : typeof fieldValue });
     } else if (typeof fieldValue !== 'string' && typeof fieldValue !== 'boolean') return failure('invalid_field_value', { field: key, type: typeof fieldValue });
   }
-  const amounts = approvedAmounts(plans);
-  for (const amount of value.reply.matchAll(/AED\s*([\d,]+)/gi)) if (!amounts.has(amount[1].replaceAll(',', ''))) return failure('unsupported_commercial_claim', { category: 'amount' });
-  if (/(?:discount|free|unlimited|guaranteed)/i.test(value.reply)) return failure('unsupported_commercial_claim', { category: 'disallowed_term' });
-  const knownProducts = products.map((product) => product.name);
-  const unknownProductClaim = [...value.reply.matchAll(/\b(?:Web Chatbot|WhatsApp AI|AI Guide|Knowledge Intelligence|Live Inbox|CRM & Pipeline)\b/g)].some((match) => knownProducts.length > 0 && !knownProducts.includes(match[0]));
-  if (unknownProductClaim) return failure('unsupported_product_claim', { category: 'product_name' });
   if (value.responseMode === 'capability_interrupt' && value.intent !== 'capability_question') return failure('response_mode_intent_mismatch');
   if (value.responseMode === 'pricing_interrupt' && !['pricing', 'pricing_question'].includes(value.intent)) return failure('response_mode_intent_mismatch');
   if (['in_scope_interrupt', 'capability_interrupt', 'pricing_interrupt', 'demo_interrupt'].includes(value.responseMode) && value.resumePendingQuestion !== true) return failure('interrupt_resume_required');
   return { ok: true, value: { reply: value.reply.trim(), intent: value.intent, responseMode: value.responseMode, resumePendingQuestion: value.resumePendingQuestion, extractedFields: value.extractedFields, requestedNextField: value.requestedNextField ?? null, actionIntent: value.actionIntent } };
+}
+
+function validateSalesReplyText(reply, { plans, products }) {
+  if (typeof reply !== 'string' || !reply.trim() || reply.length > 3000) return failure('invalid_reply', { field: 'reply' });
+  const amounts = approvedAmounts(plans);
+  for (const amount of reply.matchAll(/AED\s*([\d,]+)/gi)) if (!amounts.has(amount[1].replaceAll(',', ''))) return failure('unsupported_commercial_claim', { category: 'amount' });
+  if (/(?:discount|free|unlimited|guaranteed)/i.test(reply)) return failure('unsupported_commercial_claim', { category: 'disallowed_term' });
+  const knownProducts = products.map((product) => product.name);
+  const unknownProductClaim = [...reply.matchAll(/\b(?:Web Chatbot|WhatsApp AI|AI Guide|Knowledge Intelligence|Live Inbox|CRM & Pipeline)\b/g)].some((match) => knownProducts.length > 0 && !knownProducts.includes(match[0]));
+  if (unknownProductClaim) return failure('unsupported_product_claim', { category: 'product_name' });
+  return { ok: true, value: reply.trim() };
 }
 
 function logValidationFailure(result, { environment, logger }) {
@@ -220,7 +226,7 @@ function logValidationFailure(result, { environment, logger }) {
     logger?.warn?.('sales_chat_validation_failed', { reason: result.reason });
     return;
   }
-  logger?.warn?.('sales_chat_provider_unusable', { category: 'validator', reason: result.reason });
+  logger?.warn?.('sales_chat_provider_unusable', { category: 'validator', stage: 'provider_contract', field: result.field, reason: result.reason });
 }
 
 function logProviderFailure(error, logger) {
@@ -237,6 +243,38 @@ function expectedIntentForMode(mode, userMessage = '') {
   if (mode === 'in_scope_interrupt') return /ai guide|web chatbot|whatsapp ai|live inbox|knowledge intelligence|product|feature/i.test(userMessage) ? 'feature_question' : 'product_question';
   if (mode === 'demo_interrupt') return 'demo_question';
   return 'qualification';
+}
+
+function safelySalvageProviderReply(output, context, commercialFacts) {
+  let value = output;
+  if (typeof value === 'string') { try { value = JSON.parse(value); } catch { return null; } }
+  value = normalizeSalesLlmOutput(value);
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const replyValidation = validateSalesReplyText(value.reply, { plans: commercialFacts.plans, products: commercialFacts.products });
+  if (!replyValidation.ok || !replyMatchesInputLanguage(replyValidation.value, context.inputLanguage) || !hasAtMostOneQuestion(replyValidation.value)) return null;
+  const extractedFields = {};
+  if (value.extractedFields && typeof value.extractedFields === 'object' && !Array.isArray(value.extractedFields)) {
+    for (const [field, fieldValue] of Object.entries(value.extractedFields)) {
+      if (!ALLOWED_LEAD_FIELDS.has(field) || fieldValue === null) continue;
+      if (EXTRACTED_ARRAY_FIELDS.has(field)) {
+        if (Array.isArray(fieldValue) && fieldValue.every((item) => typeof item === 'string')) extractedFields[field] = fieldValue;
+      } else if (typeof fieldValue === 'string' || typeof fieldValue === 'boolean') extractedFields[field] = fieldValue;
+    }
+  }
+  const responseMode = ALLOWED_RESPONSE_MODES.has(value.responseMode) ? value.responseMode : context.responseMode;
+  const expectedIntent = expectedIntentForMode(responseMode, context.userMessage);
+  const intent = ALLOWED_INTENTS.has(value.intent) ? value.intent : expectedIntent;
+  const modeIntentMismatch = (responseMode === 'capability_interrupt' && intent !== 'capability_question')
+    || (responseMode === 'pricing_interrupt' && !['pricing', 'pricing_question'].includes(intent));
+  return {
+    reply: sanitizeSalesReply(replyValidation.value, SALES_CHAT_CAPABILITIES, context.inputLanguage),
+    intent: modeIntentMismatch ? expectedIntent : intent,
+    responseMode,
+    resumePendingQuestion: typeof value.resumePendingQuestion === 'boolean' ? value.resumePendingQuestion : Boolean(context.lastPendingQuestion && context.pendingField),
+    extractedFields,
+    requestedNextField: ALLOWED_NEXT_FIELDS.has(value.requestedNextField ?? null) ? value.requestedNextField ?? null : null,
+    actionIntent: [],
+  };
 }
 
 function pendingResumePresent(reply, context) {
@@ -332,6 +370,15 @@ export function createSalesChatService({ openaiClient, commercialFacts, timeoutM
       }
       const result = validateSalesLlmOutput(content, { plans: commercialFacts.plans, products: commercialFacts.products });
       if (!result.ok) logValidationFailure(result, { environment, logger });
+      if (!result.ok) {
+        const salvage = safelySalvageProviderReply(content, context, commercialFacts);
+        if (salvage) {
+          logger?.warn?.('sales_chat_provider_salvaged', { category: 'validator', stage: 'optional_metadata', reason: result.reason });
+          if (isInterruptMode(context.responseMode)) return { status: 200, body: enforceInterruptResponse(salvage, context, commercialFacts), context };
+          return { status: 200, body: salvage, context };
+        }
+        return { status: 502, body: { error: 'Sales assistant is temporarily unavailable.' }, context };
+      }
       const languageValid = result.ok && replyMatchesInputLanguage(result.value.reply, context.inputLanguage);
       const questionCountValid = result.ok && hasAtMostOneQuestion(result.value.reply);
       if (result.ok && (!languageValid || !questionCountValid)) logValidationFailure(failure(!languageValid ? 'invalid_language' : 'too_many_questions'), { environment, logger });
@@ -340,7 +387,7 @@ export function createSalesChatService({ openaiClient, commercialFacts, timeoutM
         const reply = sanitizeSalesReply(result.value.reply, SALES_CHAT_CAPABILITIES, context.inputLanguage);
         return { status: 200, body: { ...result.value, reply, actionIntent: reply === result.value.reply ? result.value.actionIntent : [] }, context };
       }
-      return { status: 422, body: { error: 'Sales assistant response was not usable.' }, context };
+      return { status: 502, body: { error: 'Sales assistant is temporarily unavailable.' }, context };
     } catch (error) {
       logProviderFailure(error, logger);
       return { status: 503, body: { error: 'Sales assistant is temporarily unavailable.' }, context };

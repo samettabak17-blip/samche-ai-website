@@ -125,7 +125,7 @@ export function SamCheChatWidget({ configuration = defaultSamcheChatConfig }: { 
   }, [open, confirmReset, menuOpen]);
 
   useEffect(() => {
-    if (!open) { setKeyboardOpen(false); return; }
+    if (!open) return;
     const viewport = window.visualViewport;
     if (!viewport) return;
     const updateViewport = () => {
