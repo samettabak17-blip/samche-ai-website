@@ -11,6 +11,7 @@ type Message = { role: 'assistant' | 'user'; text: string; title?: string; time:
 type SalesState = ReturnType<typeof createInitialSalesState>;
 type SalesAction = { label: string; type: 'link' | 'demo' | 'whatsapp'; href?: string };
 type ChatAttachment = { name: string; mimeType: string; data: string; preview: string };
+type ViewportMetrics = { height: number; offsetTop: number; offsetLeft: number };
 const salesChatApiBaseUrl = '';
 function welcomeMessage(config: ReturnType<typeof resolveSamcheChatConfig>): Message {
   return { role: 'assistant', title: config.welcome_title, text: config.welcome_message, time: 'Now' };
@@ -72,7 +73,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
   const [attachment, setAttachment] = useState<ChatAttachment | null>(null);
   const [processingStatus, setProcessingStatus] = useState('Matching your requirements to SamChe AI products…');
   const [keyboardOpen, setKeyboardOpen] = useState(false);
-  const [visualViewportHeight, setVisualViewportHeight] = useState(0);
+  const [visualViewport, setVisualViewport] = useState<ViewportMetrics>({ height: 0, offsetTop: 0, offsetLeft: 0 });
   const salesStateRef = useRef<SalesState>(createInitialSalesState());
   const sessionIdRef = useRef('');
   const listRef = useRef<HTMLDivElement>(null);
@@ -133,8 +134,15 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
     const viewport = window.visualViewport;
     if (!viewport) return;
     const updateViewport = () => {
-      setVisualViewportHeight(Math.round(viewport.height));
-      setKeyboardOpen(window.innerHeight - viewport.height > 140);
+      const nextViewport = {
+        height: Math.round(viewport.height),
+        offsetTop: Math.round(viewport.offsetTop),
+        offsetLeft: Math.round(viewport.offsetLeft),
+      };
+      const layoutHeight = Math.max(window.innerHeight, document.documentElement.clientHeight);
+      const keyboardHeight = layoutHeight - (nextViewport.height + nextViewport.offsetTop);
+      setVisualViewport(nextViewport);
+      setKeyboardOpen(keyboardHeight > 120);
     };
     updateViewport();
     viewport.addEventListener('resize', updateViewport);
@@ -233,8 +241,14 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
     ? config.quick_actions
     : salesState.turns >= 2 ? config.quick_actions.filter((action) => action !== 'Pricing') : [];
 
-  return <div className="samche-chat-root">
-    {open && <section className={`samche-chat-panel${keyboardOpen ? ' samche-keyboard-open' : ''}`} style={{ '--samche-visual-viewport-height': `${visualViewportHeight || window.innerHeight}px` } as CSSProperties} role="dialog" aria-label={config.assistant_display_name} aria-modal="false">
+  const viewportStyle = {
+    '--samche-visual-viewport-height': `${visualViewport.height || window.innerHeight}px`,
+    '--samche-visual-viewport-offset-top': `${visualViewport.offsetTop}px`,
+    '--samche-visual-viewport-offset-left': `${visualViewport.offsetLeft}px`,
+  } as CSSProperties;
+
+  return <div className={`samche-chat-root${keyboardOpen ? ' samche-keyboard-open' : ''}`} style={viewportStyle}>
+    {open && <section className={`samche-chat-panel${keyboardOpen ? ' samche-keyboard-open' : ''}`} role="dialog" aria-label={config.assistant_display_name} aria-modal="false">
       <header className="samche-chat-header"><Orb small header avatarUrl={config.avatar_url || config.logo_url} /><div className="samche-chat-title"><strong>{config.assistant_display_name}</strong><span><i /> {config.assistant_status_label}</span><small>{config.subtitle}</small></div><div className="samche-chat-menu-wrap"><button className="samche-icon-button samche-menu" type="button" aria-label={config.more_options_label} aria-expanded={menuOpen} title={config.more_options_label} onClick={() => setMenuOpen((value) => !value)}>···</button>{menuOpen && <div className="samche-chat-menu"><button type="button" onClick={() => { setMenuOpen(false); setConfirmReset(true); }}>Clear conversation</button></div>}</div><button className="samche-icon-button" type="button" aria-label="Close chat" onClick={() => setOpen(false)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button></header>
       {confirmReset && <div className="samche-reset-backdrop"><section className="samche-reset-dialog" role="alertdialog" aria-modal="true" aria-labelledby="samche-reset-title" aria-describedby="samche-reset-copy"><h2 id="samche-reset-title">Clear conversation?</h2><p id="samche-reset-copy">Clear this conversation and start again?</p><div><button type="button" onClick={() => setConfirmReset(false)}>CANCEL</button><button type="button" onClick={resetConversation}>CLEAR CONVERSATION</button></div></section></div>}
       <div className="samche-chat-messages" ref={listRef} aria-live="polite">

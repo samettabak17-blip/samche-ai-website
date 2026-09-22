@@ -1061,3 +1061,31 @@ body { background:radial-gradient(ellipse at 50% -22%,rgba(143,10,30,.23),transp
   .plan-comparison thead th { font-size:6.5px; }
   .samche-chat-panel { right:max(8px,env(safe-area-inset-right)); width:calc(100% - 16px); }
 }
+
+/* iOS keeps fixed elements in the layout viewport while the keyboard moves the
+   visual viewport. Anchor both the panel and its closed orb to that visible
+   viewport, including Safari's viewport scroll offset. */
+@media (max-width:760px) {
+  .samche-chat-root { z-index:100; max-width:calc(100vw - 16px); }
+  .samche-chat-panel {
+    display:grid;
+    grid-template-rows:auto minmax(0,1fr) auto;
+    height:min(520px,66svh);
+    max-height:calc(100svh - 104px - env(safe-area-inset-bottom));
+    overflow:hidden;
+  }
+  .samche-chat-messages { min-height:0; overflow-y:auto; overscroll-behavior:contain; }
+  .samche-chat-composer { min-height:0; flex-shrink:0; overflow:visible; }
+  .samche-chat-form { flex-shrink:0; }
+
+  .samche-chat-root.samche-keyboard-open {
+    bottom:max(8px,calc(100vh - var(--samche-visual-viewport-offset-top) - var(--samche-visual-viewport-height) + 8px));
+  }
+  .samche-chat-panel.samche-keyboard-open {
+    bottom:max(8px,calc(100vh - var(--samche-visual-viewport-offset-top) - var(--samche-visual-viewport-height) + 8px));
+    height:min(420px,calc(var(--samche-visual-viewport-height) * .62));
+    max-height:calc(var(--samche-visual-viewport-height) - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+  .samche-chat-panel.samche-keyboard-open .samche-chat-composer > :not(.samche-chat-form):not(.samche-attachment-preview) { display:none; }
+  .samche-chat-panel.samche-keyboard-open .samche-attachment-preview { max-height:48px; overflow:hidden; }
+}
