@@ -10,6 +10,6 @@ export const metadata: Metadata = {
 
 export default function PricingPage() {
   return <SiteShell><main id="main-content" className="pricing-wrap">
-    <div className="pricing-intro"><SectionEyebrow>Subscription plans</SectionEyebrow><h1>Choose the right SamChe AI plan.</h1><p>Monthly subscriptions and transparent one-time setup fees for the SamChe AI Platform.</p><PricingTable /></div>
+    <div className="pricing-intro"><SectionEyebrow>Subscription plans</SectionEyebrow><h1>Choose the right SamChe AI plan.</h1><p>Compare cumulative plans with transparent pricing, including Enterprise visual AI, included base voice AI, multi-brand scale and deeper operational control.</p><PricingTable /></div>
   </main></SiteShell>;
 }

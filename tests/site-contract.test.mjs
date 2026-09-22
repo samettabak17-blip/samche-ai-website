@@ -330,6 +330,21 @@ test('homepage is a product-led SaaS sales journey with real-product evidence', 
   assert.ok(!home.match(/consulting|consultancy|agency|company formation|custom IT project/i));
 });
 
+test('public commercial copy separates live Custom Workflows from roadmap platform products', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const home = await readFile(new URL('../app/page.tsx', import.meta.url), 'utf8');
+  const platform = await readFile(new URL('../app/platform/page.tsx', import.meta.url), 'utf8');
+  const pricing = await readFile(new URL('../app/pricing/page.tsx', import.meta.url), 'utf8');
+  assert.match(home, /Custom Workflows are available today for configured automations and integrations/);
+  assert.match(home, /Agentic AI, Skills, Actions and the broader Workflow Engine remain roadmap capabilities/);
+  assert.match(platform, /Custom Workflows are a currently supported plan capability/);
+  assert.match(platform, /The broader Workflow Engine, Agentic AI, Skills and Actions remain roadmap capabilities/);
+  assert.match(pricing, /visual AI, included base voice AI, multi-brand scale and deeper operational control/);
+  const activeCommercialCopy = [home, platform, pricing, JSON.stringify(plans), JSON.stringify(addons), JSON.stringify(platformFeatureGroups)].join(' ');
+  assert.doesNotMatch(activeCommercialCopy, /Enterprise[^.]{0,120}AI Voice[^.]{0,120}(paid-only|always separately priced)/i);
+  assert.doesNotMatch(activeCommercialCopy, /(?:Agentic AI|Workflow Engine)[^.]{0,80}(?:standard live entitlement|included in Enterprise)/i);
+});
+
 test('live product cards use captured real product screenshots', async () => {
   const { readFile, stat } = await import('node:fs/promises');
   const home = await readFile(new URL('../app/page.tsx', import.meta.url), 'utf8');

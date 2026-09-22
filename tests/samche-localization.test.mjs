@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, arText, hasLocaleTranslation, publicLocaleCoverage, readLocale, readLocaleFromSearch, translateText, translationSourceForNode, trText, turkishRequiredKeys, writeLocale } from '../lib/samche-localization.mjs';
 import { buildLeadSummary, buildWhatsAppSalesUrl, createInitialSalesState, generateSalesTurn } from '../lib/samche-sales-assistant.mjs';
 import { resolveSamcheChatConfig, welcomeCopyForLocale } from '../lib/samche-chat-config.mjs';
-import { addons, addonNotes, comparisonStateLegend, interactionAllowanceCards, planInheritanceNotes, plans, platformFeatureGroups, productModules } from '../lib/site-data.mjs';
+import { addons, addonNotes, comparisonStateLegend, comparisonUsageNotes, interactionAllowanceCards, planInheritanceNotes, plans, platformFeatureGroups, productModules } from '../lib/site-data.mjs';
 
 function storageMock() {
   const values = new Map();
@@ -104,13 +104,36 @@ test('Turkish and Arabic localize every customer-facing string from shared platf
     ...planInheritanceNotes,
     ...comparisonStateLegend.flatMap((item) => [item.state, item.description]),
     ...platformFeatureGroups.flatMap((group) => [group.label, ...group.rows.flatMap((row) => [row.label, ...row.values])]),
+    ...comparisonUsageNotes,
     ...interactionAllowanceCards.flatMap((card) => [card.title, card.body]),
   ];
 
   for (const locale of ['tr', 'ar']) {
     for (const source of sharedCopy) {
-      if (/^\d[\d,]*$/.test(source)) continue;
+      if (/^\d[\d,]*$/.test(source) || source === '—') continue;
       assert.notEqual(translateText(source, locale), source, `${locale} translation missing for: ${source}`);
+    }
+  }
+});
+
+test('Turkish and Arabic localize Enterprise visual, voice, FAQ, and compact comparison contracts', () => {
+  const required = [
+    'Core Channels', 'AI Visual', 'AI Voice', 'Omnichannel Conversation Context',
+    'AI Visual Generation', 'Visual Product Personalization', 'Screenshot / Image Understanding',
+    'AI Visual Generations', 'Inbound Voice Minutes', 'Concurrent AI Calls', 'Outbound AI Calling',
+    '200 / month included', '300 min / month included', '2 concurrent calls included',
+    '200 / month', '300 / month', '2 calls', '200/mo', '300 min', 'Upgrade',
+    'Is AI Voice included in Enterprise?',
+    'Enterprise includes the base AI Voice Receptionist entitlement with 300 inbound minutes per month and up to 2 concurrent AI calls. Additional minutes, higher concurrency, Voice AI Pro, and outbound calling are available separately.',
+    'What is included with AI Visual Generation?',
+    'Enterprise includes one shared allowance of 200 AI Visual Generations per month across enabled AI Visual Generation and Visual Product Personalization experiences. Additional usage is available by agreed scope.',
+    'What happens when Enterprise exceeds included voice or visual usage?',
+    'Additional usage is handled through an agreed usage-based or custom commercial arrangement. Automatic billing, rollover, or suspension is not assumed unless separately contracted.',
+  ];
+  for (const locale of ['tr', 'ar']) {
+    for (const source of required) {
+      assert.ok(hasLocaleTranslation(source, locale), `${locale} explicit translation missing: ${source}`);
+      assert.notEqual(translateText(source, locale), source, `${locale} fallback: ${source}`);
     }
   }
 });
