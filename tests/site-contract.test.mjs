@@ -189,6 +189,36 @@ test('platform comparison and FAQ provide accessible bilingual contracts', async
   assert.match(css, /\.platform-faq.*data-locale="ar"|data-locale="ar".*\.platform-faq/s);
 });
 
+test('pricing renderer exposes controlled multimodal notes and concise mobile values', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const component = await readFile(new URL('../app/components/pricing-table.tsx', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../app/globals.css', import.meta.url), 'utf8');
+  assert.match(component, /comparisonUsageNotes/);
+  assert.match(component, /comparisonUsageNotes\.map/);
+  for (const compact of ['200/mo', '300 min', '2 calls', 'Yes · Custom', 'Upgrade']) {
+    assert.ok(component.includes(compact), `missing compact label ${compact}`);
+  }
+  assert.match(component, /normalized\.startsWith\('upgrade'\)/);
+  assert.doesNotMatch(css, /\.comparison-scroll\s*\{[^}]*overflow-x\s*:\s*auto/s);
+  assert.match(css, /\.plan-comparison\s*\{[^}]*table-layout\s*:\s*fixed/s);
+  assert.doesNotMatch(css, /@media[^}]+\{[\s\S]*?\.plan-comparison[^}]+display\s*:\s*none/s);
+});
+
+test('Enterprise visual and voice FAQ uses the approved commercial contract', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const faq = await readFile(new URL('../app/components/platform-faq.tsx', import.meta.url), 'utf8');
+  for (const question of [
+    'Is AI Voice included in Enterprise?',
+    'What is included with AI Visual Generation?',
+    'What happens when Enterprise exceeds included voice or visual usage?',
+  ]) assert.ok(faq.includes(question), `FAQ should include ${question}`);
+  assert.match(faq, /300 inbound minutes per month and up to 2 concurrent AI calls/);
+  assert.match(faq, /one shared allowance of 200 AI Visual Generations per month/);
+  assert.match(faq, /Additional minutes, higher concurrency, Voice AI Pro, and outbound calling are available separately/);
+  assert.match(faq, /agreed usage-based or custom commercial arrangement/);
+  assert.match(faq, /Automatic billing, rollover, or suspension is not assumed unless separately contracted/);
+});
+
 test('expanded platform comparison uses cumulative explicit capability states', () => {
   assert.equal(platformFeatureGroups.length, 8);
   const rows = platformFeatureGroups.flatMap((group) => group.rows);

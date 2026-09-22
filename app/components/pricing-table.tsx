@@ -2,7 +2,7 @@
 
 import Link from './internal-link';
 import { Fragment, useState } from 'react';
-import { addons, addonNotes, agenticExpansionNote, comparisonStateLegend, interactionAllowanceCards, planInheritanceNotes, plans, platformFeatureGroups, setupPrice } from '../../lib/site-data.mjs';
+import { addons, addonNotes, agenticExpansionNote, comparisonStateLegend, comparisonUsageNotes, interactionAllowanceCards, planInheritanceNotes, plans, platformFeatureGroups, setupPrice } from '../../lib/site-data.mjs';
 import { PlatformFAQ } from './platform-faq';
 import { SectionEyebrow } from './site-shell';
 
@@ -27,6 +27,7 @@ function comparisonStateClass(value: string) {
   if (normalized.startsWith('included')) return 'included';
   if (normalized.startsWith('not included')) return 'not-included';
   if (normalized.startsWith('add-on')) return 'add-on';
+  if (normalized.startsWith('upgrade')) return 'add-on';
   if (normalized.startsWith('by scope')) return 'by-scope';
   if (normalized.startsWith('custom')) return 'custom';
   if (normalized.startsWith('roadmap')) return 'roadmap';
@@ -35,10 +36,14 @@ function comparisonStateClass(value: string) {
 
 function comparisonMobileLabel(value: string) {
   const labels: Record<string, string> = {
-    'Not included': 'No', 'Included': 'Yes', 'Included · Custom scale': 'Yes · Custom', 'Included · By scope': 'Yes · Scope',
-    '1 CRM OR Booking Integration': '1 CRM/Booking', 'Included within up to 3 external integrations': 'Up to 3',
-    '100,000+ / month': '100K+', '50,000 / month': '50K', '20,000 / month': '20K', '5,000 / month': '5K',
-    'Extended / Custom': 'Custom', 'Standard access': 'Standard', 'Roadmap / By scope': 'Roadmap', 'Add-on / By scope': 'Add-on',
+    'Not included': 'No', 'Included': 'Yes', 'Included / Custom scale': 'Yes · Custom',
+    '1 CRM or Booking integration': '1 CRM/Booking', 'Up to 3 external integrations': 'Up to 3',
+    '100,000+': '100K+', '50,000': '50K', '20,000': '20K', '5,000': '5K',
+    'Core access': 'Core', 'Enterprise scale': 'Enterprise', 'Custom scale': 'Custom',
+    'Roadmap / By scope': 'Roadmap', 'Add-on / By scope': 'Add-on', 'Upgrade / Add-on': 'Upgrade',
+    '200 / month included': '200/mo', '200 / month': '200/mo',
+    '300 min / month included': '300 min', '300 / month': '300 min',
+    '2 concurrent calls included': '2 calls', '2': '2 calls',
   };
   return labels[value] || value;
 }
@@ -73,6 +78,7 @@ export function PricingTable() {
           <tbody>{platformFeatureGroups.map((group) => <Fragment key={group.label}><tr className="comparison-group"><th colSpan={5}>{group.label}</th></tr>{group.rows.map((row) => <tr key={`${group.label}-${row.label}`}><th scope="row">{row.label}</th>{row.values.map((value, index) => <td data-plan={plans[index].slug} key={plans[index].slug}><span className={`comparison-state comparison-state-${comparisonStateClass(value)}`} aria-label={value}><span className="comparison-desktop-label">{value}</span><span className="comparison-mobile-label">{comparisonMobileLabel(value)}</span></span></td>)}</tr>)}{group.label === 'Integrations & Automation' && <tr className="comparison-group-note"><th colSpan={5}>{agenticExpansionNote}</th></tr>}</Fragment>)}</tbody>
         </table>
       </div>
+      <ul className="comparison-usage-notes">{comparisonUsageNotes.map((note) => <li key={note}>{note}</li>)}</ul>
       <div className="comparison-state-legend" aria-label="Comparison state legend">{comparisonStateLegend.map((item) => <div className="comparison-legend-item" key={item.state}><span className={`comparison-state comparison-state-${comparisonStateClass(item.state)}`}>{item.state}</span><span>{item.description}</span></div>)}</div>
     </section>
     <section className="interaction-explanation" aria-labelledby="interaction-explanation-heading">

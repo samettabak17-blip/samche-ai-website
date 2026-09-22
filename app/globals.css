@@ -292,6 +292,7 @@ button, a, select, summary { -webkit-tap-highlight-color: transparent; }
 .interaction-explanation-card h3 { margin:0; color:#f1d27b; font-size:13px; font-weight:650; }
 .interaction-explanation-card p { margin:9px 0 0; color:var(--muted); font-size:11px; line-height:1.65; }
 .comparison-state-legend { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px 12px; margin-top:14px; padding:14px; border:1px solid rgba(255,255,255,.09); border-radius:9px; background:rgba(255,255,255,.018); }
+.comparison-usage-notes { display:grid; gap:6px; margin:14px 0 0; padding:14px 14px 14px 28px; border:1px solid rgba(255,255,255,.09); border-radius:9px; color:var(--muted); background:rgba(255,255,255,.018); font-size:10px; line-height:1.55; }
 .comparison-legend-item { display:flex; align-items:center; gap:7px; min-width:0; color:var(--muted); font-size:10px; line-height:1.4; }
 
 .platform-faq { margin-top:65px; padding:32px; border:1px solid rgba(232,189,104,.16); border-radius:14px; background:linear-gradient(145deg,rgba(28,16,21,.62),rgba(12,9,12,.86)); }
