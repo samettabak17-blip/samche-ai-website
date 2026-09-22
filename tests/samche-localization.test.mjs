@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, arText, hasLocaleTranslation, publicLocaleCoverage, readLocale, readLocaleFromSearch, translateText, translationSourceForNode, trText, turkishRequiredKeys, writeLocale } from '../lib/samche-localization.mjs';
 import { buildLeadSummary, buildWhatsAppSalesUrl, createInitialSalesState, generateSalesTurn } from '../lib/samche-sales-assistant.mjs';
 import { resolveSamcheChatConfig, welcomeCopyForLocale } from '../lib/samche-chat-config.mjs';
+import { addons, addonNotes, comparisonStateLegend, interactionAllowanceCards, planInheritanceNotes, plans, platformFeatureGroups, productModules } from '../lib/site-data.mjs';
 
 function storageMock() {
   const values = new Map();
@@ -92,6 +93,40 @@ test('Turkish selector is always available outside the mobile menu and keeps LTR
 
 test('every required Turkish public string has an explicit dictionary entry', () => {
   for (const source of turkishRequiredKeys) assert.ok(Object.hasOwn(trText, source), source);
+});
+
+test('Turkish and Arabic localize every customer-facing string from shared platform and pricing data', () => {
+  const sharedCopy = [
+    ...plans.flatMap((plan) => [plan.name, plan.description, plan.cta, ...plan.features]),
+    ...addons.flatMap((addon) => [addon.name, addon.description, addon.setup].filter(Boolean)),
+    ...addonNotes,
+    ...productModules.flatMap((module) => [module.name, module.status, module.description]),
+    ...planInheritanceNotes,
+    ...comparisonStateLegend.flatMap((item) => [item.state, item.description]),
+    ...platformFeatureGroups.flatMap((group) => [group.label, ...group.rows.flatMap((row) => [row.label, ...row.values])]),
+    ...interactionAllowanceCards.flatMap((card) => [card.title, card.body]),
+  ];
+
+  for (const locale of ['tr', 'ar']) {
+    for (const source of sharedCopy) {
+      if (/^\d[\d,]*$/.test(source)) continue;
+      assert.notEqual(translateText(source, locale), source, `${locale} translation missing for: ${source}`);
+    }
+  }
+});
+
+test('Turkish and Arabic localize route-owned platform and plan recommendation copy without mixed-language fragments', () => {
+  const routeCopy = [
+    'Configure customer-facing, guided AI experiences beyond a simple Q&A exchange.',
+    'See workspace KPIs and date-filtered analytics in the dashboard.',
+    'Bring Web Chatbot, WhatsApp AI and AI Guide into connected customer operations.',
+    'Keep product areas organized around a customer workspace and its configuration.',
+    '12 · Choose your starting point', 'CHOOSE YOUR STARTING POINT', 'Which plan is right for you?', 'Explore plan ↗',
+  ];
+  for (const locale of ['tr', 'ar']) {
+    for (const source of routeCopy) assert.notEqual(translateText(source, locale), source, `${locale} route translation missing for: ${source}`);
+  }
+  assert.equal(translateText(routeCopy[2], 'tr'), 'Web Sohbet Botu, WhatsApp Yapay Zekâ ve AI Rehberi müşteri operasyonlarında birlikte kullanın.');
 });
 
 test('DOM localization preserves React updates to dynamic text and restores its source across locales', () => {
