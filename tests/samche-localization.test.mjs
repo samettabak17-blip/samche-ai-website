@@ -157,6 +157,19 @@ test('route and chatbot visible copy has no unintended English fallback', () => 
   }
 });
 
+test('Turkish localizes compact prices and every lead-summary label', () => {
+  const expectations = {
+    'AED 1,500/month': 'Aylık AED 1.500',
+    'From AED 1,990/month': 'Aylık AED 1.990’dan başlayan fiyatlarla',
+    'From AED 3,990/month': 'Aylık AED 3.990’dan başlayan fiyatlarla',
+    'Email': 'E-posta', 'Industry': 'Sektör', 'Country': 'Ülke', 'Website': 'Web sitesi', 'Business': 'İşletme',
+    'Products': 'Ürünler', 'Integrations': 'Entegrasyonlar', 'Monthly enquiries': 'Aylık talepler', 'Timeline': 'Zaman çizelgesi',
+    'Contact preference': 'İletişim tercihi', 'Required': 'Gerekli', 'Channels': 'Kanallar',
+    'Live Inbox / Conversations': 'Canlı Gelen Kutusu / Konuşmalar', 'Platform capabilities': 'Platform yetenekleri',
+  };
+  for (const [source, expected] of Object.entries(expectations)) assert.equal(translateText(source, 'tr'), expected, source);
+});
+
 test('Turkish and Arabic localize route-owned platform and plan recommendation copy without mixed-language fragments', () => {
   const routeCopy = [
     'Configure customer-facing, guided AI experiences beyond a simple Q&A exchange.',
