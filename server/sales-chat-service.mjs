@@ -1,9 +1,11 @@
 const MODEL = 'gpt-4o-mini';
+const VISION_MODEL = 'gpt-4o';
+const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 const MAX_MESSAGE_LENGTH = 2000;
 const MAX_HISTORY = 12;
 const MAX_HISTORY_MESSAGE_LENGTH = 1200;
-const ALLOWED_INTENTS = new Set(['sales', 'qualification', 'product_question', 'capability_question', 'feature_question', 'pricing_question', 'pricing', 'demo_question', 'off_topic', 'handoff']);
-const ALLOWED_RESPONSE_MODES = new Set(['qualification_answer', 'in_scope_interrupt', 'pricing_interrupt', 'capability_interrupt', 'demo_interrupt', 'off_topic', 'handoff']);
+const ALLOWED_INTENTS = new Set(['sales', 'qualification', 'product_question', 'capability_question', 'feature_question', 'pricing_question', 'pricing', 'demo_question', 'support', 'technical_troubleshooting', 'off_topic', 'handoff']);
+const ALLOWED_RESPONSE_MODES = new Set(['qualification_answer', 'in_scope_interrupt', 'pricing_interrupt', 'capability_interrupt', 'demo_interrupt', 'support', 'off_topic', 'handoff']);
 const ALLOWED_NEXT_FIELDS = new Set(['industry', 'channels', 'volume', 'integrations', 'leadQualification', 'languages', 'aiGuideNeed', 'apiWorkflow', 'externalIntegrations', 'aiLeadScoring', 'teamUsers', 'timeline', 'contactPreference', null]);
 const ALLOWED_LEAD_FIELDS = new Set(['name', 'email', 'company', 'industry', 'country', 'website', 'mainGoal', 'channels', 'products', 'languages', 'integrations', 'volume', 'timeline', 'contactPreference', 'preferredDemoDate', 'preferredDemoTime', 'teamUsers', 'leadQualification', 'budget', 'apiWorkflow', 'apiAccessNeed', 'customWorkflowNeed', 'aiGuideNeed', 'externalIntegrations', 'aiLeadScoring']);
 const ALLOWED_ACTIONS = ['REQUEST_DEMO', 'WHATSAPP_HANDOFF'];
@@ -12,7 +14,7 @@ export const SALES_CHAT_CAPABILITIES = Object.freeze({
   canConfirmAppointment: false,
   canSendEmail: false,
 });
-const SYSTEM_PROMPT = 'You are the SamChe AI sales conversation layer. Return only a JSON object with keys reply, intent, responseMode, resumePendingQuestion, extractedFields, requestedNextField, and actionIntent. CURRENT USER MESSAGE HAS PRIORITY. Detect the language of the latest user message independently from the UI locale and reply in that latest-message language. UI locale is only a presentation preference and must never force English over Turkish, Arabic, or another clear user language. Treat leadState and knownFields as authoritative memory: never ask for a field already present in knownFields, and never repeat lastQuestion or lastPendingQuestion when that information has already been answered. The latest user message may answer the pending field; acknowledge it first, then ask at most one useful next question, preferring nextUsefulField. Use natural human sales phrasing and vary transitions; do not run a fixed questionnaire. If responseMode is an in-scope interrupt, answer the current product, capability, feature, pricing, or demo question first; do not output only the pending qualification question. Then resume the supplied lastPendingQuestion naturally in the same language when useful, preserving the full lead state. Unexpected but SamChe-related questions must be answered naturally before qualification resumes. SamChe AI is a SaaS/AI platform, not a physical product supplier: never claim physical delivery, shipping, stock, same-day fulfillment, or immediate product dispatch. Explain setup and implementation timing instead. Never invent or alter pricing, setup fees, limits, features, availability, discounts, legal/security claims, or roadmap commitments. Do not claim guaranteed employee replacement, headcount reduction, ROI, or sales results. Do not reset qualification state. For off-topic questions, politely redirect and refer to the pending SamChe question without repeating the same wording. Extract only fields in the structured contract. Keep replies concise and natural. Server capabilities are authoritative and immutable: canScheduleCalendarMeeting=false, canConfirmAppointment=false, canSendEmail=false. Never claim that a meeting is scheduled, an appointment is confirmed, an email confirmation will be sent, or that you will schedule/book/confirm/email a demo. Preferred date/time is preference-only.';
+const SYSTEM_PROMPT = 'You are the SamChe AI sales and support conversation layer. Return only the requested JSON. CURRENT USER MESSAGE HAS PRIORITY. Reply in the language of the latest user message. Support is first-class: if the user reports a broken SamChe AI product, asks troubleshooting, or says they are an existing customer, use intent and responseMode support, acknowledge the specific issue, give safe configuration checks, and ask at most one useful clarification. Never restart sales qualification or recommend plans in support. Discuss only SamChe AI products and supplied evidence; unrelated images or requests are out of scope. Do not claim you opened a ticket, escalated, fixed, changed configuration, scheduled, confirmed, emailed, or took any action. For sales, preserve known lead fields, never repeat an already known field, ask at most one useful question, never invent commercial facts, and never claim physical delivery or guaranteed outcomes.';
 const EXTRACTED_ARRAY_FIELDS = new Set(['channels', 'products']);
 const EXTRACTED_FIELD_ALIASES = Object.freeze({
   team_users: 'teamUsers', lead_qualification: 'leadQualification', ai_guide_need: 'aiGuideNeed',
@@ -51,6 +53,28 @@ const SALES_CHAT_RESPONSE_FORMAT = Object.freeze({
 });
 
 function text(value, limit) { return typeof value === 'string' ? value.slice(0, limit) : ''; }
+
+function supportIntentFor(message) {
+  return /\b(?:already (?:a |an )?(?:customer|use|using)|existing customer|not (?:loading|working|replying)|stopped replying|error|broken|troubleshoot|support|configuration|connection)\b|(?:mevcut müşteri|zaten kullan|yanıt vermiyor|çalışmıyor|yüklenmiyor|destek)|(?:عميل حالي|لا يعمل|لا يرد|دعم|مشكلة|خطأ)/iu.test(message);
+}
+
+export function validateChatAttachment(attachment) {
+  if (!attachment || typeof attachment !== 'object' || typeof attachment.mimeType !== 'string' || typeof attachment.data !== 'string') return failure('invalid_attachment');
+  const signatures = { 'image/png': '89504e470d0a1a0a', 'image/jpeg': 'ffd8ff', 'image/webp': '52494646' };
+  const mimeType = attachment.mimeType.toLowerCase() === 'image/jpg' ? 'image/jpeg' : attachment.mimeType.toLowerCase();
+  if (!Object.hasOwn(signatures, mimeType) || attachment.data.length > Math.ceil(MAX_ATTACHMENT_BYTES * 4 / 3) + 8 || !/^[A-Za-z0-9+/]+={0,2}$/.test(attachment.data)) return failure('invalid_attachment');
+  const bytes = Buffer.from(attachment.data, 'base64');
+  if (!bytes.length || bytes.length > MAX_ATTACHMENT_BYTES || !bytes.subarray(0, signatures[mimeType].length / 2).toString('hex').startsWith(signatures[mimeType])) return failure('invalid_attachment');
+  if (mimeType === 'image/webp' && bytes.subarray(8, 12).toString('ascii') !== 'WEBP') return failure('invalid_attachment');
+  return { ok: true, mimeType };
+}
+
+function safeSupportReply(context) {
+  const product = /whatsapp/i.test(context.userMessage) ? 'WhatsApp AI' : /web chatbot|chatbot|web chat/i.test(context.userMessage) ? 'Web Chatbot' : 'SamChe AI';
+  if (context.inputLanguage === 'tr') return `${product} ile ilgili sorunu anladım. Önce kanal bağlantısının ve ilgili yapılandırmanın etkin olduğunu kontrol edin; ardından görünen hata metnini veya son değişikliği paylaşın.`;
+  if (context.inputLanguage === 'ar') return `أفهم المشكلة المتعلقة بـ ${product}. تحقّقوا أولاً من أن اتصال القناة والإعداد ذي الصلة مفعّلان، ثم شاركونا نص الخطأ الظاهر أو آخر تغيير تم.`;
+  return `I understand the ${product} issue. First check that the channel connection and relevant configuration are active, then share the visible error text or the most recent change.`;
+}
 
 function replyMatchesInputLanguage(reply, language) {
   const value = String(reply || '');
@@ -152,7 +176,7 @@ function buildContext(body, commercialFacts) {
     pendingField: ALLOWED_NEXT_FIELDS.has(body.pendingQualificationField ?? body.pendingField) ? (body.pendingQualificationField ?? body.pendingField) : null,
     lastPendingQuestion: text(body.lastPendingQuestion, 500),
     recommendedPlan: text(body.recommendedPlan, 40),
-    responseMode: ALLOWED_RESPONSE_MODES.has(body.responseMode) ? body.responseMode : 'qualification_answer',
+    responseMode: supportIntentFor(body.userMessage) ? 'support' : ALLOWED_RESPONSE_MODES.has(body.responseMode) ? body.responseMode : 'qualification_answer',
     detectedIntent: text(body.detectedIntent, 40),
     approvedPlanFacts: commercialFacts.plans.map((plan) => ({ ...plan })),
     approvedProductFacts: commercialFacts.products.map((product) => ({ ...product })),
@@ -349,22 +373,36 @@ function enforceInterruptResponse(candidate, context, commercialFacts) {
   };
 }
 
+function enforceSupportResponse(candidate, context) {
+  const reply = candidate && replyMatchesInputLanguage(candidate.reply, context.inputLanguage)
+    && /samche|whatsapp|web chatbot|chatbot|connection|configuration|error|support|channel|ayar|bağlant|hata|تهيئة|اتصال|خطأ|دعم/iu.test(candidate.reply)
+    ? candidate.reply : safeSupportReply(context);
+  return { reply, intent: 'support', responseMode: 'support', resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [] };
+}
+
 export function createSalesChatService({ openaiClient, commercialFacts, timeoutMs = 20000, environment = process.env, logger = console } = {}) {
   async function handle({ body = {} } = {}) {
     if (!body || typeof body !== 'object' || Array.isArray(body)) return { status: 400, body: { error: 'Sales assistant request is invalid.' } };
     if (typeof body.userMessage !== 'string' || !body.userMessage.trim() || body.userMessage.length > MAX_MESSAGE_LENGTH) return { status: 400, body: { error: 'A non-empty message is required.' } };
     if (!Array.isArray(body.conversationHistory) || body.conversationHistory.length > MAX_HISTORY) return { status: 400, body: { error: 'Sales assistant request is invalid.' } };
     const context = buildContext({ ...body, conversationHistory: body.conversationHistory }, commercialFacts);
+    const attachment = body.attachment === undefined ? null : validateChatAttachment(body.attachment);
+    if (attachment && !attachment.ok) return { status: 400, body: { error: 'The image must be a PNG, JPG, JPEG, or WEBP screenshot.' }, context };
     if (!openaiClient?.chat?.completions?.create) return { status: 503, body: { error: 'Sales assistant is temporarily unavailable.' }, context };
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const completion = await openaiClient.chat.completions.create({ model: MODEL, response_format: SALES_CHAT_RESPONSE_FORMAT, messages: [
-        { role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: JSON.stringify(context) },
+      const userContent = attachment ? [
+        { type: 'text', text: JSON.stringify({ ...context, attachment: { mimeType: attachment.mimeType, transient: true } }) },
+        { type: 'image_url', image_url: { url: `data:${attachment.mimeType};base64,${body.attachment.data}` } },
+      ] : JSON.stringify(context);
+      const completion = await openaiClient.chat.completions.create({ model: attachment ? VISION_MODEL : MODEL, response_format: SALES_CHAT_RESPONSE_FORMAT, messages: [
+        { role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: userContent },
       ] }, { signal: controller.signal });
       const content = completion?.choices?.[0]?.message?.content;
       if (typeof content !== 'string') {
         logValidationFailure(failure('invalid_provider_response'), { environment, logger });
+        if (context.responseMode === 'support') return { status: 200, body: enforceSupportResponse(null, context), context };
         if (isInterruptMode(context.responseMode)) return { status: 200, body: enforceInterruptResponse(null, context, commercialFacts), context };
         return { status: 422, body: { error: 'Sales assistant response was not usable.' }, context };
       }
@@ -374,6 +412,7 @@ export function createSalesChatService({ openaiClient, commercialFacts, timeoutM
         const salvage = safelySalvageProviderReply(content, context, commercialFacts);
         if (salvage) {
           logger?.warn?.('sales_chat_provider_salvaged', { category: 'validator', stage: 'optional_metadata', reason: result.reason });
+          if (context.responseMode === 'support') return { status: 200, body: enforceSupportResponse(salvage, context), context };
           if (isInterruptMode(context.responseMode)) return { status: 200, body: enforceInterruptResponse(salvage, context, commercialFacts), context };
           return { status: 200, body: salvage, context };
         }
@@ -382,6 +421,7 @@ export function createSalesChatService({ openaiClient, commercialFacts, timeoutM
       const languageValid = result.ok && replyMatchesInputLanguage(result.value.reply, context.inputLanguage);
       const questionCountValid = result.ok && hasAtMostOneQuestion(result.value.reply);
       if (result.ok && (!languageValid || !questionCountValid)) logValidationFailure(failure(!languageValid ? 'invalid_language' : 'too_many_questions'), { environment, logger });
+      if (context.responseMode === 'support') return { status: 200, body: enforceSupportResponse(languageValid && questionCountValid ? result.value : null, context), context };
       if (isInterruptMode(context.responseMode)) return { status: 200, body: enforceInterruptResponse(languageValid && questionCountValid ? result.value : null, context, commercialFacts), context };
       if (result.ok && languageValid && questionCountValid) {
         const reply = sanitizeSalesReply(result.value.reply, SALES_CHAT_CAPABILITIES, context.inputLanguage);
@@ -420,4 +460,4 @@ export function registerSalesChatRoute({ app, service, rateLimiter }) {
   });
 }
 
-export { MODEL, MAX_HISTORY, MAX_MESSAGE_LENGTH, SALES_CHAT_RESPONSE_FORMAT };
+export { MODEL, VISION_MODEL, MAX_HISTORY, MAX_MESSAGE_LENGTH, SALES_CHAT_RESPONSE_FORMAT };

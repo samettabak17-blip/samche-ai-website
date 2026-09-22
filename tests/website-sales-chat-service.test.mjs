@@ -79,6 +79,33 @@ function requestBody(overrides = {}) {
   };
 }
 
+test('support intent takes priority for existing customers without restarting sales qualification', async () => {
+  const service = createSalesChatService({ openaiClient: providerWith(JSON.stringify({
+    reply: 'Please tell me your industry.', intent: 'qualification', responseMode: 'qualification_answer',
+    resumePendingQuestion: true, extractedFields: {}, requestedNextField: 'industry', actionIntent: [],
+  })), commercialFacts });
+  const result = await service.handle({ body: requestBody({ userMessage: 'We already use SamChe AI and our WhatsApp AI stopped replying.' }) });
+  assert.equal(result.status, 200);
+  assert.equal(result.body.intent, 'support');
+  assert.equal(result.body.responseMode, 'support');
+  assert.match(result.body.reply, /WhatsApp AI|replying|connection|configuration/i);
+  assert.doesNotMatch(result.body.reply, /industry|business|leads per month/i);
+});
+
+test('validates transient screenshot bytes and routes only image turns to the vision model', async () => {
+  assert.deepEqual(salesChat.validateChatAttachment({ mimeType: 'image/png', data: 'iVBORw0KGgo=' }), { ok: true, mimeType: 'image/png' });
+  assert.equal(salesChat.validateChatAttachment({ mimeType: 'image/png', data: 'bm90LWEtcG5n' }).ok, false);
+  let request;
+  const service = createSalesChatService({ openaiClient: { chat: { completions: { create: async (payload) => {
+    request = payload;
+    return { choices: [{ message: { content: JSON.stringify({ reply: 'The screenshot appears to show a SamChe AI configuration issue. Check the channel connection and share any error text.', intent: 'support', responseMode: 'support', resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [] }) } }] };
+  } } } }, commercialFacts });
+  const result = await service.handle({ body: requestBody({ userMessage: 'My SamChe Web Chatbot is not loading.', attachment: { mimeType: 'image/png', data: 'iVBORw0KGgo=' } }) });
+  assert.equal(result.status, 200);
+  assert.equal(request.model, 'gpt-4o');
+  assert.equal(request.messages[1].content[1].type, 'image_url');
+});
+
 test('rewrites unavailable scheduling and email confirmation claims to preference-only availability', () => {
   for (const reply of [
     'Your demo is confirmed tomorrow at 18:00. You will receive an email confirmation.',
