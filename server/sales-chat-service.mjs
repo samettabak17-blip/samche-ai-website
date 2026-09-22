@@ -14,7 +14,7 @@ export const SALES_CHAT_CAPABILITIES = Object.freeze({
   canConfirmAppointment: false,
   canSendEmail: false,
 });
-const SYSTEM_PROMPT = 'You are the SamChe AI sales and support conversation layer. Return only the requested JSON. CURRENT USER MESSAGE HAS PRIORITY. Reply in the language of the latest user message. Support is first-class: if the user reports a broken SamChe AI product, asks troubleshooting, or says they are an existing customer, use intent and responseMode support, acknowledge the specific issue, give safe configuration checks, and ask at most one useful clarification. Never restart sales qualification or recommend plans in support. Discuss only SamChe AI products and supplied evidence; unrelated images or requests are out of scope. Do not claim you opened a ticket, escalated, fixed, changed configuration, scheduled, confirmed, emailed, or took any action. For sales, preserve known lead fields, never repeat an already known field, ask at most one useful question, never invent commercial facts, and never claim physical delivery or guaranteed outcomes. For a greeting, write one short welcome and exactly one discovery question; never ask a generic help question plus a second question.';
+const SYSTEM_PROMPT = 'You are the SamChe AI sales and support conversation layer. Return only the requested JSON. CURRENT USER MESSAGE HAS PRIORITY. Reply in the language of the latest user message. Support is first-class: if the user reports a broken SamChe AI product, asks troubleshooting, or says they are an existing customer, use intent and responseMode support, acknowledge the specific issue, give safe configuration checks, and ask at most one useful clarification. Never restart sales qualification or recommend plans in support. Discuss only SamChe AI products and supplied evidence; unrelated images or requests are out of scope. Do not claim you opened a ticket, escalated, fixed, changed configuration, scheduled, confirmed, emailed, or took any action. For sales, preserve known lead fields, never repeat an already known field, ask at most one useful question, never invent commercial facts, and never claim physical delivery or guaranteed outcomes. For a bare greeting, write a short welcome that identifies you as the SamChe AI sales and support assistant and ask at most one general help question. Do not start qualification or ask about business size, volume, or requirements.';
 const EXTRACTED_ARRAY_FIELDS = new Set(['channels', 'products']);
 const EXTRACTED_FIELD_ALIASES = Object.freeze({
   team_users: 'teamUsers', lead_qualification: 'leadQualification', ai_guide_need: 'aiGuideNeed',
@@ -91,12 +91,24 @@ function isGreetingOnly(message) {
   return /^(?:hello|hi|hey|merhaba|selam|مرحبا|اهلا|أهلا|السلام عليكم)[!.,\s]*$/iu.test(String(message || '').trim());
 }
 
-function hasAllowedQuestionCount(reply, context) {
-  const count = (String(reply || '').match(/[?؟]/g) || []).length;
-  // This is deliberately limited to a bare greeting. It permits a provider
-  // welcome plus its first discovery question, while all substantive turns
-  // retain the one-question qualification rule.
-  return hasAtMostOneQuestion(reply) || (isGreetingOnly(context.userMessage) && context.responseMode === 'qualification_answer' && count === 2);
+function safeGreetingReply(language) {
+  if (language === 'tr') return 'Merhaba! Ben SamChe AI satış ve destek asistanıyım. Size nasıl yardımcı olabilirim?';
+  if (language === 'ar') return 'مرحباً! أنا مساعد المبيعات والدعم في SamChe AI. كيف يمكنني مساعدتك اليوم؟';
+  return 'Hi! I’m the SamChe AI sales and support assistant. How can I help you today?';
+}
+
+function enforceBareGreetingResponse(candidate, context) {
+  if (!isGreetingOnly(context.userMessage)) return candidate;
+  return {
+    ...candidate,
+    reply: safeGreetingReply(context.inputLanguage),
+    intent: 'sales',
+    responseMode: 'qualification_answer',
+    resumePendingQuestion: false,
+    extractedFields: {},
+    requestedNextField: null,
+    actionIntent: [],
+  };
 }
 
 function detectInputLanguage(input) {
@@ -287,7 +299,9 @@ function safelySalvageProviderReply(output, context, commercialFacts) {
   value = normalizeSalesLlmOutput(value);
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const replyValidation = validateSalesReplyText(value.reply, { plans: commercialFacts.plans, products: commercialFacts.products });
-  if (!replyValidation.ok || !replyMatchesInputLanguage(replyValidation.value, context.inputLanguage) || !hasAllowedQuestionCount(replyValidation.value, context)) return null;
+  if (!replyValidation.ok) return null;
+  const safeReply = isGreetingOnly(context.userMessage) ? safeGreetingReply(context.inputLanguage) : replyValidation.value;
+  if (!replyMatchesInputLanguage(safeReply, context.inputLanguage) || !hasAtMostOneQuestion(safeReply)) return null;
   const extractedFields = {};
   if (value.extractedFields && typeof value.extractedFields === 'object' && !Array.isArray(value.extractedFields)) {
     for (const [field, fieldValue] of Object.entries(value.extractedFields)) {
@@ -302,15 +316,15 @@ function safelySalvageProviderReply(output, context, commercialFacts) {
   const intent = ALLOWED_INTENTS.has(value.intent) ? value.intent : expectedIntent;
   const modeIntentMismatch = (responseMode === 'capability_interrupt' && intent !== 'capability_question')
     || (responseMode === 'pricing_interrupt' && !['pricing', 'pricing_question'].includes(intent));
-  return {
-    reply: sanitizeSalesReply(replyValidation.value, SALES_CHAT_CAPABILITIES, context.inputLanguage),
+  return enforceBareGreetingResponse({
+    reply: sanitizeSalesReply(safeReply, SALES_CHAT_CAPABILITIES, context.inputLanguage),
     intent: modeIntentMismatch ? expectedIntent : intent,
     responseMode,
     resumePendingQuestion: typeof value.resumePendingQuestion === 'boolean' ? value.resumePendingQuestion : Boolean(context.lastPendingQuestion && context.pendingField),
     extractedFields,
     requestedNextField: ALLOWED_NEXT_FIELDS.has(value.requestedNextField ?? null) ? value.requestedNextField ?? null : null,
     actionIntent: [],
-  };
+  }, context);
 }
 
 function pendingResumePresent(reply, context) {
@@ -430,14 +444,17 @@ export function createSalesChatService({ openaiClient, commercialFacts, textMode
         }
         return { status: 502, body: { error: 'Sales assistant is temporarily unavailable.' }, context };
       }
-      const languageValid = result.ok && replyMatchesInputLanguage(result.value.reply, context.inputLanguage);
-      const questionCountValid = result.ok && hasAllowedQuestionCount(result.value.reply, context);
+      // A bare greeting has a deterministic, non-qualifying safe response. Apply
+      // it after strict provider validation so it cannot mask unsafe reply text.
+      const candidate = result.ok ? enforceBareGreetingResponse(result.value, context) : null;
+      const languageValid = Boolean(candidate) && replyMatchesInputLanguage(candidate.reply, context.inputLanguage);
+      const questionCountValid = Boolean(candidate) && hasAtMostOneQuestion(candidate.reply);
       if (result.ok && (!languageValid || !questionCountValid)) logValidationFailure(failure(!languageValid ? 'invalid_language' : 'too_many_questions'), { environment, logger });
-      if (context.responseMode === 'support') return { status: 200, body: enforceSupportResponse(languageValid && questionCountValid ? result.value : null, context), context };
-      if (isInterruptMode(context.responseMode)) return { status: 200, body: enforceInterruptResponse(languageValid && questionCountValid ? result.value : null, context, commercialFacts), context };
+      if (context.responseMode === 'support') return { status: 200, body: enforceSupportResponse(languageValid && questionCountValid ? candidate : null, context), context };
+      if (isInterruptMode(context.responseMode)) return { status: 200, body: enforceInterruptResponse(languageValid && questionCountValid ? candidate : null, context, commercialFacts), context };
       if (result.ok && languageValid && questionCountValid) {
-        const reply = sanitizeSalesReply(result.value.reply, SALES_CHAT_CAPABILITIES, context.inputLanguage);
-        return { status: 200, body: { ...result.value, reply, actionIntent: reply === result.value.reply ? result.value.actionIntent : [] }, context };
+        const reply = sanitizeSalesReply(candidate.reply, SALES_CHAT_CAPABILITIES, context.inputLanguage);
+        return { status: 200, body: { ...candidate, reply, actionIntent: reply === candidate.reply ? candidate.actionIntent : [] }, context };
       }
       return { status: 502, body: { error: 'Sales assistant is temporarily unavailable.' }, context };
     } catch (error) {

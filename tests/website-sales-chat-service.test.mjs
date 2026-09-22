@@ -106,19 +106,33 @@ test('validates transient screenshot bytes and routes only image turns to the vi
   assert.equal(request.messages[1].content[1].type, 'image_url');
 });
 
-test('bare multilingual greetings salvage a safe provider welcome with a single discovery follow-up', async () => {
+test('bare multilingual greetings rewrite multiple provider questions to one general Sales & Support question', async () => {
   for (const [userMessage, reply] of [
     ['Hello', 'Hello! How can I help with SamChe AI today? What type of business do you operate?'],
     ['Merhaba', 'Merhaba! SamChe AI ile nasıl yardımcı olabilirim? Ne tür bir işletme işletiyorsunuz?'],
     ['مرحبا', 'مرحباً! كيف يمكنني مساعدتكم في SamChe AI؟ ما نوع نشاطكم التجاري؟'],
   ]) {
     const service = createSalesChatService({ openaiClient: providerWith(JSON.stringify({
-      reply, intent: 'greeting', responseMode: 'greeting', resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [],
+      reply, intent: 'sales', responseMode: 'qualification_answer', resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [],
     })), commercialFacts });
     const result = await service.handle({ body: requestBody({ userMessage, conversationHistory: [], pendingQualificationField: null, lastPendingQuestion: '' }) });
     assert.equal(result.status, 200, userMessage);
     assert.equal(result.body.responseMode, 'qualification_answer', userMessage);
+    assert.equal((result.body.reply.match(/[?؟]/g) || []).length, 1, userMessage);
+    assert.match(result.body.reply, /SamChe AI/i, userMessage);
+    assert.doesNotMatch(result.body.reply, /business|işletme|نشاط|volume|hacim|حجم/i, userMessage);
+    assert.equal(result.body.requestedNextField, null, userMessage);
   }
+});
+
+test('a malformed greeting contract safely salvages to the one-question welcome', async () => {
+  const service = createSalesChatService({ openaiClient: providerWith(JSON.stringify({
+    reply: 'Hello! How can I help with SamChe AI today?', intent: 'greeting', responseMode: 'greeting', resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [],
+  })), commercialFacts });
+  const result = await service.handle({ body: requestBody({ userMessage: 'Hello', conversationHistory: [], pendingQualificationField: null, lastPendingQuestion: '' }) });
+  assert.equal(result.status, 200);
+  assert.equal((result.body.reply.match(/[?؟]/g) || []).length, 1);
+  assert.equal(result.body.requestedNextField, null);
 });
 
 test('text model routing is independent from the vision model configuration', async () => {
@@ -593,11 +607,11 @@ test('production diagnostics record a safe validator category without provider c
   ]);
 });
 
-test('safely salvages natural baseline replies when only optional provider metadata is malformed', async () => {
+test('safely salvages malformed bare greetings without starting qualification', async () => {
   const cases = [
-    ['Hello', 'Welcome to SamChe AI. What type of business do you operate?', 'en'],
-    ['Merhaba', 'Merhaba, SamChe AI ile size yardımcı olabilirim. Ne tür bir işletme işletiyorsunuz?', 'tr'],
-    ['مرحبا', 'مرحباً، يمكنني مساعدتك مع SamChe AI. ما نوع نشاطك التجاري؟', 'ar'],
+    ['Hello', 'Hi! I’m the SamChe AI sales and support assistant. How can I help you today?', 'en'],
+    ['Merhaba', 'Merhaba! Ben SamChe AI satış ve destek asistanıyım. Size nasıl yardımcı olabilirim?', 'tr'],
+    ['مرحبا', 'مرحباً! أنا مساعد المبيعات والدعم في SamChe AI. كيف يمكنني مساعدتك اليوم؟', 'ar'],
   ];
   for (const [userMessage, reply, language] of cases) {
     const service = createSalesChatService({
@@ -609,12 +623,13 @@ test('safely salvages natural baseline replies when only optional provider metad
     const result = await service.handle({ body: requestBody({ userMessage }) });
     assert.equal(result.status, 200, userMessage);
     assert.equal(result.body.reply, reply);
-    assert.equal(result.body.intent, 'qualification');
+    assert.equal(result.body.intent, 'sales');
     assert.equal(result.body.responseMode, 'qualification_answer');
     assert.deepEqual(result.body.extractedFields, {});
     assert.equal(result.body.requestedNextField, null);
     assert.deepEqual(result.body.actionIntent, []);
     assert.equal(result.context.inputLanguage, language);
+    assert.equal((result.body.reply.match(/[?؟]/g) || []).length, 1);
   }
 });
 
