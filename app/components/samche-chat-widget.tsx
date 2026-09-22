@@ -242,7 +242,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
     : salesState.turns >= 2 ? config.quick_actions.filter((action) => action !== 'Pricing') : [];
 
   const viewportStyle = {
-    '--samche-visual-viewport-height': `${visualViewport.height || window.innerHeight}px`,
+    '--samche-visual-viewport-height': `${visualViewport.height}px`,
     '--samche-visual-viewport-offset-top': `${visualViewport.offsetTop}px`,
     '--samche-visual-viewport-offset-left': `${visualViewport.offsetLeft}px`,
   } as CSSProperties;
