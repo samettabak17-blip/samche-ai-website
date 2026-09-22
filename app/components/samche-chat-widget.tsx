@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, type CSSProperties, useEffect, useRef, useState } from 'react';
-import { defaultSamcheChatConfig, resolveSamcheChatConfig } from '../../lib/samche-chat-config.mjs';
+import { resolveSamcheChatConfig } from '../../lib/samche-chat-config.mjs';
 import { buildWhatsAppSalesUrl, createInitialSalesState, editLeadField, filterSalesActionsForLead, generateSalesTurn, getSalesInputLanguage, getSalesProcessingStatus, hasRequiredDemoContact, isDemoQualificationReady, isLeadSummaryReady, toContactHandoff } from '../../lib/samche-sales-assistant.mjs';
 import { clearChatSession, LEAD_HANDOFF_KEY, loadChatSession, saveChatSession } from '../../lib/samche-chat-persistence.mjs';
 import { resolveSalesChatTurn } from '../../lib/samche-sales-chat-client.mjs';
@@ -54,9 +54,9 @@ function leadSummaryFields(lead: SalesState['lead']): Array<[string, string]> {
   return rows.filter(([, value]) => value);
 }
 
-export function SamCheChatWidget({ configuration = defaultSamcheChatConfig }: { configuration?: Record<string, unknown> }) {
+export function SamCheChatWidget({ configuration }: { configuration?: Record<string, unknown> }) {
   const { locale } = useSiteLocale();
-  const config = resolveSamcheChatConfig(configuration);
+  const config = resolveSamcheChatConfig(configuration, locale);
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>(() => [welcomeMessage(config)]);
@@ -97,9 +97,10 @@ export function SamCheChatWidget({ configuration = defaultSamcheChatConfig }: { 
       setHydrated(true);
     }, 0);
     return () => window.clearTimeout(timer);
-  // Hydrate once per welcome-copy change; other configuration fields do not affect the initial greeting.
+  // Hydrate once. Locale changes may update an untouched greeting below, but
+  // must never discard a conversation after the visitor has sent a message.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.welcome_message, config.welcome_title]);
+  }, []);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -207,6 +208,8 @@ export function SamCheChatWidget({ configuration = defaultSamcheChatConfig }: { 
   }
 
   const summaryReady = isLeadSummaryReady(salesState.lead, salesState.intent);
+  const hasUserMessage = messages.some((message) => message.role === 'user');
+  const displayedMessages = hasUserMessage ? messages : [welcomeMessage(config)];
   const salesActions = filterSalesActionsForLead(salesState.lead, actions).filter((action) => action.type === 'demo' || action.type === 'whatsapp');
   const contextualQuickActions = salesState.intent === 'HOT' || summaryReady
     ? config.quick_actions
@@ -217,7 +220,7 @@ export function SamCheChatWidget({ configuration = defaultSamcheChatConfig }: { 
       <header className="samche-chat-header"><Orb small header avatarUrl={config.avatar_url || config.logo_url} /><div className="samche-chat-title"><strong>{config.assistant_display_name}</strong><span><i /> {config.assistant_status_label}</span><small>{config.subtitle}</small></div><div className="samche-chat-menu-wrap"><button className="samche-icon-button samche-menu" type="button" aria-label={config.more_options_label} aria-expanded={menuOpen} title={config.more_options_label} onClick={() => setMenuOpen((value) => !value)}>···</button>{menuOpen && <div className="samche-chat-menu"><button type="button" onClick={() => { setMenuOpen(false); setConfirmReset(true); }}>Clear conversation</button></div>}</div><button className="samche-icon-button" type="button" aria-label="Close chat" onClick={() => setOpen(false)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button></header>
       {confirmReset && <div className="samche-reset-backdrop"><section className="samche-reset-dialog" role="alertdialog" aria-modal="true" aria-labelledby="samche-reset-title" aria-describedby="samche-reset-copy"><h2 id="samche-reset-title">Clear conversation?</h2><p id="samche-reset-copy">Clear this conversation and start again?</p><div><button type="button" onClick={() => setConfirmReset(false)}>CANCEL</button><button type="button" onClick={resetConversation}>CLEAR CONVERSATION</button></div></section></div>}
       <div className="samche-chat-messages" ref={listRef} aria-live="polite">
-        {messages.map((message, index) => <div className={`samche-message-row ${message.role}`} key={`${index}-${message.time}`}>
+        {displayedMessages.map((message, index) => <div className={`samche-message-row ${message.role}`} key={`${index}-${message.time}`}>
           {message.role === 'assistant' && <Orb small avatarUrl={config.avatar_url || config.logo_url} />}
           <div className="samche-message-content">{message.title && <strong className="samche-welcome-title">{message.title}</strong>}<div className="samche-message-bubble">{message.text}</div><time>{message.time}</time></div>
           {message.role === 'user' && <span className="samche-user-avatar" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5" /><path d="M5 20c.4-4 2.8-6 7-6s6.6 2 7 6" /></svg></span>}

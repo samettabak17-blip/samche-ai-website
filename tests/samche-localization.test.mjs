@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, readLocale, readLocaleFromSearch, translateText, translationSourceForNode, trText, turkishRequiredKeys, writeLocale } from '../lib/samche-localization.mjs';
+import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, arText, hasLocaleTranslation, publicLocaleCoverage, readLocale, readLocaleFromSearch, translateText, translationSourceForNode, trText, turkishRequiredKeys, writeLocale } from '../lib/samche-localization.mjs';
 import { buildLeadSummary, buildWhatsAppSalesUrl, createInitialSalesState, generateSalesTurn } from '../lib/samche-sales-assistant.mjs';
+import { resolveSamcheChatConfig, welcomeCopyForLocale } from '../lib/samche-chat-config.mjs';
 
 function storageMock() {
   const values = new Map();
@@ -30,6 +31,51 @@ test('Turkish is a persistent LTR locale with complete core pricing and chat cop
     ['Human Handover', 'İnsan Temsilciye Devir'], ['Lead Qualification', 'Potansiyel Müşteri Nitelendirme'],
     ['Product demos, plans & recommendations', 'Ürün demoları, planlar ve öneriler'], ['Ask SamChe AI', 'SamChe AI’ye Sor'],
   ]) assert.equal(translateText(english, 'tr'), turkish, english);
+});
+
+test('homepage hero is product-led and natural in every public locale', () => {
+  assert.equal(translateText('ONE AI PLATFORM.', 'en'), 'ONE AI PLATFORM.');
+  assert.equal(translateText('AUTOMATE CUSTOMER COMMUNICATION,', 'en'), 'AUTOMATE CUSTOMER COMMUNICATION,');
+  assert.equal(translateText('WORKFLOWS AND OPERATIONS.', 'en'), 'WORKFLOWS AND OPERATIONS.');
+  assert.equal(translateText('ONE AI PLATFORM.', 'tr'), 'MÜŞTERİ İLETİŞİMİNİ,');
+  assert.equal(translateText('AUTOMATE CUSTOMER COMMUNICATION,', 'tr'), 'İŞ AKIŞLARINI VE OPERASYONLARI');
+  assert.equal(translateText('WORKFLOWS AND OPERATIONS.', 'tr'), 'TEK AI PLATFORMUNDA OTOMATİKLEŞTİRİN.');
+  assert.match(translateText('ONE AI PLATFORM.', 'ar'), /منصة/);
+  assert.match(translateText('AUTOMATE CUSTOMER COMMUNICATION,', 'ar'), /تواصل العملاء/);
+});
+
+test('static chatbot welcome copy follows the selected site locale without cross-language fallback', () => {
+  assert.deepEqual(welcomeCopyForLocale('en'), {
+    title: 'Your SamChe AI sales representative',
+    message: 'I can help you identify the right SamChe AI setup for your business. What type of business do you operate?',
+  });
+  assert.deepEqual(welcomeCopyForLocale('tr'), {
+    title: 'SamChe AI satış temsilciniz',
+    message: 'İşletmeniz için en uygun SamChe AI çözümünü belirlemenize yardımcı olabilirim. Hangi sektörde faaliyet gösteriyorsunuz?',
+  });
+  assert.deepEqual(welcomeCopyForLocale('ar'), {
+    title: 'ممثل مبيعات SamChe AI',
+    message: 'يمكنني مساعدتكم في تحديد إعداد SamChe AI الأنسب لنشاطكم. ما مجال عملكم؟',
+  });
+  for (const locale of ['en', 'tr', 'ar']) {
+    const config = resolveSamcheChatConfig({}, locale);
+    const copy = welcomeCopyForLocale(locale);
+    assert.equal(config.welcome_title, copy.title);
+    assert.equal(config.welcome_message, copy.message);
+  }
+});
+
+test('every declared public route string has an explicit Arabic and Turkish translation', () => {
+  for (const [route, strings] of Object.entries(publicLocaleCoverage)) {
+    for (const source of strings) {
+      assert.ok(hasLocaleTranslation(source, 'tr'), `Turkish translation missing for ${route}: ${source}`);
+      assert.ok(hasLocaleTranslation(source, 'ar'), `Arabic translation missing for ${route}: ${source}`);
+      assert.notEqual(translateText(source, 'tr'), source, `Turkish fallback leaked on ${route}: ${source}`);
+      assert.notEqual(translateText(source, 'ar'), source, `Arabic fallback leaked on ${route}: ${source}`);
+    }
+  }
+  assert.ok(Object.keys(arText).length > 0);
+  assert.ok(Object.keys(trText).length > 0);
 });
 
 test('Turkish selector is always available outside the mobile menu and keeps LTR direction', async () => {

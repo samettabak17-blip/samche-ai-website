@@ -33,8 +33,8 @@ export default function HomePage() {
   return <SiteShell><main id="main-content">
     <section className="new-hero page-width">
       <div className="new-hero-copy"><SectionEyebrow>SamChe AI Platform · Multi-tenant SaaS</SectionEyebrow>
-        <h1>ONE AI PLATFORM.<br /><em>AUTOMATE CONVERSATIONS,</em><br />WORKFLOWS AND OPERATIONS.</h1>
-        <p>SamChe AI brings AI assistants, customer conversations, business knowledge, CRM and customer operations into one multi-tenant SaaS workspace. Built for assistants today, with agentic workflows, Skills, Actions and the Workflow Engine as the platform expands.</p>
+        <h1>ONE AI PLATFORM.<br /><em>AUTOMATE CUSTOMER COMMUNICATION,</em><br />WORKFLOWS AND OPERATIONS.</h1>
+        <p>SamChe AI brings AI assistants, customer conversations, business knowledge, CRM and customer operations together in one multi-tenant SaaS workspace. It supports today’s customer-facing AI experiences while clearly separating roadmap capabilities, including agentic workflows, Skills, Actions and the Workflow Engine.</p>
         <div className="hero-actions"><ProductCTA href="/platform">Explore the Platform</ProductCTA><a className="button button-outline" href="#live-products">Try Live Demos <span aria-hidden="true">↓</span></a><ProductCTA href="/pricing" secondary>See Pricing</ProductCTA></div>
         <div className="hero-facts"><span>SUBSCRIPTION SOFTWARE</span><span>MULTI-TENANT WORKSPACES</span><span>CONNECTED AI PRODUCTS</span></div>
       </div>
