@@ -430,3 +430,18 @@ test('chat supports a compact visual viewport keyboard mode', async () => {
   assert.match(css, /\.samche-chat-composer \{[^}]*flex-shrink:0/s);
   assert.doesNotMatch(css, /\.samche-chat-panel\.samche-keyboard-open[^}]*height:\s*100(?:d|s)?vh/s);
 });
+
+test('chat attachment preview stays inside a bounded one-row composer allocation', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const widget = await readFile(new URL('../app/components/samche-chat-widget.tsx', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../app/globals.css', import.meta.url), 'utf8');
+  assert.match(widget, /samche-chat-composer\$\{attachment \? ' has-attachment' : ''\}/);
+  assert.match(widget, /type="file"[^>]*accept="image\/png,image\/jpeg,image\/webp"/);
+  assert.doesNotMatch(widget, /type="file"[^>]*multiple/);
+  assert.match(css, /\.samche-chat-composer\.has-attachment \{ max-height:126px; \}/);
+  assert.match(css, /\.samche-chat-composer \{[\s\S]*?max-height:176px[\s\S]*?overflow:hidden/s);
+  assert.match(css, /\.samche-attachment-preview \{[\s\S]*?min-height:48px[\s\S]*?max-height:48px[\s\S]*?overflow:hidden/s);
+  assert.match(css, /\.samche-attachment-preview img \{[\s\S]*?width:48px[\s\S]*?height:48px[\s\S]*?object-fit:cover/s);
+  assert.match(css, /\.samche-attachment-preview span \{[^}]*white-space:nowrap[^}]*text-overflow:ellipsis/s);
+  assert.match(css, /\.samche-chat-panel\.samche-keyboard-open \.samche-chat-composer\.has-attachment \{ max-height:112px; \}/);
+});

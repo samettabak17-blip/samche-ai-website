@@ -1089,3 +1089,47 @@ body { background:radial-gradient(ellipse at 50% -22%,rgba(143,10,30,.23),transp
   .samche-chat-panel.samche-keyboard-open .samche-chat-composer > :not(.samche-chat-form):not(.samche-attachment-preview) { display:none; }
   .samche-chat-panel.samche-keyboard-open .samche-attachment-preview { max-height:48px; overflow:hidden; }
 }
+
+/* A screenshot is one compact turn attachment. It never gets a separate,
+   growing composer region or uses its intrinsic image size. */
+.samche-chat-composer {
+  display:flex;
+  min-height:0;
+  max-height:176px;
+  flex-direction:column;
+  flex-shrink:0;
+  overflow:hidden;
+}
+.samche-chat-composer.has-attachment { max-height:126px; }
+.samche-chat-composer.has-attachment > :not(.samche-attachment-preview):not(.samche-chat-form) { display:none; }
+.samche-attachment-preview {
+  display:flex;
+  min-width:0;
+  min-height:48px;
+  max-height:48px;
+  align-items:center;
+  gap:8px;
+  margin:0 12px 5px;
+  overflow:hidden;
+}
+.samche-attachment-preview img {
+  display:block;
+  width:48px;
+  height:48px;
+  min-width:48px;
+  max-width:48px;
+  min-height:48px;
+  max-height:48px;
+  flex:none;
+  object-fit:cover;
+}
+.samche-attachment-preview span { min-width:0; flex:1 1 auto; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.samche-attachment-preview button { width:28px; height:28px; min-width:28px; flex:none; line-height:1; }
+@media (max-width:760px) {
+  .samche-chat-composer { max-height:158px; }
+  .samche-chat-composer.has-attachment { max-height:122px; }
+  .samche-chat-panel.samche-keyboard-open .samche-chat-composer { max-height:118px; overflow:hidden; }
+  .samche-chat-panel.samche-keyboard-open .samche-chat-composer.has-attachment { max-height:112px; }
+  .samche-chat-panel.samche-keyboard-open .samche-attachment-preview { min-height:44px; max-height:44px; margin-bottom:3px; }
+  .samche-chat-panel.samche-keyboard-open .samche-attachment-preview img { width:44px; height:44px; min-width:44px; max-width:44px; min-height:44px; max-height:44px; }
+}
