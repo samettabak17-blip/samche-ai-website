@@ -14,7 +14,7 @@ export const SALES_CHAT_CAPABILITIES = Object.freeze({
   canConfirmAppointment: false,
   canSendEmail: false,
 });
-const SYSTEM_PROMPT = 'You are the SamChe AI sales and support conversation layer. Return only the requested JSON. CURRENT USER MESSAGE HAS PRIORITY. Reply in the language of the latest user message. Support is first-class: if the user reports a broken SamChe AI product, asks troubleshooting, or says they are an existing customer, use intent and responseMode support, acknowledge the specific issue, give safe configuration checks, and ask at most one useful clarification. Never restart sales qualification or recommend plans in support. Discuss only SamChe AI products and supplied evidence; unrelated images or requests are out of scope. Do not claim you opened a ticket, escalated, fixed, changed configuration, scheduled, confirmed, emailed, or took any action. For sales, preserve known lead fields, never repeat an already known field, ask at most one useful question, never invent commercial facts, and never claim physical delivery or guaranteed outcomes.';
+const SYSTEM_PROMPT = 'You are the SamChe AI sales and support conversation layer. Return only the requested JSON. CURRENT USER MESSAGE HAS PRIORITY. Reply in the language of the latest user message. Support is first-class: if the user reports a broken SamChe AI product, asks troubleshooting, or says they are an existing customer, use intent and responseMode support, acknowledge the specific issue, give safe configuration checks, and ask at most one useful clarification. Never restart sales qualification or recommend plans in support. Discuss only SamChe AI products and supplied evidence; unrelated images or requests are out of scope. Do not claim you opened a ticket, escalated, fixed, changed configuration, scheduled, confirmed, emailed, or took any action. For sales, preserve known lead fields, never repeat an already known field, ask at most one useful question, never invent commercial facts, and never claim physical delivery or guaranteed outcomes. For a greeting, write one short welcome and exactly one discovery question; never ask a generic help question plus a second question.';
 const EXTRACTED_ARRAY_FIELDS = new Set(['channels', 'products']);
 const EXTRACTED_FIELD_ALIASES = Object.freeze({
   team_users: 'teamUsers', lead_qualification: 'leadQualification', ai_guide_need: 'aiGuideNeed',
@@ -85,6 +85,18 @@ function replyMatchesInputLanguage(reply, language) {
 
 function hasAtMostOneQuestion(reply) {
   return (String(reply || '').match(/[?؟]/g) || []).length <= 1;
+}
+
+function isGreetingOnly(message) {
+  return /^(?:hello|hi|hey|merhaba|selam|مرحبا|اهلا|أهلا|السلام عليكم)[!.,\s]*$/iu.test(String(message || '').trim());
+}
+
+function hasAllowedQuestionCount(reply, context) {
+  const count = (String(reply || '').match(/[?؟]/g) || []).length;
+  // This is deliberately limited to a bare greeting. It permits a provider
+  // welcome plus its first discovery question, while all substantive turns
+  // retain the one-question qualification rule.
+  return hasAtMostOneQuestion(reply) || (isGreetingOnly(context.userMessage) && context.responseMode === 'qualification_answer' && count === 2);
 }
 
 function detectInputLanguage(input) {
@@ -275,7 +287,7 @@ function safelySalvageProviderReply(output, context, commercialFacts) {
   value = normalizeSalesLlmOutput(value);
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const replyValidation = validateSalesReplyText(value.reply, { plans: commercialFacts.plans, products: commercialFacts.products });
-  if (!replyValidation.ok || !replyMatchesInputLanguage(replyValidation.value, context.inputLanguage) || !hasAtMostOneQuestion(replyValidation.value)) return null;
+  if (!replyValidation.ok || !replyMatchesInputLanguage(replyValidation.value, context.inputLanguage) || !hasAllowedQuestionCount(replyValidation.value, context)) return null;
   const extractedFields = {};
   if (value.extractedFields && typeof value.extractedFields === 'object' && !Array.isArray(value.extractedFields)) {
     for (const [field, fieldValue] of Object.entries(value.extractedFields)) {
@@ -380,7 +392,7 @@ function enforceSupportResponse(candidate, context) {
   return { reply, intent: 'support', responseMode: 'support', resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [] };
 }
 
-export function createSalesChatService({ openaiClient, commercialFacts, timeoutMs = 20000, environment = process.env, logger = console } = {}) {
+export function createSalesChatService({ openaiClient, commercialFacts, textModel = MODEL, visionModel = VISION_MODEL, timeoutMs = 20000, environment = process.env, logger = console } = {}) {
   async function handle({ body = {} } = {}) {
     if (!body || typeof body !== 'object' || Array.isArray(body)) return { status: 400, body: { error: 'Sales assistant request is invalid.' } };
     if (typeof body.userMessage !== 'string' || !body.userMessage.trim() || body.userMessage.length > MAX_MESSAGE_LENGTH) return { status: 400, body: { error: 'A non-empty message is required.' } };
@@ -396,7 +408,7 @@ export function createSalesChatService({ openaiClient, commercialFacts, timeoutM
         { type: 'text', text: JSON.stringify({ ...context, attachment: { mimeType: attachment.mimeType, transient: true } }) },
         { type: 'image_url', image_url: { url: `data:${attachment.mimeType};base64,${body.attachment.data}` } },
       ] : JSON.stringify(context);
-      const completion = await openaiClient.chat.completions.create({ model: attachment ? VISION_MODEL : MODEL, response_format: SALES_CHAT_RESPONSE_FORMAT, messages: [
+      const completion = await openaiClient.chat.completions.create({ model: attachment ? visionModel : textModel, response_format: SALES_CHAT_RESPONSE_FORMAT, messages: [
         { role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: userContent },
       ] }, { signal: controller.signal });
       const content = completion?.choices?.[0]?.message?.content;
@@ -419,7 +431,7 @@ export function createSalesChatService({ openaiClient, commercialFacts, timeoutM
         return { status: 502, body: { error: 'Sales assistant is temporarily unavailable.' }, context };
       }
       const languageValid = result.ok && replyMatchesInputLanguage(result.value.reply, context.inputLanguage);
-      const questionCountValid = result.ok && hasAtMostOneQuestion(result.value.reply);
+      const questionCountValid = result.ok && hasAllowedQuestionCount(result.value.reply, context);
       if (result.ok && (!languageValid || !questionCountValid)) logValidationFailure(failure(!languageValid ? 'invalid_language' : 'too_many_questions'), { environment, logger });
       if (context.responseMode === 'support') return { status: 200, body: enforceSupportResponse(languageValid && questionCountValid ? result.value : null, context), context };
       if (isInterruptMode(context.responseMode)) return { status: 200, body: enforceInterruptResponse(languageValid && questionCountValid ? result.value : null, context, commercialFacts), context };

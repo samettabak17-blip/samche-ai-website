@@ -106,6 +106,53 @@ test('validates transient screenshot bytes and routes only image turns to the vi
   assert.equal(request.messages[1].content[1].type, 'image_url');
 });
 
+test('bare multilingual greetings salvage a safe provider welcome with a single discovery follow-up', async () => {
+  for (const [userMessage, reply] of [
+    ['Hello', 'Hello! How can I help with SamChe AI today? What type of business do you operate?'],
+    ['Merhaba', 'Merhaba! SamChe AI ile nasıl yardımcı olabilirim? Ne tür bir işletme işletiyorsunuz?'],
+    ['مرحبا', 'مرحباً! كيف يمكنني مساعدتكم في SamChe AI؟ ما نوع نشاطكم التجاري؟'],
+  ]) {
+    const service = createSalesChatService({ openaiClient: providerWith(JSON.stringify({
+      reply, intent: 'greeting', responseMode: 'greeting', resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [],
+    })), commercialFacts });
+    const result = await service.handle({ body: requestBody({ userMessage, conversationHistory: [], pendingQualificationField: null, lastPendingQuestion: '' }) });
+    assert.equal(result.status, 200, userMessage);
+    assert.equal(result.body.responseMode, 'qualification_answer', userMessage);
+  }
+});
+
+test('text model routing is independent from the vision model configuration', async () => {
+  const models = [];
+  const service = createSalesChatService({
+    textModel: 'gpt-4o-mini', visionModel: 'invalid-vision-model', commercialFacts,
+    openaiClient: { chat: { completions: { create: async (payload) => {
+      models.push(payload.model);
+      return { choices: [{ message: { content: JSON.stringify({ reply: 'Hello. What type of business do you operate?', intent: 'qualification', responseMode: 'qualification_answer', resumePendingQuestion: false, extractedFields: {}, requestedNextField: 'industry', actionIntent: [] }) } }] };
+    } } } },
+  });
+  const result = await service.handle({ body: requestBody({ userMessage: 'Hello', conversationHistory: [], pendingQualificationField: null, lastPendingQuestion: '' }) });
+  assert.equal(result.status, 200);
+  assert.deepEqual(models, ['gpt-4o-mini']);
+});
+
+test('an invalid vision model affects only an image turn', async () => {
+  const service = createSalesChatService({
+    textModel: 'gpt-4o-mini', visionModel: 'invalid-vision-model', commercialFacts,
+    openaiClient: { chat: { completions: { create: async (payload) => {
+      if (payload.model === 'invalid-vision-model') {
+        const error = new Error('provider_http_404');
+        error.salesChatDiagnostic = { category: 'provider_http', status: 404, model: payload.model, type: 'invalid_request_error', code: 'model_not_found' };
+        throw error;
+      }
+      return { choices: [{ message: { content: JSON.stringify({ reply: 'Hello. What type of business do you operate?', intent: 'qualification', responseMode: 'qualification_answer', resumePendingQuestion: false, extractedFields: {}, requestedNextField: 'industry', actionIntent: [] }) } }] };
+    } } } },
+  });
+  const textResult = await service.handle({ body: requestBody({ userMessage: 'Hello', conversationHistory: [], pendingQualificationField: null, lastPendingQuestion: '' }) });
+  const imageResult = await service.handle({ body: requestBody({ userMessage: 'Please review this screenshot.', attachment: { mimeType: 'image/png', data: 'iVBORw0KGgo=' } }) });
+  assert.equal(textResult.status, 200);
+  assert.equal(imageResult.status, 503);
+});
+
 test('rewrites unavailable scheduling and email confirmation claims to preference-only availability', () => {
   for (const reply of [
     'Your demo is confirmed tomorrow at 18:00. You will receive an email confirmation.',
