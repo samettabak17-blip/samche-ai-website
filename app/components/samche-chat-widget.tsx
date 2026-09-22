@@ -10,6 +10,7 @@ import { useSiteLocale } from './site-localization';
 type Message = { role: 'assistant' | 'user'; text: string; title?: string; time: string };
 type SalesState = ReturnType<typeof createInitialSalesState>;
 type SalesAction = { label: string; type: 'link' | 'demo' | 'whatsapp'; href?: string };
+type ChatAttachment = { name: string; mimeType: string; data: string; preview: string };
 const salesChatApiBaseUrl = '';
 function welcomeMessage(config: ReturnType<typeof resolveSamcheChatConfig>): Message {
   return { role: 'assistant', title: config.welcome_title, text: config.welcome_message, time: 'Now' };
@@ -68,6 +69,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
   const [hydrated, setHydrated] = useState(false);
   const [sending, setSending] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [attachment, setAttachment] = useState<ChatAttachment | null>(null);
   const [processingStatus, setProcessingStatus] = useState('Matching your requirements to SamChe AI products…');
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [visualViewportHeight, setVisualViewportHeight] = useState(0);
@@ -142,15 +144,15 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
 
   async function ask(question: string) {
     const trimmed = question.trim();
-    if (!trimmed || sending || !hydrated) return;
+    if ((!trimmed && !attachment) || sending || !hydrated) return;
     setInput('');
     setErrorMessage('');
-    const userMessage = { role: 'user' as const, text: trimmed, time: timestamp() };
+    const userMessage = { role: 'user' as const, text: trimmed || (locale === 'tr' ? 'Bu SamChe AI ekran görüntüsüne bakabilir misiniz?' : locale === 'ar' ? 'هل يمكنكم مراجعة لقطة شاشة SamChe AI هذه؟' : 'Can you review this SamChe AI screenshot?'), time: timestamp() };
     setProcessingStatus(getSalesProcessingStatus(trimmed, salesStateRef.current));
     setSending(true);
     setProcessingStatus('Understanding your requirements…');
     const stateCandidate = generateSalesTurn(salesStateRef.current, trimmed, messages, locale);
-    const resolved = await resolveSalesChatTurn({ state: salesStateRef.current, stateCandidate, messages, userMessage, locale, time: timestamp(), apiBaseUrl: salesChatApiBaseUrl });
+    const resolved = await resolveSalesChatTurn({ state: salesStateRef.current, stateCandidate, messages, userMessage, locale, attachment: attachment ? { mimeType: attachment.mimeType, data: attachment.data } : undefined, time: timestamp(), apiBaseUrl: salesChatApiBaseUrl });
     salesStateRef.current = resolved.state;
     setMessages(resolved.messages as Message[]);
     setSalesState(resolved.state);
@@ -160,6 +162,22 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
     setErrorMessage(resolved.retryMessage);
     setProcessingStatus(resolved.retryMessage || getSalesProcessingStatus(trimmed, resolved.state));
     setSending(false);
+    setAttachment(null);
+  }
+
+  function selectAttachment(file: File | undefined) {
+    if (!file) return;
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      setErrorMessage(locale === 'tr' ? 'Yalnızca 5 MB’a kadar PNG, JPG veya WEBP ekran görüntüsü ekleyebilirsiniz.' : locale === 'ar' ? 'يمكن إرفاق لقطة شاشة PNG أو JPG أو WEBP حتى 5 ميغابايت فقط.' : 'Attach a PNG, JPG, or WEBP screenshot up to 5 MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const preview = String(reader.result || '');
+      setAttachment({ name: file.name, mimeType: file.type, data: preview.split(',')[1] || '', preview });
+      setErrorMessage('');
+    };
+    reader.readAsDataURL(file);
   }
 
   function openDemoRequest() {
@@ -233,7 +251,8 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
       {contextualQuickActions.length > 0 && <div className="samche-chat-actions" aria-label="Product shortcuts">{contextualQuickActions.map((action, index) => <button className={index === 0 ? 'selected' : ''} type="button" key={action} onClick={() => void ask(action)} disabled={sending || !hydrated}>{action}</button>)}</div>}
       {actions.some((action) => action.type === 'link') && <div className="samche-sales-actions" aria-label="Product demos">{actions.filter((action) => action.type === 'link').map((action) => <a key={action.label} href={action.href} target="_blank" rel="noreferrer">{action.label}</a>)}</div>}
       {!summaryReady && salesActions.length > 0 && <div className="samche-sales-actions" aria-label="Sales next steps">{salesActions.map((action) => action.type === 'demo' ? <button type="button" key={action.label} onClick={openDemoRequest}>{action.label}</button> : <a key={action.label} href={buildWhatsAppSalesUrl(salesState.lead, locale)} target="_blank" rel="noreferrer">{action.label}</a>)}</div>}
-      <form className="samche-chat-form" onSubmit={handleSubmit}><label className="sr-only" htmlFor="samche-chat-input">Ask {config.assistant_display_name}</label><span className="samche-clip" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m8 12.5 6.8-6.8a3.2 3.2 0 0 1 4.5 4.5l-8.5 8.5a5 5 0 0 1-7.1-7.1l8-8" /></svg></span><input ref={inputRef} id="samche-chat-input" value={input} onChange={(event) => setInput(event.target.value)} placeholder={config.input_placeholder} autoComplete="off" disabled={!hydrated} /><button className="samche-send" type="submit" aria-label="Send message" disabled={!hydrated || sending || !input.trim()}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 4 17 8-17 8 3-8-3-8Zm3 8h14" /></svg></button></form>
+      {attachment && <div className="samche-attachment-preview"><img src={attachment.preview} alt={attachment.name} /><span>{attachment.name}</span><button type="button" onClick={() => setAttachment(null)} aria-label="Remove attachment">×</button></div>}
+      <form className="samche-chat-form" onSubmit={handleSubmit}><label className="sr-only" htmlFor="samche-chat-input">Ask {config.assistant_display_name}</label><label className="samche-clip" title="Attach screenshot"><input className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => selectAttachment(event.target.files?.[0])} /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 12.5 6.8-6.8a3.2 3.2 0 0 1 4.5 4.5l-8.5 8.5a5 5 0 0 1-7.1-7.1l8-8" /></svg></label><input ref={inputRef} id="samche-chat-input" value={input} onChange={(event) => setInput(event.target.value)} placeholder={config.input_placeholder} autoComplete="off" disabled={!hydrated} /><button className="samche-send" type="submit" aria-label="Send message" disabled={!hydrated || sending || (!input.trim() && !attachment)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 4 17 8-17 8 3-8-3-8Zm3 8h14" /></svg></button></form>
       <p className="samche-chat-disclaimer">{config.scope_disclaimer}</p>
       </div>
     </section>}
