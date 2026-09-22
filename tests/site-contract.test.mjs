@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { plans, addons, comparisonStateLegend, demoLinks, planComparisonRows, platformFeatureGroups, interactionAllowanceCards, planFromSearch, productScreenshots, yearlyPrice } from '../lib/site-data.mjs';
+import { plans, addons, comparisonStateLegend, comparisonUsageNotes, demoLinks, planComparisonRows, platformFeatureGroups, interactionAllowanceCards, planFromSearch, productScreenshots, yearlyPrice } from '../lib/site-data.mjs';
 import { getSamcheChatReply, sendSamcheChatMessage } from '../lib/samche-chat.mjs';
 import { defaultSamcheChatConfig } from '../lib/samche-chat-config.mjs';
 
@@ -9,6 +9,94 @@ test('approved annual plan prices remain exact', () => {
   assert.deepEqual(plans.map((plan) => plan.setup), [2500, 5000, 9500, 20000]);
   assert.deepEqual(plans.map((plan) => plan.yearly), [18258, 40698, 81498, 127500]);
   assert.deepEqual(plans.map((plan) => plan.interactions), ['5,000', '20,000', '50,000', '100,000+']);
+});
+
+test('approved platform entitlement matrix is complete and exact', () => {
+  const expected = [
+    { label: 'Core Channels', rows: [
+      { label: 'Web Chatbot', values: ['Included', 'Included', 'Included', 'Included'] },
+      { label: 'WhatsApp AI', values: ['Not included', 'Included', 'Included', 'Included'] },
+      { label: 'AI Guide', values: ['Not included', 'Not included', 'Included', 'Included'] },
+      { label: 'Human Handover', values: ['Included', 'Included', 'Included', 'Included'] },
+      { label: 'Shared Inbox', values: ['Not included', 'Included', 'Included', 'Included'] },
+      { label: 'Omnichannel Conversation Context', values: ['Basic', 'Included', 'Advanced', 'Enterprise scale'] },
+    ] },
+    { label: 'Knowledge & Intelligence', rows: [
+      { label: 'Knowledge Intelligence', values: ['Included', 'Advanced', 'Advanced', 'Enterprise'] },
+      { label: 'Page-aware Context', values: ['Included', 'Included', 'Included', 'Included'] },
+      { label: 'Entity-aware Intelligence', values: ['Not included', 'Not included', 'Included', 'Included'] },
+      { label: 'Approved Knowledge Workflow', values: ['Included', 'Included', 'Included', 'Included'] },
+      { label: 'Conversation-derived Knowledge Recommendations', values: ['Not included', 'By scope', 'Included', 'Advanced'] },
+      { label: 'Business Document / Knowledge Ingestion', values: ['Included', 'Included', 'Included', 'Enterprise scale'] },
+    ] },
+    { label: 'CRM & Lead Management', rows: [
+      { label: 'Basic Lead Capture', values: ['Included', 'Included', 'Included', 'Included'] },
+      { label: 'Lead Qualification', values: ['Basic', 'Included', 'Included', 'Advanced'] },
+      { label: 'Lead Routing', values: ['Not included', 'Included', 'Included', 'Advanced'] },
+      { label: 'AI Lead Scoring', values: ['Not included', 'Not included', 'Included', 'Advanced'] },
+      { label: 'CRM Integration', values: ['Not included', '1 CRM or Booking integration', 'Up to 3 external integrations', 'Custom scale'] },
+      { label: 'Booking Integration', values: ['Not included', '1 CRM or Booking integration', 'Up to 3 external integrations', 'Custom scale'] },
+      { label: 'CRM & Pipeline', values: ['Not included', 'Included', 'Included', 'Advanced'] },
+    ] },
+    { label: 'Integrations & Automation', rows: [
+      { label: 'External Integrations', values: ['Not included', '1', 'Up to 3', 'Custom scale'] },
+      { label: 'API Access', values: ['Not included', 'Not included', 'Included', 'Included'] },
+      { label: 'Custom Workflows', values: ['Not included', 'Not included', 'Included', 'Advanced'] },
+      { label: 'ERP Integrations', values: ['Not included', 'Not included', 'By scope', 'Included / Custom scale'] },
+      { label: 'Payment Integrations', values: ['Not included', 'Not included', 'By scope', 'Included / Custom scale'] },
+      { label: 'Agentic AI', values: ['Roadmap', 'Roadmap', 'Roadmap / By scope', 'Roadmap / By scope'] },
+      { label: 'Skills', values: ['Roadmap', 'Roadmap', 'Roadmap / By scope', 'Roadmap / By scope'] },
+      { label: 'Actions', values: ['Roadmap', 'Roadmap', 'Roadmap / By scope', 'Roadmap / By scope'] },
+      { label: 'Workflow Engine', values: ['Roadmap', 'Roadmap', 'Roadmap / By scope', 'Roadmap / By scope'] },
+    ] },
+    { label: 'AI Visual', rows: [
+      { label: 'AI Visual Generation', values: ['Not included', 'Not included', 'Not included', 'Included'] },
+      { label: 'Visual Product Personalization', values: ['Not included', 'Not included', 'Not included', 'Included'] },
+      { label: 'Screenshot / Image Understanding', values: ['Not included', 'By scope', 'By scope', 'Included'] },
+      { label: 'AI Visual Generations', values: ['—', '—', '—', '200 / month included'] },
+    ] },
+    { label: 'AI Voice', rows: [
+      { label: 'AI Voice Receptionist', values: ['Add-on', 'Add-on', 'Add-on', 'Included'] },
+      { label: 'Inbound Voice Minutes', values: ['Add-on', 'Add-on', 'Add-on', '300 min / month included'] },
+      { label: 'Concurrent AI Calls', values: ['Add-on', 'Add-on', 'Add-on', '2 concurrent calls included'] },
+      { label: 'Outbound AI Calling', values: ['Add-on', 'Add-on', 'Add-on', 'Add-on / By scope'] },
+      { label: 'Voice AI Pro', values: ['Add-on', 'Add-on', 'Add-on', 'Upgrade / Add-on'] },
+    ] },
+    { label: 'Team & Operations', rows: [
+      { label: 'Team Users', values: ['Core access', 'Up to 5', 'Up to 10', 'Custom'] },
+      { label: 'Multiple Brands / Sites', values: ['Not included', 'Not included', 'By scope', 'Included'] },
+      { label: 'Advanced Controls', values: ['Not included', 'Not included', 'Not included', 'Included'] },
+      { label: 'Custom Data Retention', values: ['Not included', 'Not included', 'Not included', 'Custom'] },
+      { label: 'Dedicated Support', values: ['Not included', 'Not included', 'Not included', 'Included'] },
+    ] },
+    { label: 'Usage & Language', rows: [
+      { label: 'Monthly AI Interactions', values: ['5,000', '20,000', '50,000', '100,000+'] },
+      { label: 'Languages', values: ['Up to 2', 'Up to 3', 'Up to 5', 'Custom'] },
+      { label: 'AI Visual Generations', values: ['—', '—', '—', '200 / month'] },
+      { label: 'Inbound Voice Minutes', values: ['Add-on', 'Add-on', 'Add-on', '300 / month'] },
+      { label: 'Concurrent AI Calls', values: ['Add-on', 'Add-on', 'Add-on', '2'] },
+    ] },
+  ];
+
+  assert.deepEqual(platformFeatureGroups, expected);
+  assert.equal(planComparisonRows.length, 47);
+});
+
+test('Enterprise visual and voice commercial entitlements remain bounded and separate', () => {
+  const enterprise = plans.find((plan) => plan.slug === 'enterprise');
+  assert.match(enterprise.description, /visual AI.*voice AI.*multi-brand.*operational control/i);
+  assert.deepEqual(comparisonUsageNotes, [
+    'Enterprise includes 200 AI Visual Generations per month; extra visual usage is available through an agreed usage-based or custom commercial arrangement.',
+    'Enterprise includes 300 inbound AI voice minutes per month and up to two concurrent AI calls; extra minutes, higher concurrency, Voice AI Pro, and outbound calling are available separately through an agreed commercial arrangement.',
+    'AI Voice Minutes and AI Visual Generations are separate from the standard monthly AI interaction allowance.',
+  ]);
+  const commercialCopy = [...addons.flatMap((addon) => [addon.name, addon.price, addon.setup, addon.description]), ...interactionAllowanceCards.flatMap((card) => [card.title, card.body])].filter(Boolean).join(' ');
+  assert.match(commercialCopy, /one shared pool of 200/i);
+  assert.match(commercialCopy, /not charged the base AED 1,990\/month/i);
+  assert.match(commercialCopy, /additional minutes.*higher concurrency.*Voice AI Pro.*outbound calling/is);
+  assert.match(commercialCopy, /three separate commercial usage dimensions/i);
+  assert.match(commercialCopy, /No automatic overage billing or suspension is promised/i);
+  assert.doesNotMatch(commercialCopy, /will automatically (?:bill|suspend)/i);
 });
 
 test('Automation / Agentic AI remains roadmap-only', async () => {
@@ -65,10 +153,10 @@ test('comparison source data remains limited to approved plan features', () => {
   assert.ok(planComparisonRows.length >= 22);
   assert.ok(planComparisonRows.every((row) => row.values.length === 4));
   const rows = Object.fromEntries(planComparisonRows.map((row) => [row.label, row.values]));
-  assert.deepEqual(rows.Languages, ['Up to 2', 'Up to 3', 'Up to 5', 'Extended / Custom']);
+  assert.deepEqual(rows.Languages, ['Up to 2', 'Up to 3', 'Up to 5', 'Custom']);
   assert.deepEqual(rows['AI Guide'], ['Not included', 'Not included', 'Included', 'Included']);
   assert.deepEqual(rows['Custom Data Retention'], ['Not included', 'Not included', 'Not included', 'Custom']);
-  assert.equal(rows['Team Users'][0], 'Standard access');
+  assert.equal(rows['Team Users'][0], 'Core access');
   assert.equal(rows['Team Users'][1], 'Up to 5');
   assert.equal(rows['Team Users'][2], 'Up to 10');
 });
@@ -102,33 +190,33 @@ test('platform comparison and FAQ provide accessible bilingual contracts', async
 });
 
 test('expanded platform comparison uses cumulative explicit capability states', () => {
-  assert.ok(platformFeatureGroups.length >= 6);
+  assert.equal(platformFeatureGroups.length, 8);
   const rows = platformFeatureGroups.flatMap((group) => group.rows);
-  assert.ok(rows.length >= 30);
+  assert.equal(rows.length, 47);
   assert.ok(rows.every((row) => row.values.length === 4));
-  const rank = { 'Not included': 0, Roadmap: 0, 'Add-on': 1, 'By scope': 1, Custom: 1, Included: 2 };
   for (const row of rows) {
     for (let index = 1; index < row.values.length; index += 1) {
-      if (rank[row.values[index - 1]] === 2) assert.match(row.values[index], /^Included/, `${row.label} must be inherited by ${index}`);
+      if (row.values[index - 1] === 'Included') assert.notEqual(row.values[index], 'Not included', `${row.label} must be inherited by ${index}`);
     }
   }
-  assert.ok(rows.every((row) => row.values.every((value) => value !== '—' && value !== '-')));
+  assert.ok(rows.filter((row) => row.values.includes('—')).every((row) => row.label === 'AI Visual Generations'));
   assert.ok(rows.some((row) => row.label === 'Agentic AI'));
-  assert.deepEqual(rows.find((row) => row.label === 'Monthly AI Interactions')?.values, ['5,000 / month', '20,000 / month', '50,000 / month', '100,000+ / month']);
+  assert.deepEqual(rows.find((row) => row.label === 'Monthly AI Interactions')?.values, ['5,000', '20,000', '50,000', '100,000+']);
 });
 
 test('interaction allowance explanation is present and separates Voice AI usage', async () => {
-  assert.equal(interactionAllowanceCards.length, 6);
+  assert.equal(interactionAllowanceCards.length, 8);
   const copy = interactionAllowanceCards.map((card) => `${card.title} ${card.body}`).join(' ');
   for (const value of ['5,000 AI interactions / month', '20,000 AI interactions / month', '50,000 AI interactions / month', '100,000+ AI interactions / month']) assert.match(copy, new RegExp(value.replace(/[+,]/g, '\\$&')));
-  for (const title of ['Monthly Allowance', 'What Counts', 'What Does Not Count', 'Voice AI Usage', 'Higher Usage', 'Billing Period']) assert.ok(interactionAllowanceCards.some((card) => card.title === title), `missing ${title}`);
+  for (const title of ['Monthly Allowance', 'What Counts', 'What Does Not Count', 'AI Visual Usage', 'AI Voice Usage', 'Separate Usage Dimensions', 'Higher Usage', 'Billing Period']) assert.ok(interactionAllowanceCards.some((card) => card.title === title), `missing ${title}`);
   assert.match(copy, /OpenAI.*Gemini|Gemini.*OpenAI/i);
   assert.match(copy, /website visits|website page views/i);
   assert.match(copy, /human-only inbox activity/i);
-  assert.match(copy, /Voice AI/);
-  assert.match(copy, /separate usage-based pricing/i);
+  assert.match(copy, /AI Voice Usage/);
+  assert.match(copy, /three separate commercial usage dimensions/i);
   assert.match(copy, /commercial agreement/i);
-  assert.doesNotMatch(copy, /automatic overage billing|automatic suspension|fair use|1 message\s*=\s*1 interaction/i);
+  assert.match(copy, /No automatic overage billing or suspension is promised/i);
+  assert.doesNotMatch(copy, /will automatically (?:bill|suspend)|fair use|1 message\s*=\s*1 interaction/i);
   const faq = await import('node:fs/promises').then(({ readFile }) => readFile(new URL('../app/components/platform-faq.tsx', import.meta.url), 'utf8'));
   assert.match(faq, /What happens if I exceed my monthly AI interaction allowance\?/);
   assert.match(faq, /If your usage approaches or exceeds your plan allowance, SamChe AI can recommend a higher plan or a custom usage arrangement\. Exact commercial terms depend on the selected plan and agreed scope\./);
@@ -150,7 +238,7 @@ test('comparison and allowance sections declare bilingual and mobile-safe contra
   const data = await readFile(new URL('../lib/site-data.mjs', import.meta.url), 'utf8');
   const localization = await readFile(new URL('../lib/samche-localization.mjs', import.meta.url), 'utf8');
   const css = await readFile(new URL('../app/globals.css', import.meta.url), 'utf8');
-  for (const text of ['Core AI foundation', 'Everything in Starter + growth capabilities', 'Understanding Your Monthly AI Interactions', 'Monthly Allowance', 'What Counts', 'Voice AI Usage', 'Higher Usage']) assert.ok(component.includes(text) || data.includes(text), `missing ${text}`);
+  for (const text of ['Core AI foundation', 'Everything in Starter + growth capabilities', 'Understanding Your Monthly AI Interactions', 'Monthly Allowance', 'What Counts', 'AI Visual Usage', 'AI Voice Usage', 'Separate Usage Dimensions', 'Higher Usage']) assert.ok(component.includes(text) || data.includes(text), `missing ${text}`);
   for (const text of ['مقارنة ميزات المنصة', 'فهم حصة تفاعلات الذكاء الاصطناعي', 'البدل الشهري', 'ما الذي يُحتسب؟']) assert.ok(localization.includes(text), `missing Arabic ${text}`);
   assert.match(component, /<section className="interaction-explanation"[\s\S]*<section className="addons"/);
   assert.match(component, /interactionAllowanceCards\.map/);
@@ -167,20 +255,19 @@ test('comparison and allowance sections declare bilingual and mobile-safe contra
 
 test('final comparison content preserves availability through Enterprise scale', async () => {
   const rows = platformFeatureGroups.flatMap((group) => group.rows);
-  const byLabel = Object.fromEntries(rows.map((row) => [row.label, row]));
-  const included = (value) => /^Included(?:\s·|$)/.test(value);
+  const firstByLabel = (label) => rows.find((row) => row.label === label);
   for (const row of rows) {
     for (let index = 1; index < row.values.length; index += 1) {
-      if (included(row.values[index - 1])) assert.ok(included(row.values[index]), `${row.label} loses Included at ${index}`);
+      if (row.values[index - 1] === 'Included') assert.notEqual(row.values[index], 'Not included', `${row.label} loses Included at ${index}`);
     }
   }
-  assert.equal(byLabel['CRM Integration'].values[3], 'Included · Custom scale');
-  assert.equal(byLabel['Booking Integration'].values[3], 'Included · Custom scale');
-  assert.equal(byLabel['API Access'].values[3], 'Included');
-  assert.equal(byLabel['Custom Workflows'].values[3], 'Included · By scope');
+  assert.equal(firstByLabel('CRM Integration').values[3], 'Custom scale');
+  assert.equal(firstByLabel('Booking Integration').values[3], 'Custom scale');
+  assert.equal(firstByLabel('API Access').values[3], 'Included');
+  assert.equal(firstByLabel('Custom Workflows').values[3], 'Advanced');
   assert.equal(rows.filter((row) => /Page-aware/i.test(row.label)).length, 1);
-  assert.ok(byLabel['Approved Knowledge Workflow']);
-  assert.deepEqual(['Agentic AI', 'Skills', 'Actions', 'Workflow Engine'].map((label) => byLabel[label]?.values), [
+  assert.ok(firstByLabel('Approved Knowledge Workflow'));
+  assert.deepEqual(['Agentic AI', 'Skills', 'Actions', 'Workflow Engine'].map((label) => firstByLabel(label)?.values), [
     ['Roadmap', 'Roadmap', 'Roadmap / By scope', 'Roadmap / By scope'],
     ['Roadmap', 'Roadmap', 'Roadmap / By scope', 'Roadmap / By scope'],
     ['Roadmap', 'Roadmap', 'Roadmap / By scope', 'Roadmap / By scope'],
@@ -194,7 +281,8 @@ test('comparison legend and agentic note are rendered from shared content', asyn
   const data = await readFile(new URL('../lib/site-data.mjs', import.meta.url), 'utf8');
   assert.equal(comparisonStateLegend.length, 6);
   for (const state of ['Included', 'Not included', 'Add-on', 'By scope', 'Custom', 'Roadmap']) assert.ok(comparisonStateLegend.some((item) => item.state === state));
-  assert.match(data, /These capabilities represent SamChe AI's platform expansion direction/);
+  assert.match(data, /Custom Workflows are a current capability/);
+  assert.match(data, /broader Workflow Engine remain roadmap capabilities/);
   assert.match(component, /comparisonStateLegend/);
   assert.match(component, /comparison-state-legend/);
   assert.match(component, /agenticExpansionNote/);
@@ -228,11 +316,11 @@ test('live product cards use captured real product screenshots', async () => {
 test('comparison table includes all approved commercial rows', () => {
   const labels = new Set(planComparisonRows.map((row) => row.label));
   for (const label of [
-    'Languages', 'Web Chatbot', 'WhatsApp AI', 'AI Guide', 'Advanced Knowledge Intelligence',
-    'Entity-aware Intelligence', 'Page-aware Context', 'Basic Lead Capture', 'SamChe Shared Inbox',
+    'Languages', 'Web Chatbot', 'WhatsApp AI', 'AI Guide', 'Knowledge Intelligence',
+    'Entity-aware Intelligence', 'Page-aware Context', 'Basic Lead Capture', 'Shared Inbox',
     'Lead Qualification', 'AI Lead Scoring', 'CRM Integration',
     'External Integrations', 'API Access', 'Custom Workflows', 'Team Users',
-    'Multiple Brands / Sites', 'ERP Integrations', 'Support Level', 'Custom Data Retention',
+    'Multiple Brands / Sites', 'ERP Integrations', 'AI Visual Generation', 'AI Voice Receptionist', 'Custom Data Retention',
   ]) assert.ok(labels.has(label), `comparison should include ${label}`);
 });
 
