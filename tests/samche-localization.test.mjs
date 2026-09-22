@@ -115,6 +115,48 @@ test('Turkish and Arabic localize every customer-facing string from shared platf
   }
 });
 
+test('visible customer-facing UI fragments never fall back to English in Turkish or Arabic', () => {
+  const expectations = {
+    tr: {
+      'CORE PLATFORM CAPABILITIES · AI ASSISTANTS · KNOWLEDGE INTELLIGENCE · LIVE INBOX · CRM & PIPELINE · AI GUIDE': 'TEMEL PLATFORM YETENEKLERİ · AI ASİSTANLARI · BİLGİ ZEKÂSI · CANLI GELEN KUTUSU · CRM VE SATIŞ HATTI · AI REHBER',
+      'Configure business-specific assistants and manage their behavior from the tenant workspace.': 'İşletmenize özel AI asistanlarını yapılandırın ve davranışlarını çalışma alanından yönetin.',
+      'Yes': 'Evet', 'No': 'Hayır', 'Attach screenshot': 'Ekran görüntüsü ekle', 'Remove attachment': 'Eki kaldır',
+      'From AED 12,500 / month': 'Başlangıç AED 12.500 / ay', 'AED 2,500 one-time': 'Tek seferlik AED 2.500',
+    },
+    ar: {
+      'CORE PLATFORM CAPABILITIES · AI ASSISTANTS · KNOWLEDGE INTELLIGENCE · LIVE INBOX · CRM & PIPELINE · AI GUIDE': 'إمكانات المنصة الأساسية · المساعدات الذكية · إدارة المعرفة الذكية · صندوق المحادثات الموحد · إدارة العملاء ومسار المبيعات · مرشد الذكاء الاصطناعي',
+      'Yes': 'نعم', 'No': 'لا', 'Attach screenshot': 'إرفاق لقطة شاشة', 'Remove attachment': 'إزالة المرفق',
+      'From AED 12,500 / month': 'ابتداءً من AED 12,500 / شهرياً', 'AED 2,500 one-time': 'AED 2,500 لمرة واحدة',
+    },
+  };
+  for (const [locale, values] of Object.entries(expectations)) {
+    for (const [source, expected] of Object.entries(values)) {
+      assert.equal(translateText(source, locale), expected, `${locale}: ${source}`);
+    }
+  }
+});
+
+test('route and chatbot visible copy has no unintended English fallback', () => {
+  const visibleCopy = [
+    'Manage knowledge sources, processing states and grounded retrieval previews.',
+    'Review conversations, reply as a team, and manage AI or human handling where supported.',
+    'Work with leads and pipeline records inside the workspace.',
+    'Tenant Analytics', 'Multi-channel AI', 'Tenant workspaces', 'Tenant analytics', 'Team / workspace settings',
+    'Real Estate', 'Hospitality', 'Professional Services', 'Automotive', 'Healthcare', 'E-commerce', 'Startups & SMEs',
+    'Team and workspace settings', 'Subscription billing period', 'SamChe AI plan comparison',
+    'Your requirements', 'Product shortcuts', 'Product demos', 'Sales next steps',
+    'Main requirement', 'Lead qualification', 'External integrations', 'AI lead scoring', 'Team users',
+    'Matching your requirements to SamChe AI products…', 'Understanding your requirements…',
+    'Close chat', 'Attach a PNG, JPG, or WEBP screenshot up to 5 MB.',
+    'From', '/ month', '/ year', 'one-time', 'Yes · Custom', 'Yes · Scope', '1 CRM/Booking',
+    'API / custom workflows', 'Preferred demo date', 'Preferred demo time', 'Recommended plan', 'Likely plan',
+    'Mobile navigation', 'Not selected',
+  ];
+  for (const locale of ['tr', 'ar']) {
+    for (const source of visibleCopy) assert.notEqual(translateText(source, locale), source, `${locale} fallback: ${source}`);
+  }
+});
+
 test('Turkish and Arabic localize route-owned platform and plan recommendation copy without mixed-language fragments', () => {
   const routeCopy = [
     'Configure customer-facing, guided AI experiences beyond a simple Q&A exchange.',
