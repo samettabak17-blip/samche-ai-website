@@ -25,12 +25,14 @@ Add these in Hostinger’s environment variables section. Do not commit values h
 - `SMTP_HOST=smtp.hostinger.com`
 - `SMTP_PORT=465`
 - `SMTP_SECURE=true` (required for an encrypted SMTP connection)
-- `SMTP_USER=support@samchecompany.com`
-- `SMTP_PASSWORD` (the existing Hostinger mailbox password; server environment only)
+- `SMTP_USER=media@samchecompany.com` (the actual Hostinger mailbox; `support@samchecompany.com` is its alias and cannot authenticate as a separate mailbox)
+- `SMTP_PASSWORD` (the password of the `media@samchecompany.com` mailbox; server environment only)
 - `SUPPORT_EMAIL_FROM=support@samchecompany.com`
 - `SUPPORT_EMAIL_TO=support@samchecompany.com` (must match the fixed support recipient)
 
 Set these values only in Hostinger's server environment after production configuration is authorized. Do not put the password in `.env.example`, GitHub, browser variables, or client code. No real test email is sent by the automated suite. SMTP sends the structured request, the validated customer address as Reply-To, and an attached PNG, JPEG, or WEBP image up to 5 MB. The form shows success only when the SMTP server accepts `support@samchecompany.com`; a rejected or unverified send shows a localized failure.
+
+The SMTP login, sender, and recipient are separate settings. Authenticate with the real mailbox through `SMTP_USER` and its password. Hostinger lists `support@samchecompany.com` as an alias of `media@samchecompany.com`; keep the support alias in `SUPPORT_EMAIL_FROM` and `SUPPORT_EMAIL_TO`. If Hostinger reports SMTP `EAUTH` / `535`, verify the mailbox login and password in Hostinger rather than changing the form or claiming delivery. The server logs a request ID and redacted failure stage without customer data or credentials.
 
 The HTTPS email adapter remains available with `SUPPORT_EMAIL_TRANSPORT=api` (or no transport selector) and these server-only variables:
 

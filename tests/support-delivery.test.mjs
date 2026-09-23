@@ -52,6 +52,20 @@ test('SMTP sends the structured request and screenshot with a validated Reply-To
   assert.equal(message.attachments[0].contentType, 'image/png');
 });
 
+test('SMTP can authenticate as a mailbox while sending to and from its support alias', async () => {
+  let transportOptions; let message;
+  const result = await deliverSupportEmail(valid, { env: { ...smtpEnv, SMTP_USER: 'media@samchecompany.com' },
+    createTransportImpl: (options) => { transportOptions = options; return { sendMail: async (mail) => {
+      message = mail;
+      return { accepted: [SUPPORT_RECIPIENT], rejected: [] };
+    } }; } });
+  assert.equal(result.ok, true);
+  assert.equal(transportOptions.auth.user, 'media@samchecompany.com');
+  assert.equal(message.from, SUPPORT_RECIPIENT);
+  assert.equal(message.to, SUPPORT_RECIPIENT);
+  assert.equal(message.replyTo, valid.email);
+});
+
 test('SMTP success requires explicit acceptance of the fixed support recipient', async () => {
   for (const receipt of [{ accepted: [], rejected: [SUPPORT_RECIPIENT] }, { accepted: ['other@example.com'], rejected: [] }, {}]) {
     const result = await deliverSupportEmail(valid, { env: smtpEnv, createTransportImpl: () => ({ sendMail: async () => receipt }) });
