@@ -21,11 +21,24 @@ Add these in Hostinger’s environment variables section. Do not commit values h
 - `OPENAI_API_KEY` (required for natural sales-chat provider responses)
 - `OPENAI_MODEL` (optional; defaults to `gpt-4o-mini`)
 - `CONTACT_WEBHOOK_URL` (required to forward contact/demo requests to the chosen website-specific provider)
-- `SUPPORT_EMAIL_API_URL` (HTTPS endpoint for a dedicated server-side email adapter)
-- `SUPPORT_EMAIL_API_TOKEN` (server-side bearer token for that adapter)
-- `SUPPORT_EMAIL_FROM` (verified sender address at the selected email service)
+- `SUPPORT_EMAIL_TRANSPORT=smtp` (selects the Hostinger SMTP adapter; use `api` to select the existing HTTPS adapter)
+- `SMTP_HOST=smtp.hostinger.com`
+- `SMTP_PORT=465`
+- `SMTP_SECURE=true` (required for an encrypted SMTP connection)
+- `SMTP_USER=support@samchecompany.com`
+- `SMTP_PASSWORD` (the existing Hostinger mailbox password; server environment only)
+- `SUPPORT_EMAIL_FROM=support@samchecompany.com`
+- `SUPPORT_EMAIL_TO=support@samchecompany.com` (must match the fixed support recipient)
 
-The support adapter sends a JSON `POST` with `to: "support@samchecompany.com"`, `from`, `replyTo`, `subject`, a structured plain-text `text` body, and an optional base64 `attachment` (`name`, `mimeType`, `data`). The configured adapter must send the attachment to the mailbox and return a successful HTTP status with `{ "accepted": true, "recipient": "support@samchecompany.com" }` only after the email service accepts the entire message. A generic `CONTACT_WEBHOOK_URL` response does not satisfy this contract. Until these values are configured and an actual message is received, `/api/support` returns an unavailable response and the form shows a localized failure message. Do not configure these values in browser-facing variables.
+Set these values only in Hostinger's server environment after production configuration is authorized. Do not put the password in `.env.example`, GitHub, browser variables, or client code. No real test email is sent by the automated suite. SMTP sends the structured request, the validated customer address as Reply-To, and an attached PNG, JPEG, or WEBP image up to 5 MB. The form shows success only when the SMTP server accepts `support@samchecompany.com`; a rejected or unverified send shows a localized failure.
+
+The HTTPS email adapter remains available with `SUPPORT_EMAIL_TRANSPORT=api` (or no transport selector) and these server-only variables:
+
+- `SUPPORT_EMAIL_API_URL` (HTTPS endpoint for the dedicated adapter)
+- `SUPPORT_EMAIL_API_TOKEN` (bearer token)
+- `SUPPORT_EMAIL_FROM` (verified sender address)
+
+The HTTPS adapter sends a JSON `POST` with `to: "support@samchecompany.com"`, `from`, `replyTo`, `subject`, a structured plain-text `text` body, and an optional base64 `attachment` (`name`, `mimeType`, `data`). That adapter must return a successful HTTP status with `{ "accepted": true, "recipient": "support@samchecompany.com" }` only after its email service accepts the entire message. A generic `CONTACT_WEBHOOK_URL` response does not satisfy this contract. Until a selected adapter is configured, `/api/support` returns an unavailable response and the form shows a localized failure message.
 
 No `VITE_*` variable contains a provider key. The browser calls same-origin `/api/sales-chat` and `/api/contact`.
 
