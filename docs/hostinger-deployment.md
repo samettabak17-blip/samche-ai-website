@@ -20,7 +20,6 @@ Add these in Hostinger’s environment variables section. Do not commit values h
 - `PORT` (Hostinger may provide this automatically)
 - `OPENAI_API_KEY` (required for natural sales-chat provider responses)
 - `OPENAI_MODEL` (optional; defaults to `gpt-4o-mini`)
-- `CONTACT_WEBHOOK_URL` (required to forward contact/demo requests to the chosen website-specific provider)
 - `SUPPORT_EMAIL_TRANSPORT=smtp` (selects the Hostinger SMTP adapter; use `api` to select the existing HTTPS adapter)
 - `SMTP_HOST=smtp.hostinger.com`
 - `SMTP_PORT=465`
@@ -30,7 +29,7 @@ Add these in Hostinger’s environment variables section. Do not commit values h
 - `SUPPORT_EMAIL_FROM=support@samchecompany.com`
 - `SUPPORT_EMAIL_TO=support@samchecompany.com` (must match the fixed support recipient)
 
-Set these values only in Hostinger's server environment after production configuration is authorized. Do not put the password in `.env.example`, GitHub, browser variables, or client code. No real test email is sent by the automated suite. SMTP sends the structured request, the validated customer address as Reply-To, and an attached PNG, JPEG, or WEBP image up to 5 MB. The form shows success only when the SMTP server accepts `support@samchecompany.com`; a rejected or unverified send shows a localized failure.
+The Contact page demo form uses this same SMTP configuration and sends to `support@samchecompany.com`. It does not use `CONTACT_WEBHOOK_URL`. Set these values only in Hostinger's server environment after production configuration is authorized. Do not put the password in `.env.example`, GitHub, browser variables, or client code. No real test email is sent by the automated suite. SMTP sends the structured request, the validated customer address as Reply-To, and an attached PNG, JPEG, or WEBP image up to 5 MB for support requests. Both forms show success only when the SMTP server accepts `support@samchecompany.com`; a rejected or unverified send shows a localized failure.
 
 The SMTP login, sender, and recipient are separate settings. Authenticate with the real mailbox through `SMTP_USER` and its password. Hostinger lists `support@samchecompany.com` as an alias of `media@samchecompany.com`; keep the support alias in `SUPPORT_EMAIL_FROM` and `SUPPORT_EMAIL_TO`. If Hostinger reports SMTP `EAUTH` / `535`, verify the mailbox login and password in Hostinger rather than changing the form or claiming delivery. The server logs a request ID and redacted failure stage without customer data or credentials.
 

@@ -52,11 +52,11 @@ export function validateSupportRequest(input) {
 }
 
 function supportMessage(request, from) {
-  return { to: SUPPORT_RECIPIENT, from, replyTo: request.email, subject: `[SamChe Support] ${request.subject}`,
+  return { to: SUPPORT_RECIPIENT, from, replyTo: request.email, subject: '[SamChe AI] Support Request',
     text: Object.entries(request).filter(([key]) => key !== 'attachment').map(([key, value]) => `${key}: ${value}`).join('\n') };
 }
 
-async function deliverBySmtp(request, env, createTransportImpl, emit) {
+export async function deliverBySmtp(message, { env = process.env, createTransportImpl, emit, category = 'support' } = {}) {
   const host = env.SMTP_HOST?.trim();
   const portValue = env.SMTP_PORT?.trim();
   const user = env.SMTP_USER?.trim();
@@ -71,39 +71,37 @@ async function deliverBySmtp(request, env, createTransportImpl, emit) {
           : !EMAIL_ADDRESS.test(from || '') ? 'SUPPORT_EMAIL_FROM'
             : to !== SUPPORT_RECIPIENT ? 'SUPPORT_EMAIL_TO' : null;
   if (invalidField) {
-    diagnostic(emit, 'support_smtp_failed', { stage: 'configuration', category: 'invalid_configuration', field: invalidField });
+    diagnostic(emit, `${category}_smtp_failed`, { stage: 'configuration', category: 'invalid_configuration', field: invalidField });
     return { ok: false, reason: 'not_configured' };
   }
   let nodemailer;
   try { nodemailer = createTransportImpl ? null : await import('nodemailer'); }
   catch {
-    diagnostic(emit, 'support_smtp_failed', { stage: 'module_load', category: 'nodemailer_unavailable' });
+    diagnostic(emit, `${category}_smtp_failed`, { stage: 'module_load', category: 'nodemailer_unavailable' });
     return { ok: false, reason: 'delivery_failed' };
   }
   let stage = 'transport_init';
   try {
     const createTransport = createTransportImpl || nodemailer.createTransport || nodemailer.default?.createTransport;
     if (typeof createTransport !== 'function') {
-      diagnostic(emit, 'support_smtp_failed', { stage: 'transport_init', category: 'missing_transport' });
+      diagnostic(emit, `${category}_smtp_failed`, { stage: 'transport_init', category: 'missing_transport' });
       return { ok: false, reason: 'delivery_failed' };
     }
     const transport = createTransport({ host, port, secure: true, auth: { user, pass: password },
       connectionTimeout: 15000, greetingTimeout: 10000, socketTimeout: 20000, logger: false, debug: false,
       disableFileAccess: true, disableUrlAccess: true, tls: { minVersion: 'TLSv1.2' } });
     stage = 'smtp_send';
-    diagnostic(emit, 'support_smtp_connection_attempt', { stage: 'smtp_send' });
-    const message = { ...supportMessage(request, from), attachments: request.attachment ? [{ filename: request.attachment.name,
-      content: Buffer.from(request.attachment.data, 'base64'), contentType: request.attachment.mimeType }] : [] };
-    const receipt = await transport.sendMail(message);
+    diagnostic(emit, `${category}_smtp_connection_attempt`, { stage: 'smtp_send' });
+    const receipt = await transport.sendMail({ ...message, to: SUPPORT_RECIPIENT, from });
     if (!Array.isArray(receipt?.accepted) || !receipt.accepted.some((address) => String(address).toLowerCase() === SUPPORT_RECIPIENT)
       || receipt.rejected?.some((address) => String(address).toLowerCase() === SUPPORT_RECIPIENT)) {
-      diagnostic(emit, 'support_smtp_failed', { stage: 'smtp_acceptance', category: 'recipient_not_accepted' });
+      diagnostic(emit, `${category}_smtp_failed`, { stage: 'smtp_acceptance', category: 'recipient_not_accepted' });
       return { ok: false, reason: 'unverified_delivery' };
     }
-    diagnostic(emit, 'support_smtp_accepted', { stage: 'smtp_acceptance' });
+    diagnostic(emit, `${category}_smtp_accepted`, { stage: 'smtp_acceptance' });
     return { ok: true };
   } catch (error) {
-    diagnostic(emit, 'support_smtp_failed', { ...smtpFailure(error), stage });
+    diagnostic(emit, `${category}_smtp_failed`, { ...smtpFailure(error), stage });
     return { ok: false, reason: 'delivery_failed' };
   }
 }
@@ -111,7 +109,8 @@ async function deliverBySmtp(request, env, createTransportImpl, emit) {
 export async function deliverSupportEmail(request, { env = process.env, fetchImpl = fetch, createTransportImpl, emit } = {}) {
   const selectedTransport = env.SUPPORT_EMAIL_TRANSPORT?.trim().toLowerCase() || 'api';
   diagnostic(emit, 'support_email_transport_selected', { transport: selectedTransport === 'smtp' || selectedTransport === 'api' ? selectedTransport : 'invalid' });
-  if (selectedTransport === 'smtp') return deliverBySmtp(request, env, createTransportImpl, emit);
+  if (selectedTransport === 'smtp') return deliverBySmtp({ ...supportMessage(request), attachments: request.attachment ? [{ filename: request.attachment.name,
+    content: Buffer.from(request.attachment.data, 'base64'), contentType: request.attachment.mimeType }] : [] }, { env, createTransportImpl, emit });
   if (selectedTransport !== 'api') {
     diagnostic(emit, 'support_email_failed', { stage: 'configuration', category: 'invalid_transport' });
     return { ok: false, reason: 'not_configured' };

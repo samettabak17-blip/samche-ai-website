@@ -16,4 +16,4 @@ Not migrated and not referenced at runtime:
 - Render services, Render PostgreSQL, workers, or background jobs
 - `samche-api-service` source, package, database, or environment
 
-The frontend uses the same-origin `/api/sales-chat` endpoint. Contact/demo requests use `/api/contact` and require the website-only `CONTACT_WEBHOOK_URL` to be configured in Hostinger.
+The frontend uses the same-origin `/api/sales-chat` endpoint. Contact/demo requests use `/api/contact` and the same Hostinger SMTP configuration as Support Portal requests. The server reports success only after SMTP accepts the fixed support recipient.

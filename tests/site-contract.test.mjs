@@ -425,7 +425,7 @@ test('contact form submits enquiries to the approved endpoint with professional 
   const form = await readFile(new URL('../app/components/contact-form.tsx', import.meta.url), 'utf8');
   assert.ok(form.includes("fetch('/api/contact'"));
   assert.ok(form.includes('method: \'POST\''));
-  assert.ok(form.includes('Your enquiry has been received.'));
+  assert.ok(form.includes('Your demo request has been successfully submitted.'));
   assert.ok(form.includes('Your enquiry will be reviewed by the SamChe AI sales team.'));
   assert.doesNotMatch(form, /Formspree/);
   assert.ok(form.includes('samche:website-chat-lead'));

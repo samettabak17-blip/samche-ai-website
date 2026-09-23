@@ -148,9 +148,9 @@ test('built production server serves documents, assets, RSC, and same-origin API
         }),
       }),
     ]);
-    assert.equal(contact.status, 503);
+    assert.equal(contact.status, 400);
     assert.match(contact.headers.get('content-type') || '', /^application\/json\b/i);
-    assert.deepEqual(await contact.json(), { ok: false, error: 'Contact processing is not configured.' });
+    assert.deepEqual(await contact.json(), { ok: false, error: 'invalid_request' });
     assert.equal(salesChat.status, 503);
     assert.match(salesChat.headers.get('content-type') || '', /^application\/json\b/i);
     assert.deepEqual(await salesChat.json(), { error: 'Sales assistant is temporarily unavailable.' });
@@ -159,6 +159,14 @@ test('built production server serves documents, assets, RSC, and same-origin API
     const response = await fetch(`${baseUrl}/api/support`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
       accountIdentifier: 'Smoke Co', name: 'Test User', email: 'test@example.com', plan: 'starter', productArea: 'web-chatbot',
       issueCategory: 'technical', severity: 'normal', subject: 'Smoke test', description: 'A test request.', preferredContactMethod: 'email',
+    }) });
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), { ok: false, error: 'delivery_unavailable' });
+  });
+  await t.test('demo API refuses to claim delivery without configured SMTP', async () => {
+    const response = await fetch(`${baseUrl}/api/contact`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
+      name: 'Test Customer', email: 'test@example.com', company: 'Example Co', role: 'Director',
+      interest: 'Interested in: Web Chatbot', message: 'A demo request.',
     }) });
     assert.equal(response.status, 503);
     assert.deepEqual(await response.json(), { ok: false, error: 'delivery_unavailable' });

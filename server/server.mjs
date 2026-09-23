@@ -8,10 +8,12 @@ import { fileURLToPath } from 'node:url';
 import { createSalesChatRateLimiter, createSalesChatService } from './sales-chat-service.mjs';
 import { commercialFacts } from './sales-chat-commercial.mjs';
 import { createSupportHandler } from './support-email.mjs';
+import { createDemoHandler } from './demo-email.mjs';
 
 const port = Number(process.env.PORT || 3000);
 const rateLimiter = createSalesChatRateLimiter();
 const supportHandler = createSupportHandler();
+const demoHandler = createDemoHandler();
 const clientRoot = resolve(fileURLToPath(new URL('..', import.meta.url)), 'dist', 'client');
 
 function json(res, status, body) {
@@ -19,22 +21,21 @@ function json(res, status, body) {
   res.end(JSON.stringify(body));
 }
 
-async function readBody(req) {
+async function readBody(req, maxLength = 10_000_000) {
   let raw = '';
   for await (const chunk of req) {
     raw += chunk;
-    if (raw.length > 10_000_000) throw new Error('body_too_large');
+    if (raw.length > maxLength) throw new Error('body_too_large');
   }
   return raw ? JSON.parse(raw) : {};
 }
 
 async function handleContact(req, res) {
-  const body = await readBody(req);
-  const webhook = process.env.CONTACT_WEBHOOK_URL;
-  if (!webhook) return json(res, 503, { ok: false, error: 'Contact processing is not configured.' });
-  const response = await fetch(webhook, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify(body) });
-  if (!response.ok) return json(res, 502, { ok: false, error: 'Contact processing is temporarily unavailable.' });
-  return json(res, 202, { ok: true });
+  let body;
+  try { body = await readBody(req, 32_000); }
+  catch (error) { return json(res, error?.message === 'body_too_large' ? 413 : 400, { ok: false, error: 'invalid_request' }); }
+  const result = await demoHandler(body, req.socket.remoteAddress || 'unknown');
+  return json(res, result.status, result.body);
 }
 
 function contentType(file) {
