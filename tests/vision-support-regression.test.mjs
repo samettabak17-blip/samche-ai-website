@@ -64,6 +64,16 @@ test('dashboard map contains only verified routes and no fabricated AI Visual se
   assert.equal(dashboardSupportMap.some((entry) => entry.controls.some((control) => /Visual Settings|QR re-authenticate/i.test(control))), false);
 });
 
+test('WhatsApp troubleshooting controls are explicitly verified in the dashboard map', () => {
+  const whatsapp = dashboardSupportMap.find((entry) => entry.area === 'WhatsApp AI');
+  assert.equal(whatsapp.status, 'implemented_customer_accessible');
+  assert.equal(whatsapp.nav, 'Channels');
+  assert.equal(whatsapp.path, '/app/:tenantId/channels');
+  for (const control of ['WhatsApp channel', 'Edit channel', 'Status', 'Assigned assistant', 'Save changes']) {
+    assert.ok(whatsapp.controls.includes(control), `missing verified control: ${control}`);
+  }
+});
+
 test('a follow-up to an AI Visual support issue stays in support and never invents a settings screen', async () => {
   const service = createSalesChatService({ commercialFacts, openaiClient: { chat: { completions: { create: async () => ({ choices: [{ message: { content: reply('Lütfen Görsel Ayarları sekmesine gidin.') } }] }) } } } });
   const result = await service.handle({ body: { userMessage: 'burda nerden yapicam?', conversationHistory: [

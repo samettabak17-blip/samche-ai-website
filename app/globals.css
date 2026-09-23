@@ -694,6 +694,12 @@ body { background:radial-gradient(ellipse at 50% -22%,rgba(143,10,30,.23),transp
 .samche-welcome-title { display:block; color:#f8edf0; font-size:10px; font-weight:700; }
 .samche-message-content { display:grid; max-width:84%; gap:4px; }.samche-message-row.user .samche-message-content { justify-items:end; }
 .samche-message-bubble { padding:10px 12px; border:1px solid #ffffff12; border-radius:12px 12px 12px 3px; color:#e9e3e6; background:#ffffff09; font-size:11px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
+.samche-message-bubble p { margin:0 0 8px; white-space:normal; }
+.samche-message-bubble p:last-child { margin-bottom:0; }
+.samche-message-bubble ul, .samche-message-bubble ol { margin:0 0 8px; padding-inline-start:20px; white-space:normal; }
+.samche-message-bubble li { margin:0 0 4px; overflow-wrap:anywhere; }
+.samche-message-bubble li:last-child { margin-bottom:0; }
+.samche-message-bubble code { padding:1px 4px; border-radius:4px; color:#f7d889; background:rgba(255,255,255,.08); font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:.92em; overflow-wrap:anywhere; }
 .samche-message-row.user .samche-message-bubble { border-color:#ce31534c; border-radius:12px 12px 3px 12px; color:#fff4f6; background:linear-gradient(135deg,#64172c,#36121e); }
 .samche-message-content time { color:#766d73; font-size:8px; }.samche-message-row.user time { text-align:right; }
 .samche-user-avatar { display:grid; width:24px; height:24px; flex:none; place-items:center; border:1px solid #ffffff20; border-radius:50%; color:#b8abb1; background:#252126; }

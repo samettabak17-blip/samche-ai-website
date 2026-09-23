@@ -29,11 +29,11 @@ SUPPORT RULES:
   3. If Starter asks why WhatsApp AI isn't working: explain WhatsApp AI is included starting from Growth plan.
   4. If Starter/Growth/Business asks why AI Visual isn't working: explain AI Visual Generation is exclusively available on the Enterprise plan.
   5. If Enterprise asks about AI Visual troubleshooting: check if AI Visual is enabled for tenant, request came through supported channel, image was received, and catalog/product context exists.
-  6. Only give a dashboard path when the verified dashboard map supplied in context contains it. The public website repository does not prove tenant routes or control labels. Do not infer a route from a module name. AI Visual tenant configuration is implementation-managed; do not direct customers to an AI Visual Settings screen.
+  6. Only give a dashboard path when the verified dashboard map supplied in context contains it. Treat dashboard evidence as four separate categories: (a) verified customer-facing controls, (b) documented platform procedures, (c) general diagnostic suggestions, and (d) tenant-specific information requiring authorized access. The public website repository does not prove tenant routes or control labels. Do not infer a route from a module name. AI Visual tenant configuration is implementation-managed; do not direct customers to an AI Visual Settings screen.
   7. NEVER invent nonexistent settings, buttons, tabs, or menus (e.g. NEVER mention "Görsel Ayarları", "Veri Entegrasyonu", "Eğitim Verisi", "Visual Settings", "Data Sync Tab"). If a control is not confirmed in SamChe AI, say: "Mevcut yapılandırmanızda bulunmayan bir ayara yönlendirmemek adına, önce etkilenen özelliği netleştirelim." / "I don't want to point you to a setting that may not exist in your current configuration. Let me narrow down the affected feature first."
   8. NO automatic live transfer and NO fake tickets: Never say "Sizi canlı desteğe aktarıyorum", "Bir temsilciye bağlıyorum", "Teknik ekibe aktardım", "Ticket oluşturdum", "Ticket #123 created", or claim to view unseen backend server logs. Provide verified sequential troubleshooting steps, and if the issue cannot be resolved, state that further technical review is required according to their plan's support channels.
   9. Vision understanding: When an image/screenshot is provided, read its visible text and UI content, and answer the user's exact visual question. If it shows ORDER ID: SC-4827, report SC-4827. The screenshot is part of the current support context, including an immediate follow-up such as "burada nereden yapacağım?". Do not substitute generic troubleshooting for visible facts.
-  10. For a follow-up asking where to act, use the exact verified navigation and control labels from the dashboard map. A WhatsApp channel showing Status: Inactive can be handled by a user with channel management access at Channels → affected WhatsApp channel → Edit channel → Status (Active) and Assigned assistant → Save changes. If the customer lacks that access, ask them to contact their workspace administrator or submit the details through Support. Do not replace these steps with a vague "channel settings" path.
+  10. For a follow-up asking where to act, use the exact verified navigation and control labels from the dashboard map only when that map-backed evidence applies. A visible WhatsApp channel with Status: Inactive can be handled by a user with channel management access at Channels → affected WhatsApp channel → Edit channel → Status (Active) and Assigned assistant → Save changes. This does not prove the customer's tenant has that state; screenshots and authorized tenant access are the evidence sources. If the customer lacks that access, ask them to contact their workspace administrator or submit the details through Support. Do not replace these steps with a vague or invented path.
 
 SALES RULES:
 - Preserve known lead fields, never repeat an already known field, ask at most one useful question, never invent commercial facts, and never claim physical delivery or guaranteed outcomes. For a bare greeting, write a short welcome that identifies you as the SamChe AI sales and support assistant and ask at most one general help question.`;
@@ -321,6 +321,7 @@ function validateSalesReplyText(reply, { plans, products }) {
   const amounts = approvedAmounts(plans);
   for (const amount of reply.matchAll(/AED\s*([\d,]+)/gi)) if (!amounts.has(amount[1].replaceAll(',', ''))) return failure('unsupported_commercial_claim', { category: 'amount' });
   if (/(?:discount|free|unlimited|guaranteed)/i.test(reply)) return failure('unsupported_commercial_claim', { category: 'disallowed_term' });
+  if (containsUnsupportedDashboardInstruction(reply)) return failure('hallucinated_dashboard_control', { category: 'unverified_navigation' });
   if (/(?:Görsel Ayarları|Veri Entegrasyonu|Eğitim Verisi|Visual Settings|Data Integration Tab|Training Data Tab)/iu.test(reply)) {
     return failure('hallucinated_dashboard_control', { category: 'fake_menu' });
   }
@@ -328,6 +329,24 @@ function validateSalesReplyText(reply, { plans, products }) {
   const unknownProductClaim = [...reply.matchAll(/\b(?:Web Chatbot|WhatsApp AI|AI Guide|Knowledge Intelligence|Live Inbox|CRM & Pipeline)\b/g)].some((match) => knownProducts.length > 0 && !knownProducts.includes(match[0]));
   if (unknownProductClaim) return failure('unsupported_product_claim', { category: 'product_name' });
   return { ok: true, value: reply.trim() };
+}
+
+function containsUnsupportedDashboardInstruction(reply) {
+  const instruction = /\b(?:open|go to|navigate to|click|select|choose|set|save|check|verify)\b/i.test(reply)
+    || /(?:aç|gidin|tıklayın|seçin|ayarlayın|kaydedin|kontrol edin|doğrulayın)/iu.test(reply);
+  const routeClaim = /\b(?:menu|tab|screen|settings|route|dashboard|menü|sekme|ekran|ayar|pano)\b/i.test(reply)
+    || /\b(?:open|go to|navigate to)\s+(?:the\s+)?(?:channels?|settings|overview|assistants?|knowledge|conversations?|leads?|pipeline|support)\b/i.test(reply)
+    || /(?:→|->)/.test(reply);
+  if (!instruction || !routeClaim) return false;
+  const lower = reply.toLocaleLowerCase();
+  const unverifiedTerms = dashboardSupportMap.filter((entry) => entry.status !== 'implemented_customer_accessible')
+    .flatMap((entry) => [entry.area, entry.nav]).filter(Boolean).map((term) => String(term).toLocaleLowerCase());
+  if (unverifiedTerms.some((term) => new RegExp(`(?<![\\p{L}\\p{N}_])${term.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}(?![\\p{L}\\p{N}_])`, 'iu').test(lower))) return true;
+  return !dashboardSupportMap.some((entry) => {
+    if (entry.status !== 'implemented_customer_accessible' || !entry.nav) return false;
+    const verifiedTerms = [entry.nav, entry.area, ...(entry.controls || [])].filter(Boolean).map((term) => String(term).toLocaleLowerCase());
+    return verifiedTerms.some((term) => new RegExp(`(?<![\\p{L}\\p{N}_])${term.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}(?![\\p{L}\\p{N}_])`, 'iu').test(lower));
+  });
 }
 
 function logValidationFailure(result, { environment, logger }) {

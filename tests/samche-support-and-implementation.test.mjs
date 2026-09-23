@@ -141,6 +141,26 @@ test('support assistant rejects hallucinated dashboard controls', () => {
   }
 });
 
+test('support assistant accepts only map-backed dashboard navigation claims', () => {
+  const verified = salesChat.validateSalesLlmOutput(JSON.stringify({
+    reply: 'Open Channels, select the WhatsApp channel, choose Edit channel, check Status and Assigned assistant, then Save changes.',
+    intent: 'support', responseMode: 'support', resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [],
+  }), commercialFacts);
+  assert.equal(verified.ok, true);
+
+  for (const reply of [
+    'Open the Integrations menu and reconnect WhatsApp.',
+    'Go to AI Visual Settings and enable image generation.',
+    'Open the Data Sync tab and refresh the provider credentials.',
+  ]) {
+    const result = salesChat.validateSalesLlmOutput(JSON.stringify({
+      reply, intent: 'support', responseMode: 'support', resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [],
+    }), commercialFacts);
+    assert.equal(result.ok, false, `Must reject unsupported navigation: ${reply}`);
+    assert.equal(result.reason, 'hallucinated_dashboard_control');
+  }
+});
+
 // 7. Plan entitlement boundary: Starter + WhatsApp
 test('starter + whatsapp issue: assistant explains plan entitlement boundary', () => {
   const turn = generateSalesTurn(createInitialSalesState(), 'WhatsApp AI neden çalışmıyor?', [], 'tr');
