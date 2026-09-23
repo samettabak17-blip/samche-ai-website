@@ -478,6 +478,14 @@ export function createSalesChatService({ openaiClient, commercialFacts, textMode
     const attachment = body.attachment === undefined ? null : validateChatAttachment(body.attachment);
     if (attachment && !attachment.ok) return { status: 400, body: { error: attachment.reason === 'image_too_large' ? 'image_too_large' : 'invalid_attachment' }, context };
     if (!openaiClient?.chat?.completions?.create) return { status: 503, body: { error: 'Sales assistant is temporarily unavailable.' }, context };
+    if (attachment) {
+      const sourceBytes = Buffer.from(body.attachment.data, 'base64').length;
+      logger?.info?.('sales_chat_image_received', {
+        mimeType: attachment.mimeType,
+        sourceBytes,
+        base64Chars: body.attachment.data.length,
+      });
+    }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -489,6 +497,7 @@ export function createSalesChatService({ openaiClient, commercialFacts, textMode
         { role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: userContent },
       ] }, { signal: controller.signal });
       const content = completion?.choices?.[0]?.message?.content;
+      if (attachment && typeof content === 'string') logger?.info?.('sales_chat_vision_request_succeeded', { model: visionModel, responseChars: content.length });
       if (typeof content !== 'string') {
         logValidationFailure(failure('invalid_provider_response'), { environment, logger });
         if (attachment) return { status: 502, body: { error: 'Vision response was not usable.' }, context };

@@ -34,6 +34,21 @@ test('controlled screenshot and immediate follow-up reach vision request and sur
   assert.equal(payloads[1].model, 'gpt-4o');
 });
 
+test('image diagnostics expose only safe boundary metadata', async () => {
+  const events = [];
+  const service = createSalesChatService({ commercialFacts, logger: { warn: (...args) => events.push(args), info: (...args) => events.push(args) }, openaiClient: { chat: { completions: { create: async () => ({ choices: [{ message: { content: reply('The screenshot shows ORDER ID: SC-4827.') } }] }) } } } });
+  const result = await service.handle({ body: { userMessage: 'Please inspect this screenshot.', conversationHistory: [], attachment } });
+  assert.equal(result.status, 200);
+  const eventNames = events.map(([name]) => name);
+  assert.ok(eventNames.includes('sales_chat_image_received'));
+  assert.ok(eventNames.includes('sales_chat_vision_request_succeeded'));
+  const received = events.find(([name]) => name === 'sales_chat_image_received')[1];
+  assert.deepEqual(Object.keys(received).sort(), ['base64Chars', 'mimeType', 'sourceBytes']);
+  assert.equal(received.mimeType, 'image/png');
+  assert.equal(received.sourceBytes, Buffer.from(png, 'base64').length);
+  assert.equal(events.some(([, details]) => JSON.stringify(details).includes(png)), false);
+});
+
 test('unusable vision output is not silently replaced with generic support advice', async () => {
   const service = createSalesChatService({ commercialFacts, openaiClient: { chat: { completions: { create: async () => ({ choices: [{ message: { content: null } }] }) } } } });
   const result = await service.handle({ body: { userMessage: 'Bu görselde ne yazıyor?', conversationHistory: [], attachment } });

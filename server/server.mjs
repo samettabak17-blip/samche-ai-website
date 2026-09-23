@@ -25,7 +25,7 @@ async function readBody(req, maxLength = 10_000_000) {
   let raw = '';
   for await (const chunk of req) {
     raw += chunk;
-    if (raw.length > maxLength) throw new Error('body_too_large');
+    if (Buffer.byteLength(raw, 'utf8') > maxLength) throw new Error('body_too_large');
   }
   return raw ? JSON.parse(raw) : {};
 }
@@ -105,7 +105,13 @@ const server = createServer(async (req, res) => {
     if (req.method === 'GET' && req.url === '/api/health') return json(res, 200, { ok: true, service: 'samche-ai-website', salesChatConfigured });
     if (req.method === 'POST' && req.url === '/api/sales-chat') {
       if (!rateLimiter.allow(req.socket.remoteAddress || 'unknown')) return json(res, 429, { error: 'Sales assistant is temporarily unavailable.' });
-      return json(res, ...(await salesChatService.handle({ body: await readBody(req) }).then((result) => [result.status, result.body])));
+      let body;
+      try { body = await readBody(req); }
+      catch (error) {
+        console.warn('sales_chat_request_failed', { stage: 'request_body', category: error?.message === 'body_too_large' ? 'body_too_large' : 'invalid_json' });
+        return json(res, error?.message === 'body_too_large' ? 413 : 400, { error: error?.message === 'body_too_large' ? 'request_too_large' : 'invalid_request' });
+      }
+      return json(res, ...(await salesChatService.handle({ body }).then((result) => [result.status, result.body])));
     }
     if (req.method === 'POST' && req.url === '/api/contact') return await handleContact(req, res);
     if (req.method === 'POST' && req.url === '/api/support') {
