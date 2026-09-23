@@ -21,6 +21,11 @@ Add these in Hostinger’s environment variables section. Do not commit values h
 - `OPENAI_API_KEY` (required for natural sales-chat provider responses)
 - `OPENAI_MODEL` (optional; defaults to `gpt-4o-mini`)
 - `CONTACT_WEBHOOK_URL` (required to forward contact/demo requests to the chosen website-specific provider)
+- `SUPPORT_EMAIL_API_URL` (HTTPS endpoint for a dedicated server-side email adapter)
+- `SUPPORT_EMAIL_API_TOKEN` (server-side bearer token for that adapter)
+- `SUPPORT_EMAIL_FROM` (verified sender address at the selected email service)
+
+The support adapter sends a JSON `POST` with `to: "support@samchecompany.com"`, `from`, `replyTo`, `subject`, a structured plain-text `text` body, and an optional base64 `attachment` (`name`, `mimeType`, `data`). The configured adapter must send the attachment to the mailbox and return a successful HTTP status with `{ "accepted": true, "recipient": "support@samchecompany.com" }` only after the email service accepts the entire message. A generic `CONTACT_WEBHOOK_URL` response does not satisfy this contract. Until these values are configured and an actual message is received, `/api/support` returns an unavailable response and the form shows a localized failure message. Do not configure these values in browser-facing variables.
 
 No `VITE_*` variable contains a provider key. The browser calls same-origin `/api/sales-chat` and `/api/contact`.
 

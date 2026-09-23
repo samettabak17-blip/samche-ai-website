@@ -75,7 +75,8 @@ export function PricingTable() {
           <span className="implementation-note">{plan.implementationNote}</span>
         </div>
         <div className="interaction-box"><strong>{plan.interactions}</strong><small>AI Interactions / Month</small></div>
-        <ul className="plan-features">{plan.features.map((feature) => <li key={feature}>{feature}</li>)}</ul>
+        <ul className="plan-features">{plan.features.filter((feature) => feature !== plan.supportLevel).map((feature) => <li key={feature}>{feature}</li>)}</ul>
+        <div className="plan-support"><strong>SUPPORT</strong><ul>{plan.supportEntitlements.filter((item) => !/Support Portal/.test(item)).map((item) => <li key={item}>{item}</li>)}</ul></div>
         <Link className="button plan-cta" href={`/contact?plan=${plan.slug}`}>{planCta(plan)} <span aria-hidden="true">↗</span></Link>
       </article>)}
     </div>

@@ -53,25 +53,25 @@ test('plan support entitlements are exact and strictly grounded', () => {
   const [starter, growth, business, enterprise] = plans;
   assert.deepEqual(starter.supportEntitlements, [
     '24/7 AI Support',
-    'Email Support — Business Hours',
+    'Human Email Support — Business Hours',
     'Support Portal',
   ]);
   assert.deepEqual(growth.supportEntitlements, [
     '24/7 AI Support',
-    'Email + WhatsApp Support — Business Hours',
+    'Email + WhatsApp Human Support — Business Hours',
     'Priority Support',
     'Support Portal',
   ]);
   assert.deepEqual(business.supportEntitlements, [
     '24/7 AI Support',
-    'Priority Email & WhatsApp Support',
+    'Priority Email + WhatsApp Human Support',
     'Expanded Priority Support',
     'Support Portal',
   ]);
   assert.deepEqual(enterprise.supportEntitlements, [
     '24/7 AI Support',
-    '24/7 Critical Human Support',
-    'Priority WhatsApp & Email',
+    '24/7 Human Support for Critical Issues',
+    'Priority Email + WhatsApp',
     'Dedicated Customer Advisor',
     'Enterprise Support Portal',
   ]);
@@ -83,10 +83,10 @@ test('platform comparison includes Support & Success group with exact matrix', (
   assert.ok(supportGroup, 'Support & Success group must exist');
   assert.deepEqual(supportGroup.rows, [
     { label: '24/7 AI Support', values: ['Included', 'Included', 'Included', 'Included'] },
-    { label: 'Email Support', values: ['Business Hours', 'Business Hours', 'Priority', 'Priority / 24x7 critical path'] },
-    { label: 'WhatsApp Support', values: ['Not included', 'Business Hours', 'Priority', 'Priority / 24x7 critical path'] },
+    { label: 'Human Email Support', values: ['Business Hours', 'Business Hours', 'Priority', 'Priority'] },
+    { label: 'Human WhatsApp Support', values: ['Not included', 'Business Hours', 'Priority', 'Priority'] },
     { label: 'Support Portal', values: ['Included', 'Included', 'Included', 'Included'] },
-    { label: 'Priority Human Support', values: ['Standard Email', 'Priority', 'Expanded Priority', 'Enterprise Priority'] },
+    { label: 'Priority Support', values: ['Standard', 'Priority', 'Expanded Priority', 'Enterprise Priority'] },
     { label: '24/7 Critical Human Support', values: ['Not included', 'Not included', 'Not included', 'Included'] },
     { label: 'Dedicated Customer Advisor', values: ['Not included', 'Not included', 'Not included', 'Included'] },
   ]);

@@ -3,6 +3,7 @@
 import { FormEvent, useId, useState } from 'react';
 import { plans } from '../../lib/site-data.mjs';
 import { SectionEyebrow } from './site-shell';
+import { useSiteLocale } from './site-localization';
 
 interface SupportKnowledgeItem {
   id: string;
@@ -13,6 +14,17 @@ interface SupportKnowledgeItem {
   planRequired?: string;
 }
 
+type SupportStatusCode = '' | 'attachment' | 'required' | 'success' | 'delivery';
+function supportStatusText(code: SupportStatusCode, locale: 'en' | 'tr' | 'ar') {
+  const messages = {
+    attachment: { en: 'Attach a PNG, JPG, or WEBP screenshot up to 5 MB.', tr: 'En fazla 5 MB boyutunda PNG, JPG veya WEBP ekran görüntüsü ekleyin.', ar: 'أرفق لقطة شاشة بصيغة PNG أو JPG أو WEBP بحجم لا يتجاوز 5 ميغابايت.' },
+    required: { en: 'Please fill in all required fields.', tr: 'Lütfen zorunlu alanları doldurun.', ar: 'يرجى تعبئة جميع الحقول المطلوبة.' },
+    success: { en: 'Your support request has been successfully submitted. Our team will review it according to your plan’s support coverage and contact you through your preferred support channel.', tr: 'Destek talebiniz başarıyla iletildi. Ekibimiz, paketinizin destek kapsamına göre talebinizi inceleyerek sizinle iletişime geçecektir.', ar: 'تم إرسال طلب الدعم بنجاح. سيراجع فريقنا طلبكم وفق نطاق الدعم المتاح في خطتكم ويتواصل معكم عبر وسيلة التواصل المفضلة لديكم.' },
+    delivery: { en: 'Your support request could not be sent right now. Please try again.', tr: 'Destek talebiniz şu anda gönderilemedi. Lütfen yeniden deneyin.', ar: 'تعذر إرسال طلب الدعم حالياً. يرجى المحاولة مرة أخرى.' },
+  };
+  return code ? messages[code][locale] : '';
+}
+
 const verifiedKnowledgeItems: SupportKnowledgeItem[] = [
   {
     id: 'kb-web-chat',
@@ -20,10 +32,9 @@ const verifiedKnowledgeItems: SupportKnowledgeItem[] = [
     title: 'Troubleshooting Web Chatbot Embedding & Page Context',
     summary: 'How to verify the Web Chatbot script installation and enable page-aware context on your website.',
     steps: [
-      'Navigate to Channels > Web Chatbot in your SamChe AI workspace.',
-      'Verify that your domain is allow-listed under Widget Settings.',
-      'Ensure the JavaScript embed snippet is placed before the closing </body> tag.',
-      'Check browser console for any Content Security Policy (CSP) blocking external script execution.',
+      'Open Channels, then Web Chat Experience in your workspace.',
+      'Check the Web Chat channel status and assigned assistant.',
+      'Review the Web Chat Experience configuration for the affected site.',
     ],
   },
   {
@@ -33,9 +44,9 @@ const verifiedKnowledgeItems: SupportKnowledgeItem[] = [
     summary: 'Verifying business number connection and channel availability for Growth, Business, and Enterprise plans.',
     steps: [
       'Confirm your account is on Growth plan or higher (WhatsApp AI is not included in Starter).',
-      'Navigate to Channels > WhatsApp AI in the tenant dashboard.',
-      'Check the connection status badge; if disconnected, use Re-authenticate QR/API link.',
-      'Verify that team members have appropriate permissions in Settings > Team.',
+      'Open Channels and select the affected WhatsApp channel.',
+      'Check its Status and assigned active Assistant.',
+      'If the channel cannot be repaired from those controls, submit the affected channel and example conversation for support review.',
     ],
     planRequired: 'Growth / Business / Enterprise',
   },
@@ -45,10 +56,9 @@ const verifiedKnowledgeItems: SupportKnowledgeItem[] = [
     title: 'Managing Documents, Ingestion States & Retrieval Previews',
     summary: 'Uploading business documents (PDF, DOCX, TXT, PNG, JPG) and inspecting grounded answers.',
     steps: [
-      'Open Knowledge Intelligence from the main dashboard sidebar.',
-      'Check the processing status of recent source files (Indexed, Processing, or Failed).',
-      'Use the Retrieval Preview tab to test sample queries against your knowledge base.',
-      'Review pending updates in the Knowledge Approval Workflow before publishing.',
+      'Open Knowledge Intelligence in the workspace sidebar.',
+      'Find the affected source and review its displayed processing state.',
+      'For product imagery, use Upload visual source and provide the product/entity context.',
     ],
   },
   {
@@ -57,10 +67,9 @@ const verifiedKnowledgeItems: SupportKnowledgeItem[] = [
     title: 'Human Handover & Team Message Handling',
     summary: 'Moving conversations seamlessly between AI assistance and human support agents.',
     steps: [
-      'Open Live Inbox to view incoming conversations across enabled channels.',
-      'Click "Take over from AI" on any active thread to pause automated responses.',
-      'Reply directly to the customer as a team agent.',
-      'Click "Return to AI" once the human support exchange is complete.',
+      'Open Conversations and choose WhatsApp, Web Chatbot, or AI Guide.',
+      'Select the affected conversation and review its available actions.',
+      'If an action is unavailable for your role or channel, submit the conversation context for support review.',
     ],
   },
   {
@@ -70,19 +79,21 @@ const verifiedKnowledgeItems: SupportKnowledgeItem[] = [
     summary: 'Enterprise multimodal visual product generation and personalization.',
     steps: [
       'Verify account is on the Enterprise plan (AI Visual is exclusively an Enterprise feature).',
-      'Confirm tenant workspace has AI Visual Generation enabled in tenant settings.',
-      'Ensure the customer image or catalog reference was provided in a supported format (PNG, JPG, WEBP).',
-      'Check monthly visual generation usage against the included 200 generations/month allowance.',
+      'There is no verified customer-facing AI Visual generation switch in the current dashboard.',
+      'Check the affected WhatsApp flow and product or catalog context.',
+      'Include an example prompt, image, and approximate time in a support request so the implementation team can review tenant configuration.',
     ],
     planRequired: 'Enterprise only',
   },
 ];
 
 export function SupportPortal() {
+  const { locale } = useSiteLocale();
   const [search, setSearch] = useState('');
   const [selectedPlan, setSelectedPlan] = useState('');
   const [productArea, setProductArea] = useState('');
   const [issueType, setIssueType] = useState('technical');
+  const [severity, setSeverity] = useState('normal');
   const [summary, setSummary] = useState('');
   const [description, setDescription] = useState('');
   const [accountIdentifier, setAccountIdentifier] = useState('');
@@ -91,8 +102,9 @@ export function SupportPortal() {
   const [contactPhone, setContactPhone] = useState('');
   const [contactMethod, setContactMethod] = useState('email');
   const [attachmentName, setAttachmentName] = useState('');
+  const [attachment, setAttachment] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [formStatus, setFormStatus] = useState<{ type: 'success' | 'error' | ''; message: string }>({ type: '', message: '' });
+  const [formStatus, setFormStatus] = useState<{ type: 'success' | 'error' | ''; code: SupportStatusCode }>({ type: '', code: '' });
 
   const searchId = useId();
 
@@ -110,35 +122,43 @@ export function SupportPortal() {
   function handleAttachment(file?: File) {
     if (!file) {
       setAttachmentName('');
-      return;
+      setAttachment(null);
+      return true;
     }
     if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
-      setFormStatus({ type: 'error', message: 'Attach a PNG, JPG, or WEBP screenshot up to 5 MB.' });
-      return;
+      setAttachment(null); setAttachmentName('');
+      setFormStatus({ type: 'error', code: 'attachment' });
+      return false;
     }
+    setAttachment(file);
     setAttachmentName(file.name);
-    setFormStatus({ type: '', message: '' });
+    setFormStatus({ type: '', code: '' });
+    return true;
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting) return;
 
-    if (!summary.trim() || !description.trim() || !contactEmail.trim()) {
-      setFormStatus({ type: 'error', message: 'Please fill in all required fields.' });
+    if (!summary.trim() || !description.trim() || !contactEmail.trim() || !selectedPlan || !productArea || !contactName.trim() || !accountIdentifier.trim()) {
+      setFormStatus({ type: 'error', code: 'required' });
       return;
     }
 
     setSubmitting(true);
-    setFormStatus({ type: '', message: 'Validating support request…' });
-
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    setSubmitting(false);
-    setFormStatus({
-      type: 'success',
-      message: 'Support request validated and prepared. Direct ticketing backend integration is currently in rollout; for urgent assistance, please email support@samche.ai with your account details or reach out via your plan\'s dedicated priority channel.',
-    });
+    setFormStatus({ type: '', code: '' });
+    try {
+      const image = attachment ? await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(',')[1] || ''); reader.onerror = reject; reader.readAsDataURL(attachment); }) : null;
+      const response = await fetch('/api/support', { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify({
+        accountIdentifier, name: contactName, email: contactEmail, phone: contactPhone, plan: selectedPlan,
+        productArea, issueCategory: issueType, severity, subject: summary, description, preferredContactMethod: contactMethod,
+        ...(image && attachment ? { attachment: { name: attachment.name, mimeType: attachment.type, data: image } } : {}),
+      }) });
+      if (!response.ok) throw new Error('delivery_failed');
+      setFormStatus({ type: 'success', code: 'success' });
+    } catch {
+      setFormStatus({ type: 'error', code: 'delivery' });
+    } finally { setSubmitting(false); }
   }
 
   return (
@@ -170,7 +190,6 @@ export function SupportPortal() {
           {plans.map((plan) => (
             <article className={`support-plan-card plan-${plan.slug}`} key={plan.slug}>
               <h3>{plan.name}</h3>
-              <p className="support-plan-summary"><strong>{plan.supportLevel}</strong></p>
               <ul className="support-plan-features">
                 {plan.supportEntitlements.map((item) => (
                   <li key={item}>{item}</li>
@@ -228,7 +247,7 @@ export function SupportPortal() {
               <select
                 id="support-plan"
                 value={selectedPlan}
-                onChange={(e) => setSelectedPlan(e.target.value)}
+                onChange={(e) => { setSelectedPlan(e.target.value); if (e.target.value === 'starter' && contactMethod === 'whatsapp') setContactMethod('email'); }}
                 required
               >
                 <option value="">Select your plan</option>
@@ -278,12 +297,21 @@ export function SupportPortal() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="support-account-id">Account / Company Identifier</label>
+              <label htmlFor="support-severity">Severity *</label>
+              <select id="support-severity" value={severity} onChange={(e) => setSeverity(e.target.value)} required>
+                <option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="critical">Critical</option>
+              </select>
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="field">
+              <label htmlFor="support-account-id">Account / Company Identifier *</label>
               <input
                 id="support-account-id"
                 value={accountIdentifier}
                 onChange={(e) => setAccountIdentifier(e.target.value)}
                 placeholder="e.g. acme-corp or registered workspace"
+                required
               />
             </div>
           </div>
@@ -332,7 +360,7 @@ export function SupportPortal() {
                 onChange={(e) => setContactMethod(e.target.value)}
               >
                 <option value="email">Email</option>
-                <option value="whatsapp">WhatsApp (Growth/Business/Enterprise)</option>
+                <option value="whatsapp" disabled={selectedPlan === 'starter'}>WhatsApp (Growth/Business/Enterprise)</option>
                 <option value="portal">Support Portal</option>
               </select>
             </div>
@@ -367,18 +395,18 @@ export function SupportPortal() {
               id="support-screenshot"
               type="file"
               accept="image/png,image/jpeg,image/webp"
-              onChange={(e) => handleAttachment(e.target.files?.[0])}
+              onChange={(e) => { if (!handleAttachment(e.target.files?.[0])) e.currentTarget.value = ''; }}
             />
             {attachmentName && <span className="attached-file-badge">Attached: {attachmentName}</span>}
           </div>
 
-          {formStatus.message && (
+          {formStatus.code && (
             <div
               className={`support-form-status ${formStatus.type}`}
               role="status"
               aria-live="polite"
             >
-              {formStatus.message}
+              {supportStatusText(formStatus.code, locale)}
             </div>
           )}
 
@@ -388,7 +416,7 @@ export function SupportPortal() {
               type="submit"
               disabled={submitting}
             >
-              {submitting ? 'Submitting…' : 'Submit Support Request'} <span aria-hidden="true">↗</span>
+              {submitting ? (locale === 'tr' ? 'Gönderiliyor…' : locale === 'ar' ? 'جارٍ الإرسال…' : 'Sending…') : (locale === 'tr' ? 'Destek Talebini Gönder' : locale === 'ar' ? 'إرسال طلب الدعم' : 'Submit Support Request')} <span aria-hidden="true">↗</span>
             </button>
             <p className="form-disclaimer">
               Support requests are handled according to your commercial plan entitlement. Starter and Growth requests are processed during business hours; Enterprise critical issues receive 24/7 human escalation.

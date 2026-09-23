@@ -7,7 +7,7 @@ import { clearChatSession, LEAD_HANDOFF_KEY, loadChatSession, saveChatSession } 
 import { resolveSalesChatTurn } from '../../lib/samche-sales-chat-client.mjs';
 import { useSiteLocale } from './site-localization';
 
-type Message = { role: 'assistant' | 'user'; text: string; title?: string; time: string };
+type Message = { role: 'assistant' | 'user'; text: string; title?: string; time: string; imageContext?: boolean };
 type SalesState = ReturnType<typeof createInitialSalesState>;
 type SalesAction = { label: string; type: 'link' | 'demo' | 'whatsapp'; href?: string };
 type ChatAttachment = { name: string; mimeType: string; data: string; preview: string };
@@ -71,6 +71,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
   const [sending, setSending] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [attachment, setAttachment] = useState<ChatAttachment | null>(null);
+  const recentImageRef = useRef<ChatAttachment | null>(null);
   const [processingStatus, setProcessingStatus] = useState('Matching your requirements to SamChe AI products…');
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [visualViewport, setVisualViewport] = useState<ViewportMetrics>({ height: 0, offsetTop: 0, offsetLeft: 0 });
@@ -153,14 +154,17 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
   async function ask(question: string) {
     const trimmed = question.trim();
     if ((!trimmed && !attachment) || sending || !hydrated) return;
+    const imageForTurn = attachment || recentImageRef.current;
+    if (attachment) recentImageRef.current = attachment;
+    else recentImageRef.current = null;
     setInput('');
     setErrorMessage('');
-    const userMessage = { role: 'user' as const, text: trimmed || (locale === 'tr' ? 'Bu SamChe AI ekran görüntüsüne bakabilir misiniz?' : locale === 'ar' ? 'هل يمكنكم مراجعة لقطة شاشة SamChe AI هذه؟' : 'Can you review this SamChe AI screenshot?'), time: timestamp() };
+    const userMessage = { role: 'user' as const, text: trimmed || (locale === 'tr' ? 'Bu SamChe AI ekran görüntüsüne bakabilir misiniz?' : locale === 'ar' ? 'هل يمكنكم مراجعة لقطة شاشة SamChe AI هذه؟' : 'Can you review this SamChe AI screenshot?'), time: timestamp(), imageContext: Boolean(imageForTurn) };
     setProcessingStatus(getSalesProcessingStatus(trimmed, salesStateRef.current));
     setSending(true);
     setProcessingStatus('Understanding your requirements…');
     const stateCandidate = generateSalesTurn(salesStateRef.current, trimmed, messages, locale);
-    const resolved = await resolveSalesChatTurn({ state: salesStateRef.current, stateCandidate, messages, userMessage, locale, attachment: attachment ? { mimeType: attachment.mimeType, data: attachment.data } : undefined, time: timestamp(), apiBaseUrl: salesChatApiBaseUrl });
+    const resolved = await resolveSalesChatTurn({ state: salesStateRef.current, stateCandidate, messages, userMessage, locale, attachment: imageForTurn ? { mimeType: imageForTurn.mimeType, data: imageForTurn.data } : undefined, time: timestamp(), apiBaseUrl: salesChatApiBaseUrl });
     salesStateRef.current = resolved.state;
     setMessages(resolved.messages as Message[]);
     setSalesState(resolved.state);

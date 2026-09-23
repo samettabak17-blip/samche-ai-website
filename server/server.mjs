@@ -6,9 +6,11 @@ import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { createSalesChatRateLimiter, createSalesChatService } from './sales-chat-service.mjs';
 import { commercialFacts } from './sales-chat-commercial.mjs';
+import { createSupportHandler } from './support-email.mjs';
 
 const port = Number(process.env.PORT || 3000);
 const rateLimiter = createSalesChatRateLimiter();
+const supportHandler = createSupportHandler();
 const clientRoot = resolve(fileURLToPath(new URL('..', import.meta.url)), 'dist', 'client');
 
 function json(res, status, body) {
@@ -104,6 +106,10 @@ const server = createServer(async (req, res) => {
       return json(res, ...(await salesChatService.handle({ body: await readBody(req) }).then((result) => [result.status, result.body])));
     }
     if (req.method === 'POST' && req.url === '/api/contact') return await handleContact(req, res);
+    if (req.method === 'POST' && req.url === '/api/support') {
+      const result = await supportHandler(await readBody(req), req.socket.remoteAddress || 'unknown');
+      return json(res, result.status, result.body);
+    }
     if (req.method === 'GET' || req.method === 'HEAD') {
       if (await serveAsset(req, res)) return;
       return serveFramework(req, res);

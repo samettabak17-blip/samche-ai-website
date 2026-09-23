@@ -78,10 +78,10 @@ test('approved platform entitlement matrix is complete and exact', () => {
     ] },
     { label: 'Support & Success', rows: [
       { label: '24/7 AI Support', values: ['Included', 'Included', 'Included', 'Included'] },
-      { label: 'Email Support', values: ['Business Hours', 'Business Hours', 'Priority', 'Priority / 24x7 critical path'] },
-      { label: 'WhatsApp Support', values: ['Not included', 'Business Hours', 'Priority', 'Priority / 24x7 critical path'] },
+      { label: 'Human Email Support', values: ['Business Hours', 'Business Hours', 'Priority', 'Priority'] },
+      { label: 'Human WhatsApp Support', values: ['Not included', 'Business Hours', 'Priority', 'Priority'] },
       { label: 'Support Portal', values: ['Included', 'Included', 'Included', 'Included'] },
-      { label: 'Priority Human Support', values: ['Standard Email', 'Priority', 'Expanded Priority', 'Enterprise Priority'] },
+      { label: 'Priority Support', values: ['Standard', 'Priority', 'Expanded Priority', 'Enterprise Priority'] },
       { label: '24/7 Critical Human Support', values: ['Not included', 'Not included', 'Not included', 'Included'] },
       { label: 'Dedicated Customer Advisor', values: ['Not included', 'Not included', 'Not included', 'Included'] },
     ] },

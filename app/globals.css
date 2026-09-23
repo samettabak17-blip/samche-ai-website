@@ -222,6 +222,9 @@ button, a, select, summary { -webkit-tap-highlight-color: transparent; }
 .plan-features { display: grid; gap: 9px; margin: 19px 0 22px; padding: 0; list-style: none; }
 .plan-features li { position: relative; padding-inline-start: 18px; color: #c4cdd0; font-size: 11px; line-height: 1.55; }
 .plan-features li:before { position: absolute; top: .28em; inset-inline-start: 0; display:grid; width:10px; height:10px; place-items:center; border:1px solid color-mix(in srgb,var(--plan-accent) 70%,transparent); border-radius:50%; color:var(--plan-accent); content: "✓"; font-size:7px; line-height:1; }
+.plan-support { width:100%; margin:0 0 18px; padding:13px 15px; border:1px solid color-mix(in srgb,var(--plan-accent) 32%,transparent); border-radius:12px; background:color-mix(in srgb,var(--plan-accent) 7%,transparent); text-align:start; }
+.plan-support > strong { color:var(--plan-accent); font-size:10px; letter-spacing:.16em; }
+.plan-support ul { margin:8px 0 0; padding-inline-start:17px; color:#e0e7e9; font-size:11px; line-height:1.6; }
 .home-pricing-section { padding-block: 60px 95px; }
 .home-plan-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
 .home-plan-tile { --plan-accent:#e8bd68; position:relative; display:flex; min-width:0; min-height:260px; flex-direction:column; padding:22px 18px; overflow:hidden; border:1px solid color-mix(in srgb,var(--plan-accent) 46%,transparent); border-radius:12px; background:linear-gradient(150deg,rgba(39,20,26,.9),rgba(13,9,12,.98)); box-shadow:0 14px 42px rgba(0,0,0,.2),inset 0 1px rgba(255,255,255,.035); }

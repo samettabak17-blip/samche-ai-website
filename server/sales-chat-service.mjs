@@ -1,3 +1,4 @@
+import { dashboardSupportMap } from '../lib/support-dashboard-map.mjs';
 const MODEL = 'gpt-4o-mini';
 const VISION_MODEL = 'gpt-4o';
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
@@ -28,10 +29,10 @@ SUPPORT RULES:
   3. If Starter asks why WhatsApp AI isn't working: explain WhatsApp AI is included starting from Growth plan.
   4. If Starter/Growth/Business asks why AI Visual isn't working: explain AI Visual Generation is exclusively available on the Enterprise plan.
   5. If Enterprise asks about AI Visual troubleshooting: check if AI Visual is enabled for tenant, request came through supported channel, image was received, and catalog/product context exists.
-  6. ONLY reference dashboard modules that actually exist in SamChe AI: Dashboard / Overview (KPIs, analytics), AI Assistants (behavior, prompt, tone), Channels (Web Chatbot embed code/appearance, WhatsApp AI connection, AI Guide journeys), Knowledge Intelligence (source upload PDF/DOCX/TXT/JPG/PNG, indexing status, retrieval test preview, approval workflows), Conversations / Live Inbox (channel conversations, team replies, take over from / hand back to AI), CRM & Pipeline (leads, stages, lead scoring), Integrations (HubSpot, Pipedrive, Calendly, Make, Zapier, Webhooks, custom API), Settings & Team (team members, workspace preferences, plan usage).
+  6. Only give a dashboard path when the verified dashboard map supplied in context contains it. The public website repository does not prove tenant routes or control labels. Do not infer a route from a module name. AI Visual tenant configuration is implementation-managed; do not direct customers to an AI Visual Settings screen.
   7. NEVER invent nonexistent settings, buttons, tabs, or menus (e.g. NEVER mention "Görsel Ayarları", "Veri Entegrasyonu", "Eğitim Verisi", "Visual Settings", "Data Sync Tab"). If a control is not confirmed in SamChe AI, say: "Mevcut yapılandırmanızda bulunmayan bir ayara yönlendirmemek adına, önce etkilenen özelliği netleştirelim." / "I don't want to point you to a setting that may not exist in your current configuration. Let me narrow down the affected feature first."
   8. NO automatic live transfer and NO fake tickets: Never say "Sizi canlı desteğe aktarıyorum", "Bir temsilciye bağlıyorum", "Teknik ekibe aktardım", "Ticket oluşturdum", "Ticket #123 created", or claim to view unseen backend server logs. Provide verified sequential troubleshooting steps, and if the issue cannot be resolved, state that further technical review is required according to their plan's support channels.
-  9. Vision understanding: When an image/screenshot is provided, understand visible content (dashboard screens, WhatsApp screenshots, error dialogs, screenshots with numbers/text such as "bu görseldeki sayı kaç?"). Return grounded visible answers while maintaining SamChe AI scope for completely unrelated queries.
+  9. Vision understanding: When an image/screenshot is provided, read its visible text and UI content, and answer the user's exact visual question. If it shows ORDER ID: SC-4827, report SC-4827. The screenshot is part of the current support context, including an immediate follow-up such as "burada nereden yapacağım?". Do not substitute generic troubleshooting for visible facts.
 
 SALES RULES:
 - Preserve known lead fields, never repeat an already known field, ask at most one useful question, never invent commercial facts, and never claim physical delivery or guaranteed outcomes. For a bare greeting, write a short welcome that identifies you as the SamChe AI sales and support assistant and ask at most one general help question.`;
@@ -77,22 +78,30 @@ function text(value, limit) { return typeof value === 'string' ? value.slice(0, 
 function supportIntentFor(message) {
   const text = String(message || '').toLowerCase();
   return /\b(?:already (?:a |an )?(?:customer|use|using)|existing customer|not (?:loading|working|replying|generating|producing)|stopped replying|error|broken|troubleshoot|support|configuration|connection|bug|issue|fail|failing)\b/i.test(text)
-    || /\b(?:mevcut müşteri|zaten kullan|yanıt vermiyor|çalışmıyor|yüklenmiyor|destek|hata|sorun|bağlanmıyor|görsel üretmiyor|gorsel uretmiyor|ürün görseli üretmiyor|urun görseli üretmiyor|çalışmıyor ne yapmalıyım)\b/i.test(text)
-    || /\b(?:عميل حالي|لا يعمل|لا يرد|دعم|مشكلة|خطأ|لا ينشئ|لا يولد|عطل)\b/u.test(text);
+    || /(?:mevcut müşteri|zaten kullan|yanıt vermiyor|çalışmıyor|yüklenmiyor|destek|hata|sorun|bağlanmıyor|görsel üretmiyor|görseli üretmiyor|gorsel uretmiyor|ürün görseli üretmiyor|urun görseli üretmiyor|çalışmıyor ne yapmalıyım)/iu.test(text)
+    || /(?:عميل حالي|لا يعمل|لا يرد|دعم|مشكلة|خطأ|لا ينشئ|لا يولد|عطل)/u.test(text);
 }
 
 export function validateChatAttachment(attachment) {
   if (!attachment || typeof attachment !== 'object' || typeof attachment.mimeType !== 'string' || typeof attachment.data !== 'string') return failure('invalid_attachment');
   const signatures = { 'image/png': '89504e470d0a1a0a', 'image/jpeg': 'ffd8ff', 'image/webp': '52494646' };
   const mimeType = attachment.mimeType.toLowerCase() === 'image/jpg' ? 'image/jpeg' : attachment.mimeType.toLowerCase();
-  if (!Object.hasOwn(signatures, mimeType) || attachment.data.length > Math.ceil(MAX_ATTACHMENT_BYTES * 4 / 3) + 8 || !/^[A-Za-z0-9+/]+={0,2}$/.test(attachment.data)) return failure('invalid_attachment');
+  if (!Object.hasOwn(signatures, mimeType) || !/^[A-Za-z0-9+/]+={0,2}$/.test(attachment.data)) return failure('invalid_attachment');
+  if (attachment.data.length > Math.ceil(MAX_ATTACHMENT_BYTES * 4 / 3) + 8) return failure('image_too_large');
   const bytes = Buffer.from(attachment.data, 'base64');
-  if (!bytes.length || bytes.length > MAX_ATTACHMENT_BYTES || !bytes.subarray(0, signatures[mimeType].length / 2).toString('hex').startsWith(signatures[mimeType])) return failure('invalid_attachment');
+  if (bytes.length > MAX_ATTACHMENT_BYTES) return failure('image_too_large');
+  if (!bytes.length || !bytes.subarray(0, signatures[mimeType].length / 2).toString('hex').startsWith(signatures[mimeType])) return failure('invalid_attachment');
   if (mimeType === 'image/webp' && bytes.subarray(8, 12).toString('ascii') !== 'WEBP') return failure('invalid_attachment');
   return { ok: true, mimeType };
 }
 
 function safeSupportReply(context) {
+  const recentIssue = context.conversationHistory.slice(-4).map((message) => message.text).join(' ');
+  if (/görsel|gorsel|visual|image generation/i.test(recentIssue) && /burada|burda|nereden|nerden|where|how/i.test(context.userMessage)) {
+    if (context.inputLanguage === 'tr') return 'AI Visual üretimi için doğrulanmış bir müşteri ayar ekranı yok. Önce paketinizin Enterprise olduğunu ve etkilenen WhatsApp akışındaki ürün veya katalog bağlamını kontrol edin. Hangi ürün ve örnek istem etkilendi?';
+    if (context.inputLanguage === 'ar') return 'لا توجد شاشة إعداد مؤكدة للعملاء لإنشاء صور AI Visual. تحققوا من خطة Enterprise وسياق المنتج أو الكتالوج في مسار واتساب المتأثر. ما المنتج والطلب المتأثران؟';
+    return 'There is no verified customer-facing AI Visual generation setting. Check the Enterprise entitlement and product or catalog context in the affected WhatsApp flow. Which product and example prompt are affected?';
+  }
   const product = /whatsapp/i.test(context.userMessage) ? 'WhatsApp AI' : /web chatbot|chatbot|web chat/i.test(context.userMessage) ? 'Web Chatbot' : /ai guide|guide/i.test(context.userMessage) ? 'AI Guide' : 'SamChe AI';
   if (context.inputLanguage === 'tr') {
     if (/görsel|gorsel|visual/i.test(context.userMessage)) {
@@ -153,7 +162,7 @@ function enforceBareGreetingResponse(candidate, context) {
 function detectInputLanguage(input) {
   const value = String(input || '').toLowerCase();
   if (/[؀-ۿ]/u.test(value)) return 'ar';
-  if (/[çğıöşü]/i.test(value) || /\b(?:merhaba|urun|ürün|hemen|teslim|ediyor|musunuz|müsünüz|danışmanlık|danismanlik|fiyat|paket|istiyorum|için|icin|nasıl|nasil|şirket|sirket|görsel|gorsel|sayı|sayi|kaç|kac|resim|çalışmıyor|calismiyor|üretmiyor|uretmiyor|destek|yardım|yardim|sorun|hata)\b/i.test(value)) return 'tr';
+  if (/[çğıöşü]/i.test(value) || /\b(?:merhaba|urun|ürün|hemen|teslim|ediyor|musunuz|müsünüz|danışmanlık|danismanlik|fiyat|paket|istiyorum|için|icin|nasıl|nasil|şirket|sirket|görsel|gorsel|sayı|sayi|kaç|kac|resim|çalışmıyor|calismiyor|üretmiyor|uretmiyor|destek|yardım|yardim|sorun|hata|burda|burada|nerden|nereden|yapicam|yapacağım)\b/i.test(value)) return 'tr';
   return 'en';
 }
 
@@ -234,9 +243,11 @@ function buildContext(body, commercialFacts) {
   return {
     locale: body.locale === 'ar' ? 'ar' : 'en',
     inputLanguage: detectInputLanguage(body.userMessage),
+    hasImage: Boolean(body.attachment),
     conversationHistory: body.conversationHistory.slice(-MAX_HISTORY).map((message) => ({
       role: message?.role === 'assistant' ? 'assistant' : 'user',
       text: text(message?.text ?? message?.content, MAX_HISTORY_MESSAGE_LENGTH),
+      imageContext: message?.imageContext === true,
     })).filter((message) => message.text),
     leadState,
     knownFields: Object.keys(leadState).filter((key) => hasUsableLeadValue(leadState[key])),
@@ -246,10 +257,11 @@ function buildContext(body, commercialFacts) {
     pendingField: ALLOWED_NEXT_FIELDS.has(body.pendingQualificationField ?? body.pendingField) ? (body.pendingQualificationField ?? body.pendingField) : null,
     lastPendingQuestion: text(body.lastPendingQuestion, 500),
     recommendedPlan: text(body.recommendedPlan, 40),
-    responseMode: supportIntentFor(body.userMessage) ? 'support' : ALLOWED_RESPONSE_MODES.has(body.responseMode) ? body.responseMode : 'qualification_answer',
+    responseMode: body.attachment || supportIntentFor(body.userMessage) || (body.conversationHistory.slice(-4).some((message) => message?.imageContext === true || supportIntentFor(message?.text))) ? 'support' : ALLOWED_RESPONSE_MODES.has(body.responseMode) ? body.responseMode : 'qualification_answer',
     detectedIntent: text(body.detectedIntent, 40),
     approvedPlanFacts: commercialFacts.plans.map((plan) => ({ ...plan })),
     approvedProductFacts: commercialFacts.products.map((product) => ({ ...product })),
+    verifiedDashboardMap: dashboardSupportMap,
     capabilities: SALES_CHAT_CAPABILITIES,
     allowedActions: [...ALLOWED_ACTIONS],
     userMessage: text(body.userMessage, MAX_MESSAGE_LENGTH),
@@ -451,7 +463,7 @@ function enforceInterruptResponse(candidate, context, commercialFacts) {
 function enforceSupportResponse(candidate, context) {
   const isUsable = candidate && replyMatchesInputLanguage(candidate.reply, context.inputLanguage)
     && !unavailableSalesClaims(candidate.reply, SALES_CHAT_CAPABILITIES)
-    && (candidate.responseMode === 'support' || candidate.intent === 'support');
+    && (context.hasImage || candidate.responseMode === 'support' || candidate.intent === 'support');
   const reply = isUsable ? candidate.reply : safeSupportReply(context);
   return { reply, intent: 'support', responseMode: 'support', resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [] };
 }
@@ -463,7 +475,7 @@ export function createSalesChatService({ openaiClient, commercialFacts, textMode
     if (!Array.isArray(body.conversationHistory) || body.conversationHistory.length > MAX_HISTORY) return { status: 400, body: { error: 'Sales assistant request is invalid.' } };
     const context = buildContext({ ...body, conversationHistory: body.conversationHistory }, commercialFacts);
     const attachment = body.attachment === undefined ? null : validateChatAttachment(body.attachment);
-    if (attachment && !attachment.ok) return { status: 400, body: { error: 'The image must be a PNG, JPG, JPEG, or WEBP screenshot.' }, context };
+    if (attachment && !attachment.ok) return { status: 400, body: { error: attachment.reason === 'image_too_large' ? 'image_too_large' : 'invalid_attachment' }, context };
     if (!openaiClient?.chat?.completions?.create) return { status: 503, body: { error: 'Sales assistant is temporarily unavailable.' }, context };
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -478,6 +490,7 @@ export function createSalesChatService({ openaiClient, commercialFacts, textMode
       const content = completion?.choices?.[0]?.message?.content;
       if (typeof content !== 'string') {
         logValidationFailure(failure('invalid_provider_response'), { environment, logger });
+        if (attachment) return { status: 502, body: { error: 'Vision response was not usable.' }, context };
         if (context.responseMode === 'support') return { status: 200, body: enforceSupportResponse(null, context), context };
         if (isInterruptMode(context.responseMode)) return { status: 200, body: enforceInterruptResponse(null, context, commercialFacts), context };
         return { status: 422, body: { error: 'Sales assistant response was not usable.' }, context };
@@ -492,6 +505,7 @@ export function createSalesChatService({ openaiClient, commercialFacts, textMode
           if (isInterruptMode(context.responseMode)) return { status: 200, body: enforceInterruptResponse(salvage, context, commercialFacts), context };
           return { status: 200, body: salvage, context };
         }
+        if (context.responseMode === 'support' && !attachment) return { status: 200, body: enforceSupportResponse(null, context), context };
         return { status: 502, body: { error: 'Sales assistant is temporarily unavailable.' }, context };
       }
       // A bare greeting has a deterministic, non-qualifying safe response. Apply
@@ -500,6 +514,7 @@ export function createSalesChatService({ openaiClient, commercialFacts, textMode
       const languageValid = Boolean(candidate) && replyMatchesInputLanguage(candidate.reply, context.inputLanguage);
       const questionCountValid = Boolean(candidate) && hasAtMostOneQuestion(candidate.reply);
       if (result.ok && (!languageValid || !questionCountValid)) logValidationFailure(failure(!languageValid ? 'invalid_language' : 'too_many_questions'), { environment, logger });
+      if (attachment && (!languageValid || !questionCountValid)) return { status: 502, body: { error: 'Vision response was not usable.' }, context };
       if (context.responseMode === 'support') return { status: 200, body: enforceSupportResponse(languageValid && questionCountValid ? candidate : null, context), context };
       if (isInterruptMode(context.responseMode)) return { status: 200, body: enforceInterruptResponse(languageValid && questionCountValid ? candidate : null, context, commercialFacts), context };
       if (result.ok && languageValid && questionCountValid) {

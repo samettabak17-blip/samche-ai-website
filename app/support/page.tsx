@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { PageIntro, SectionEyebrow, SiteShell } from '../components/site-shell';
+import { PageIntro, SiteShell } from '../components/site-shell';
 import { SupportPortal } from '../components/support-portal';
 
 export const metadata: Metadata = {
