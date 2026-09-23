@@ -1,7 +1,8 @@
 'use client';
 
-import { FormEvent, useId, useState } from 'react';
+import { FormEvent, useEffect, useId, useRef, useState } from 'react';
 import { plans } from '../../lib/site-data.mjs';
+import { formatScreenshotSize, validateScreenshot } from '../../lib/form-ux.mjs';
 import { SectionEyebrow } from './site-shell';
 import { useSiteLocale } from './site-localization';
 
@@ -14,11 +15,13 @@ interface SupportKnowledgeItem {
   planRequired?: string;
 }
 
-type SupportStatusCode = '' | 'attachment' | 'required' | 'success' | 'delivery';
+type SupportStatusCode = '' | 'attachmentType' | 'attachmentSize' | 'required' | 'email' | 'success' | 'delivery';
 function supportStatusText(code: SupportStatusCode, locale: 'en' | 'tr' | 'ar') {
   const messages = {
-    attachment: { en: 'Attach a PNG, JPG, or WEBP screenshot up to 5 MB.', tr: 'En fazla 5 MB boyutunda PNG, JPG veya WEBP ekran görüntüsü ekleyin.', ar: 'أرفق لقطة شاشة بصيغة PNG أو JPG أو WEBP بحجم لا يتجاوز 5 ميغابايت.' },
+    attachmentType: { en: 'Choose a PNG, JPG, JPEG, or WEBP image.', tr: 'PNG, JPG, JPEG veya WEBP biçiminde bir görsel seçin.', ar: 'يرجى اختيار صورة بصيغة PNG أو JPG أو JPEG أو WEBP.' },
+    attachmentSize: { en: 'File is larger than 5 MB.', tr: 'Dosya 5 MB sınırını aşıyor.', ar: 'حجم الملف يتجاوز 5 ميغابايت.' },
     required: { en: 'Please fill in all required fields.', tr: 'Lütfen zorunlu alanları doldurun.', ar: 'يرجى تعبئة جميع الحقول المطلوبة.' },
+    email: { en: 'Enter a valid email address.', tr: 'Geçerli bir e-posta adresi girin.', ar: 'يرجى إدخال عنوان بريد إلكتروني صالح.' },
     success: { en: 'Your support request has been successfully submitted. Our team will review it according to your plan’s support coverage and contact you through your preferred support channel.', tr: 'Destek talebiniz başarıyla iletildi. Ekibimiz, paketinizin destek kapsamına göre talebinizi inceleyerek sizinle iletişime geçecektir.', ar: 'تم إرسال طلب الدعم بنجاح. سيراجع فريقنا طلبكم وفق نطاق الدعم المتاح في خطتكم ويتواصل معكم عبر وسيلة التواصل المفضلة لديكم.' },
     delivery: { en: 'Your support request could not be sent right now. Please try again.', tr: 'Destek talebiniz şu anda gönderilemedi. Lütfen yeniden deneyin.', ar: 'تعذر إرسال طلب الدعم حالياً. يرجى المحاولة مرة أخرى.' },
   };
@@ -101,12 +104,24 @@ export function SupportPortal() {
   const [contactEmail, setContactEmail] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [contactMethod, setContactMethod] = useState('email');
-  const [attachmentName, setAttachmentName] = useState('');
   const [attachment, setAttachment] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const previewUrlRef = useRef('');
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
+  const attachmentInputRef = useRef<HTMLInputElement>(null);
   const [formStatus, setFormStatus] = useState<{ type: 'success' | 'error' | ''; code: SupportStatusCode }>({ type: '', code: '' });
 
   const searchId = useId();
+  const uploadText = {
+    en: { attach: 'Attach Screenshot', replace: 'Replace Screenshot', remove: 'Remove screenshot', hint: 'PNG, JPG, JPEG or WEBP · max 5 MB' },
+    tr: { attach: 'Ekran Görüntüsü Ekle', replace: 'Ekran Görüntüsünü Değiştir', remove: 'Ekran görüntüsünü kaldır', hint: 'PNG, JPG, JPEG veya WEBP · en fazla 5 MB' },
+    ar: { attach: 'إرفاق لقطة شاشة', replace: 'استبدال لقطة الشاشة', remove: 'إزالة لقطة الشاشة', hint: 'PNG أو JPG أو JPEG أو WEBP · بحد أقصى 5 ميغابايت' },
+  }[locale];
+
+  useEffect(() => () => {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+  }, []);
 
   const filteredKnowledge = verifiedKnowledgeItems.filter((item) => {
     if (!search.trim()) return true;
@@ -119,32 +134,43 @@ export function SupportPortal() {
     );
   });
 
-  function handleAttachment(file?: File) {
-    if (!file) {
-      setAttachmentName('');
-      setAttachment(null);
-      return true;
-    }
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
-      setAttachment(null); setAttachmentName('');
-      setFormStatus({ type: 'error', code: 'attachment' });
+  function handleAttachment(file: File) {
+    const validation = validateScreenshot(file);
+    if (!validation.ok) {
+      setFormStatus({ type: 'error', code: validation.reason as SupportStatusCode });
       return false;
     }
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    previewUrlRef.current = URL.createObjectURL(file);
+    setPreviewUrl(previewUrlRef.current);
     setAttachment(file);
-    setAttachmentName(file.name);
     setFormStatus({ type: '', code: '' });
     return true;
   }
 
+  function removeAttachment() {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    previewUrlRef.current = '';
+    setAttachment(null);
+    setPreviewUrl('');
+    if (attachmentInputRef.current) attachmentInputRef.current.value = '';
+    setFormStatus({ type: '', code: '' });
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (submitting) return;
+    if (submittingRef.current) return;
 
     if (!summary.trim() || !description.trim() || !contactEmail.trim() || !selectedPlan || !productArea || !contactName.trim() || !accountIdentifier.trim()) {
       setFormStatus({ type: 'error', code: 'required' });
       return;
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail.trim())) {
+      setFormStatus({ type: 'error', code: 'email' });
+      return;
+    }
 
+    submittingRef.current = true;
     setSubmitting(true);
     setFormStatus({ type: '', code: '' });
     try {
@@ -158,7 +184,7 @@ export function SupportPortal() {
       setFormStatus({ type: 'success', code: 'success' });
     } catch {
       setFormStatus({ type: 'error', code: 'delivery' });
-    } finally { setSubmitting(false); }
+    } finally { submittingRef.current = false; setSubmitting(false); }
   }
 
   return (
@@ -240,7 +266,7 @@ export function SupportPortal() {
           <p>Provide your account context, affected feature, and issue description for technical review by the SamChe AI team.</p>
         </div>
 
-        <form className="support-form" onSubmit={handleSubmit}>
+        <form className="support-form" onSubmit={handleSubmit} noValidate aria-busy={submitting}>
           <div className="form-row">
             <div className="field">
               <label htmlFor="support-plan">Your Plan *</label>
@@ -390,21 +416,36 @@ export function SupportPortal() {
           </div>
 
           <div className="field field-full">
-            <label htmlFor="support-screenshot">Attach Screenshot (PNG, JPG, WEBP — up to 5 MB)</label>
-            <input
-              id="support-screenshot"
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={(e) => { if (!handleAttachment(e.target.files?.[0])) e.currentTarget.value = ''; }}
-            />
-            {attachmentName && <span className="attached-file-badge">Attached: {attachmentName}</span>}
+            <span className="attachment-field-label">{uploadText.attach}</span>
+            <label className="attachment-picker">
+              <input
+                ref={attachmentInputRef}
+                id="support-screenshot"
+                className="attachment-input"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                aria-describedby="support-attachment-help"
+                disabled={submitting}
+                onClick={(event) => { event.currentTarget.value = ''; }}
+                onChange={(event) => { const file = event.currentTarget.files?.[0]; if (file && !handleAttachment(file)) event.currentTarget.value = ''; }}
+              />
+              <span className="attachment-trigger-content"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 12.5 6.8-6.8a3.2 3.2 0 0 1 4.5 4.5l-8.5 8.5a5 5 0 0 1-7.1-7.1l8-8" /></svg>{attachment ? uploadText.replace : uploadText.attach}</span>
+            </label>
+            <span id="support-attachment-help" className="attachment-help">{uploadText.hint}</span>
+            {attachment && <div className="attachment-preview">
+              {/* Object URLs from the native file picker cannot use remote image optimization. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {previewUrl && <img src={previewUrl} alt="" />}
+              <div className="attachment-preview-details"><strong>{attachment.name}</strong><span>{formatScreenshotSize(attachment.size)}</span></div>
+              <button className="attachment-remove" type="button" onClick={removeAttachment} disabled={submitting} aria-label={uploadText.remove}><span aria-hidden="true">×</span><span>{uploadText.remove}</span></button>
+            </div>}
           </div>
 
           {formStatus.code && (
             <div
               className={`support-form-status ${formStatus.type}`}
-              role="status"
-              aria-live="polite"
+              role={formStatus.type === 'error' ? 'alert' : 'status'}
+              aria-live={formStatus.type === 'error' ? 'assertive' : 'polite'}
             >
               {supportStatusText(formStatus.code, locale)}
             </div>
@@ -412,11 +453,13 @@ export function SupportPortal() {
 
           <div className="form-actions">
             <button
-              className="button button-primary"
+              className="button button-primary form-submit-button"
               type="submit"
               disabled={submitting}
+              aria-busy={submitting}
+              data-state={submitting ? 'loading' : formStatus.type}
             >
-              {submitting ? (locale === 'tr' ? 'Gönderiliyor…' : locale === 'ar' ? 'جارٍ الإرسال…' : 'Sending…') : (locale === 'tr' ? 'Destek Talebini Gönder' : locale === 'ar' ? 'إرسال طلب الدعم' : 'Submit Support Request')} <span aria-hidden="true">↗</span>
+              {submitting ? (locale === 'tr' ? 'Gönderiliyor…' : locale === 'ar' ? 'جارٍ الإرسال…' : 'Sending…') : (locale === 'tr' ? 'Destek Talebini Gönder' : locale === 'ar' ? 'إرسال طلب الدعم' : 'Submit Support Request')} <span className="form-submit-icon" aria-hidden="true">→</span>
             </button>
             <p className="form-disclaimer">
               Support requests are handled according to your commercial plan entitlement. Starter and Growth requests are processed during business hours; Enterprise critical issues receive 24/7 human escalation.
