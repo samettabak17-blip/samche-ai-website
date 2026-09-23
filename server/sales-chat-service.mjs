@@ -14,7 +14,27 @@ export const SALES_CHAT_CAPABILITIES = Object.freeze({
   canConfirmAppointment: false,
   canSendEmail: false,
 });
-const SYSTEM_PROMPT = 'You are the SamChe AI sales and support conversation layer. Return only the requested JSON. CURRENT USER MESSAGE HAS PRIORITY. Reply in the language of the latest user message. Support is first-class: if the user reports a broken SamChe AI product, asks troubleshooting, or says they are an existing customer, use intent and responseMode support, acknowledge the specific issue, give safe configuration checks, and ask at most one useful clarification. Never restart sales qualification or recommend plans in support. Discuss only SamChe AI products and supplied evidence; unrelated images or requests are out of scope. Do not claim you opened a ticket, escalated, fixed, changed configuration, scheduled, confirmed, emailed, or took any action. For sales, preserve known lead fields, never repeat an already known field, ask at most one useful question, never invent commercial facts, and never claim physical delivery or guaranteed outcomes. For a bare greeting, write a short welcome that identifies you as the SamChe AI sales and support assistant and ask at most one general help question. Do not start qualification or ask about business size, volume, or requirements.';
+const SYSTEM_PROMPT = `You are the SamChe AI sales and support conversation layer. Return only the requested JSON. CURRENT USER MESSAGE HAS PRIORITY. Reply in the language of the latest user message.
+
+SUPPORT RULES:
+- Support takes priority over sales qualification. If the user reports an issue, error, troubleshooting question, or is an existing customer, use intent "support" and responseMode "support". Never restart sales qualification, ask sales lead fields, or push plans during support turns.
+- Sequence for support:
+  1. Understand the problem and affected system (Web Chatbot, WhatsApp AI, AI Guide, AI Voice, AI Visual, Knowledge Intelligence, Live Inbox, CRM & Pipeline, Integrations).
+  2. Plan entitlement awareness:
+     - Starter: Includes 1 Web Chatbot (1 site), 2 languages, Knowledge Intelligence, Page-aware Context, Basic Lead Capture, Human Handover. (WhatsApp AI, AI Guide, AI Visual are NOT included). Support: 24/7 AI Support, Email Support (Business Hours), Support Portal.
+     - Growth: Includes Web Chatbot + WhatsApp AI, Up to 3 languages, Advanced Knowledge Intelligence, 1 CRM or Booking integration, Shared Inbox, Lead Qualification & Routing, Up to 5 team users. (AI Guide, AI Visual are NOT included). Support: 24/7 AI Support, Email + WhatsApp Support (Business Hours), Priority Support, Support Portal.
+     - Business: Includes Web Chatbot + WhatsApp AI + AI Guide, Up to 5 languages, Entity-aware Intelligence, Up to 3 external integrations, AI Lead Scoring, API Access & Custom Workflows, Up to 10 team users. (AI Visual is NOT included). Support: 24/7 AI Support, Priority Email & WhatsApp Support, Expanded Priority Support, Support Portal.
+     - Enterprise: Includes Web Chatbot + WhatsApp AI + AI Guide + Multiple Brands/Sites, Extended Multilingual, 200 AI Visual Generations/month, AI Voice Receptionist (300 inbound mins, 2 concurrent calls), Advanced Enterprise Controls, Custom Data Retention. Support: 24/7 AI Support, 24/7 Critical Human Support, Priority WhatsApp & Email, Dedicated Customer Advisor, Enterprise Support Portal.
+  3. If Starter asks why WhatsApp AI isn't working: explain WhatsApp AI is included starting from Growth plan.
+  4. If Starter/Growth/Business asks why AI Visual isn't working: explain AI Visual Generation is exclusively available on the Enterprise plan.
+  5. If Enterprise asks about AI Visual troubleshooting: check if AI Visual is enabled for tenant, request came through supported channel, image was received, and catalog/product context exists.
+  6. ONLY reference dashboard modules that actually exist in SamChe AI: Dashboard / Overview (KPIs, analytics), AI Assistants (behavior, prompt, tone), Channels (Web Chatbot embed code/appearance, WhatsApp AI connection, AI Guide journeys), Knowledge Intelligence (source upload PDF/DOCX/TXT/JPG/PNG, indexing status, retrieval test preview, approval workflows), Conversations / Live Inbox (channel conversations, team replies, take over from / hand back to AI), CRM & Pipeline (leads, stages, lead scoring), Integrations (HubSpot, Pipedrive, Calendly, Make, Zapier, Webhooks, custom API), Settings & Team (team members, workspace preferences, plan usage).
+  7. NEVER invent nonexistent settings, buttons, tabs, or menus (e.g. NEVER mention "Görsel Ayarları", "Veri Entegrasyonu", "Eğitim Verisi", "Visual Settings", "Data Sync Tab"). If a control is not confirmed in SamChe AI, say: "Mevcut yapılandırmanızda bulunmayan bir ayara yönlendirmemek adına, önce etkilenen özelliği netleştirelim." / "I don't want to point you to a setting that may not exist in your current configuration. Let me narrow down the affected feature first."
+  8. NO automatic live transfer and NO fake tickets: Never say "Sizi canlı desteğe aktarıyorum", "Bir temsilciye bağlıyorum", "Teknik ekibe aktardım", "Ticket oluşturdum", "Ticket #123 created", or claim to view unseen backend server logs. Provide verified sequential troubleshooting steps, and if the issue cannot be resolved, state that further technical review is required according to their plan's support channels.
+  9. Vision understanding: When an image/screenshot is provided, understand visible content (dashboard screens, WhatsApp screenshots, error dialogs, screenshots with numbers/text such as "bu görseldeki sayı kaç?"). Return grounded visible answers while maintaining SamChe AI scope for completely unrelated queries.
+
+SALES RULES:
+- Preserve known lead fields, never repeat an already known field, ask at most one useful question, never invent commercial facts, and never claim physical delivery or guaranteed outcomes. For a bare greeting, write a short welcome that identifies you as the SamChe AI sales and support assistant and ask at most one general help question.`;
 const EXTRACTED_ARRAY_FIELDS = new Set(['channels', 'products']);
 const EXTRACTED_FIELD_ALIASES = Object.freeze({
   team_users: 'teamUsers', lead_qualification: 'leadQualification', ai_guide_need: 'aiGuideNeed',
@@ -55,7 +75,10 @@ const SALES_CHAT_RESPONSE_FORMAT = Object.freeze({
 function text(value, limit) { return typeof value === 'string' ? value.slice(0, limit) : ''; }
 
 function supportIntentFor(message) {
-  return /\b(?:already (?:a |an )?(?:customer|use|using)|existing customer|not (?:loading|working|replying)|stopped replying|error|broken|troubleshoot|support|configuration|connection)\b|(?:mevcut müşteri|zaten kullan|yanıt vermiyor|çalışmıyor|yüklenmiyor|destek)|(?:عميل حالي|لا يعمل|لا يرد|دعم|مشكلة|خطأ)/iu.test(message);
+  const text = String(message || '').toLowerCase();
+  return /\b(?:already (?:a |an )?(?:customer|use|using)|existing customer|not (?:loading|working|replying|generating|producing)|stopped replying|error|broken|troubleshoot|support|configuration|connection|bug|issue|fail|failing)\b/i.test(text)
+    || /\b(?:mevcut müşteri|zaten kullan|yanıt vermiyor|çalışmıyor|yüklenmiyor|destek|hata|sorun|bağlanmıyor|görsel üretmiyor|gorsel uretmiyor|ürün görseli üretmiyor|urun görseli üretmiyor|çalışmıyor ne yapmalıyım)\b/i.test(text)
+    || /\b(?:عميل حالي|لا يعمل|لا يرد|دعم|مشكلة|خطأ|لا ينشئ|لا يولد|عطل)\b/u.test(text);
 }
 
 export function validateChatAttachment(attachment) {
@@ -70,16 +93,32 @@ export function validateChatAttachment(attachment) {
 }
 
 function safeSupportReply(context) {
-  const product = /whatsapp/i.test(context.userMessage) ? 'WhatsApp AI' : /web chatbot|chatbot|web chat/i.test(context.userMessage) ? 'Web Chatbot' : 'SamChe AI';
-  if (context.inputLanguage === 'tr') return `${product} ile ilgili sorunu anladım. Önce kanal bağlantısının ve ilgili yapılandırmanın etkin olduğunu kontrol edin; ardından görünen hata metnini veya son değişikliği paylaşın.`;
-  if (context.inputLanguage === 'ar') return `أفهم المشكلة المتعلقة بـ ${product}. تحقّقوا أولاً من أن اتصال القناة والإعداد ذي الصلة مفعّلان، ثم شاركونا نص الخطأ الظاهر أو آخر تغيير تم.`;
-  return `I understand the ${product} issue. First check that the channel connection and relevant configuration are active, then share the visible error text or the most recent change.`;
+  const product = /whatsapp/i.test(context.userMessage) ? 'WhatsApp AI' : /web chatbot|chatbot|web chat/i.test(context.userMessage) ? 'Web Chatbot' : /ai guide|guide/i.test(context.userMessage) ? 'AI Guide' : 'SamChe AI';
+  if (context.inputLanguage === 'tr') {
+    if (/görsel|gorsel|visual/i.test(context.userMessage)) {
+      return 'AI Visual Generation şu anda yalnızca Enterprise planında desteklenen bir özelliktir. Hangi SamChe AI paketini kullanıyorsunuz?';
+    }
+    return `${product} ile ilgili yaşadığınız sorunu inceleyebilmem için öncelikle kanal bağlantısını ve ayarlarını kontrol edebilir misiniz? Varsa aldığınız hata mesajını paylaşın.`;
+  }
+  if (context.inputLanguage === 'ar') {
+    if (/بصري|صورة|visual/i.test(context.userMessage)) {
+      return 'خاصية إنشاء الصور بالذكاء الاصطناعي (AI Visual Generation) متاحة حالياً ضمن باقة المؤسسات (Enterprise) فقط. ما باقة SamChe AI التي تستخدمونها؟';
+    }
+    return `لمساعدتكم في حل مشكلة ${product}، هل يمكنكم التحقق من حالة اتصال القناة ومشاركتنا أي رسالة خطأ تظهر لديكم؟`;
+  }
+  if (/visual|image generation/i.test(context.userMessage)) {
+    return 'AI Visual Generation is currently an Enterprise plan feature. Which SamChe AI plan is your account using?';
+  }
+  return `To help troubleshoot your ${product} issue, please check your channel connection and workspace configuration, and share any visible error message.`;
 }
 
 function replyMatchesInputLanguage(reply, language) {
   const value = String(reply || '');
   if (language === 'ar') return /[؀-ۿ]/u.test(value);
-  if (language === 'tr') return /[çğıöşü]/i.test(value) || /\b(?:anladım|müşteri|sorularınız|için|hangi|talepleriniz|uygunluğu|satış ekibimiz)\b/i.test(value);
+  if (language === 'tr') {
+    return /[çğıöşü]/i.test(value)
+      || /\b(?:anladım|müşteri|sorularınız|için|icin|hangi|talepleriniz|uygunluğu|satış ekibimiz|görsel|görselde|sayı|sayısı|resim|resimde|ekran|hata|paket|kurulum|destek|yardım|plan|kontrol|etkilenen|ayarlar|özellik|mevcut|kullanıyorsunuz|oluşturulan|üretmiyor|çalışıyor|devreye|alındı|dahil|değil|olarak|ve|bir|bu|şu|o|da|de|ile|mi|mı|mu|mü|evet|hayır|adım|öğrenmek|yapılandırma|temsilci|bağlantı|sorunu)\b/i.test(value);
+  }
   return !/[؀-ۿ]/u.test(value) && !/[çğıöşü]/i.test(value) && !/\b(?:anladım|müşteri|sorularınız|uygunluğu|satış ekibimiz)\b/i.test(value);
 }
 
@@ -112,9 +151,9 @@ function enforceBareGreetingResponse(candidate, context) {
 }
 
 function detectInputLanguage(input) {
-  const value = input.toLowerCase();
+  const value = String(input || '').toLowerCase();
   if (/[؀-ۿ]/u.test(value)) return 'ar';
-  if (/[çğıöşü]/i.test(value) || /\b(?:merhaba|urun|ürün|hemen|teslim|ediyor|musunuz|müsünüz|danışmanlık|danismanlik|fiyat|paket|istiyorum|için|icin|nasıl|nasil|şirket|sirket)\b/i.test(value)) return 'tr';
+  if (/[çğıöşü]/i.test(value) || /\b(?:merhaba|urun|ürün|hemen|teslim|ediyor|musunuz|müsünüz|danışmanlık|danismanlik|fiyat|paket|istiyorum|için|icin|nasıl|nasil|şirket|sirket|görsel|gorsel|sayı|sayi|kaç|kac|resim|çalışmıyor|calismiyor|üretmiyor|uretmiyor|destek|yardım|yardim|sorun|hata)\b/i.test(value)) return 'tr';
   return 'en';
 }
 
@@ -138,6 +177,10 @@ function unavailableSalesClaims(reply, capabilities) {
       const email = /\b(?:send|sent|email|emailed|receive|received|will\s+email|going to\s+email)\b.{0,80}\b(?:confirmation|confirming|email)\b|\b(?:confirmation email|email confirmation|email is on the way|check your inbox)\b/i.test(affirmative)
         || /(?:أرسلنا|ارسلنا|سنرسل|نرسل|سيرسل|سيصلك|ستصلك|إرسال|ارسال|بريد|رسالة|إيميل|ايميل).{0,80}(?:تأكيد|موعد|عرض)/u.test(affirmative)
         || /(?:onay\s+e-?postası|onay\s+maili|e-?posta|email|mail).{0,80}(?:gönder|göndereceğiz|göndereceğim|onay)/iu.test(affirmative);
+      const fakeAction = /\b(?:transferring\s+you\s+to\s+live\s+support|connecting\s+(?:you\s+)?to\s+an?\s+agent|opened\s+a\s+ticket|created\s+ticket\s+#?\d+|ticket\s+#\d+\s+created|ticket\s+#\d+|escalated\s+to\s+(?:engineering|technical\s+team))\b/i.test(affirmative)
+        || /(?:sizi\s+canlı\s+desteğe\s+aktarıyorum|canlı\s+desteğe\s+bağlıyorum|temsilciye\s+bağlıyorum|temsilciye\s+aktarıyorum|ticket\s+#?\d+|ticket\s+oluştur|bilet\s+#?\d+|bilet\s+oluştur|talep\s+#?\d+|talep\s+oluştur|teknik\s+ekibe\s+aktar|mühendislik\s+ekibine\s+ilet)/iu.test(affirmative)
+        || /(?:تحويلكم\s+إلى\s+الدعم\s+المباشر|ربطكم\s+بممثل\s+الدعم|تم\s+إنشاء\s+تذكرة\s+#?\d+|أنشأت\s+تذكرة|تم\s+التصعيد\s+للفريق\s+الفني)/u.test(affirmative);
+      if (fakeAction) return 'fake_action';
       if ((!capabilities.canScheduleCalendarMeeting || !capabilities.canConfirmAppointment) && scheduling) return 'scheduling';
       if (!capabilities.canSendEmail && email) return 'email';
       const physicalDelivery = /\b(?:physical\s+product|products?|items?)\b.{0,80}\b(?:deliver|delivery|ship|shipping|stock|same[- ]day|immediate|fulfill|fulfillment)\b|\b(?:deliver|ship|stock|same[- ]day|immediate)\b.{0,80}\b(?:products?|items?)\b/i.test(affirmative)
@@ -150,13 +193,16 @@ function unavailableSalesClaims(reply, capabilities) {
 
 function safeReplyForLanguage(language, category = 'scheduling') {
   if (language === 'tr') {
+    if (category === 'fake_action') return 'Sorunu doğrudan burada birlikte inceleyebiliriz. Etkilenen kanalı, hata mesajını veya ekran görüntüsünü paylaşırsanız adım adım kontrol sağlayabilirim.';
     if (category === 'physical_delivery') return 'SamChe AI fiziksel bir ürün değil; kurulum ve devreye alma süresi seçtiğiniz ürünlere ve entegrasyon kapsamına göre değişir. Hazır web chatbot gibi çözümler daha hızlı devreye alınabilirken, özel entegrasyonlar ek kurulum gerektirebilir.';
     return 'Belirttiğiniz zamanı tercih edilen demo zamanı olarak talebinize ekleyebiliriz. Satış ekibimiz uygunluğu kontrol ederek sizinle iletişime geçecektir.';
   }
   if (language === 'ar') {
+    if (category === 'fake_action') return 'يمكننا مراجعة المشكلة معاً هنا مباشرة. يرجى تزويدي بالقناة المتأثرة أو رسالة الخطأ لنتمكن من توجيهكم بالخطوات الصحيحة.';
     if (category === 'physical_delivery') return 'SamChe AI ليس منتجاً مادياً؛ تختلف مدة الإعداد والتشغيل حسب المنتجات ونطاق التكامل المطلوب. يمكن تشغيل حلول مثل روبوت الموقع بسرعة أكبر، بينما قد تتطلب التكاملات المخصصة إعداداً إضافياً.';
     return 'يمكننا إضافة الوقت الذي ذكرتموه كتفضيل لطلب العرض التوضيحي. سيتحقق فريق المبيعات من التوفر ويتواصل معكم.';
   }
+  if (category === 'fake_action') return 'We can investigate this directly here. Please share the affected channel, error message, or screenshot so I can guide you through verified troubleshooting steps.';
   if (category === 'physical_delivery') return 'SamChe AI is a SaaS platform, not a physical product. Setup and launch timing depends on the selected products and integration scope; ready web-chatbot solutions can be enabled faster, while custom integrations may need additional setup.';
   return 'We’ll include your requested time as a preferred demo time. Our sales team will confirm availability after reviewing your request.';
 }
@@ -262,6 +308,9 @@ function validateSalesReplyText(reply, { plans, products }) {
   const amounts = approvedAmounts(plans);
   for (const amount of reply.matchAll(/AED\s*([\d,]+)/gi)) if (!amounts.has(amount[1].replaceAll(',', ''))) return failure('unsupported_commercial_claim', { category: 'amount' });
   if (/(?:discount|free|unlimited|guaranteed)/i.test(reply)) return failure('unsupported_commercial_claim', { category: 'disallowed_term' });
+  if (/(?:Görsel Ayarları|Veri Entegrasyonu|Eğitim Verisi|Visual Settings|Data Integration Tab|Training Data Tab)/iu.test(reply)) {
+    return failure('hallucinated_dashboard_control', { category: 'fake_menu' });
+  }
   const knownProducts = products.map((product) => product.name);
   const unknownProductClaim = [...reply.matchAll(/\b(?:Web Chatbot|WhatsApp AI|AI Guide|Knowledge Intelligence|Live Inbox|CRM & Pipeline)\b/g)].some((match) => knownProducts.length > 0 && !knownProducts.includes(match[0]));
   if (unknownProductClaim) return failure('unsupported_product_claim', { category: 'product_name' });
@@ -400,9 +449,10 @@ function enforceInterruptResponse(candidate, context, commercialFacts) {
 }
 
 function enforceSupportResponse(candidate, context) {
-  const reply = candidate && replyMatchesInputLanguage(candidate.reply, context.inputLanguage)
-    && /samche|whatsapp|web chatbot|chatbot|connection|configuration|error|support|channel|ayar|bağlant|hata|تهيئة|اتصال|خطأ|دعم/iu.test(candidate.reply)
-    ? candidate.reply : safeSupportReply(context);
+  const isUsable = candidate && replyMatchesInputLanguage(candidate.reply, context.inputLanguage)
+    && !unavailableSalesClaims(candidate.reply, SALES_CHAT_CAPABILITIES)
+    && (candidate.responseMode === 'support' || candidate.intent === 'support');
+  const reply = isUsable ? candidate.reply : safeSupportReply(context);
   return { reply, intent: 'support', responseMode: 'support', resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [] };
 }
 

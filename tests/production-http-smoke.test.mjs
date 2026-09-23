@@ -9,6 +9,7 @@ const documentRoutes = [
   ['/', 'SamChe AI Platform'],
   ['/platform', 'Product modules for customer-facing AI'],
   ['/pricing', 'Choose the right SamChe AI plan'],
+  ['/support', 'Knowledge, troubleshooting and plan-based assistance'],
   ['/security', 'Clear product boundaries'],
   ['/contact', 'find the right SamChe AI setup'],
   ['/privacy', 'Privacy information for samche.ai'],

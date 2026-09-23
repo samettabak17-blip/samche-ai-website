@@ -4,7 +4,7 @@ import { SectionEyebrow, SiteShell } from '../components/site-shell';
 
 export const metadata: Metadata = {
   title: 'Pricing',
-  description: 'Compare SamChe AI subscription plans, monthly AI interaction allowances, one-time setup fees, and approved platform add-ons.',
+  description: 'Compare SamChe AI subscription plans, monthly AI interaction allowances, one-time implementation and onboarding, and approved platform add-ons.',
   alternates: { canonical: 'https://samche.ai/pricing' },
 };
 

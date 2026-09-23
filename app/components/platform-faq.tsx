@@ -44,6 +44,10 @@ export const platformFaqItems = [
     answer: 'Additional usage is handled through an agreed usage-based or custom commercial arrangement. Automatic billing, rollover, or suspension is not assumed unless separately contracted.',
   },
   {
+    question: 'Why is there a one-time implementation fee?',
+    answer: 'The implementation fee covers the initial technical and AI setup required to configure SamChe AI for your business, including enabled channels, knowledge preparation, integration configuration, testing and launch support. Enterprise implementation is scoped according to complexity.',
+  },
+  {
     question: 'How long does implementation take?',
     answer: 'Implementation depends on the selected channels, knowledge sources, integrations and operating requirements. The sales team confirms the practical scope during review; no fixed deployment time is promised here.',
   },

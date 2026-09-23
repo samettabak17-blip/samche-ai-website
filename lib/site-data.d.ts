@@ -10,6 +10,10 @@ export type Plan = {
   badge?: string;
   from?: boolean;
   setupNote?: string;
+  supportLevel: string;
+  implementationLabel: string;
+  implementationNote: string;
+  supportEntitlements: string[];
   features: string[];
 };
 export const plans: Plan[];

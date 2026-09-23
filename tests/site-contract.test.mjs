@@ -76,10 +76,19 @@ test('approved platform entitlement matrix is complete and exact', () => {
       { label: 'Inbound Voice Minutes', values: ['Add-on', 'Add-on', 'Add-on', '300 / month'] },
       { label: 'Concurrent AI Calls', values: ['Add-on', 'Add-on', 'Add-on', '2'] },
     ] },
+    { label: 'Support & Success', rows: [
+      { label: '24/7 AI Support', values: ['Included', 'Included', 'Included', 'Included'] },
+      { label: 'Email Support', values: ['Business Hours', 'Business Hours', 'Priority', 'Priority / 24x7 critical path'] },
+      { label: 'WhatsApp Support', values: ['Not included', 'Business Hours', 'Priority', 'Priority / 24x7 critical path'] },
+      { label: 'Support Portal', values: ['Included', 'Included', 'Included', 'Included'] },
+      { label: 'Priority Human Support', values: ['Standard Email', 'Priority', 'Expanded Priority', 'Enterprise Priority'] },
+      { label: '24/7 Critical Human Support', values: ['Not included', 'Not included', 'Not included', 'Included'] },
+      { label: 'Dedicated Customer Advisor', values: ['Not included', 'Not included', 'Not included', 'Included'] },
+    ] },
   ];
 
   assert.deepEqual(platformFeatureGroups, expected);
-  assert.equal(planComparisonRows.length, 47);
+  assert.equal(planComparisonRows.length, 54);
 });
 
 test('Enterprise visual and voice commercial entitlements remain bounded and separate', () => {
@@ -220,9 +229,9 @@ test('Enterprise visual and voice FAQ uses the approved commercial contract', as
 });
 
 test('expanded platform comparison uses cumulative explicit capability states', () => {
-  assert.equal(platformFeatureGroups.length, 8);
+  assert.equal(platformFeatureGroups.length, 9);
   const rows = platformFeatureGroups.flatMap((group) => group.rows);
-  assert.equal(rows.length, 47);
+  assert.equal(rows.length, 54);
   assert.ok(rows.every((row) => row.values.length === 4));
   for (const row of rows) {
     for (let index = 1; index < row.values.length; index += 1) {

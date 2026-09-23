@@ -20,7 +20,7 @@ async function readBody(req) {
   let raw = '';
   for await (const chunk of req) {
     raw += chunk;
-    if (raw.length > 300_000) throw new Error('body_too_large');
+    if (raw.length > 10_000_000) throw new Error('body_too_large');
   }
   return raw ? JSON.parse(raw) : {};
 }

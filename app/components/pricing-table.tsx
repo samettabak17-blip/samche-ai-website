@@ -44,6 +44,11 @@ function comparisonMobileLabel(value: string) {
     '200 / month included': '200/mo', '200 / month': '200/mo',
     '300 min / month included': '300 min', '300 / month': '300 min',
     '2 concurrent calls included': '2 calls', '2': '2 calls',
+    'Business Hours': 'Office Hrs',
+    'Priority / 24x7 critical path': 'Priority / 24x7',
+    'Standard Email': 'Standard',
+    'Expanded Priority': 'Expanded',
+    'Enterprise Priority': 'Enterprise',
   };
   return labels[value] || value;
 }
@@ -64,11 +69,18 @@ export function PricingTable() {
         <p className="plan-description">{plan.description}</p>
         <p className="plan-price"><span className="price-prefix">{priceParts(plan, yearly).prefix}AED</span> <span className="price-amount">{priceParts(plan, yearly).amount}</span> <span className="price-period">{priceParts(plan, yearly).period}</span></p>
         <p className="plan-cycle-note">{yearly ? 'Billed annually' : 'Subscription billed monthly'}</p>
-        <div className="setup-box"><small>One-time setup</small><strong>{setupPrice(plan)}</strong></div>
+        <div className="setup-box">
+          <small>{plan.implementationLabel}</small>
+          <strong>{setupPrice(plan)}</strong>
+          <span className="implementation-note">{plan.implementationNote}</span>
+        </div>
         <div className="interaction-box"><strong>{plan.interactions}</strong><small>AI Interactions / Month</small></div>
         <ul className="plan-features">{plan.features.map((feature) => <li key={feature}>{feature}</li>)}</ul>
         <Link className="button plan-cta" href={`/contact?plan=${plan.slug}`}>{planCta(plan)} <span aria-hidden="true">↗</span></Link>
       </article>)}
+    </div>
+    <div className="implementation-value-note">
+      <p>One-time implementation covers the initial SamChe AI setup required for the selected plan, including AI configuration, enabled channel setup, knowledge preparation, integration configuration, testing and launch support. The exact Enterprise implementation scope may vary based on complexity.</p>
     </div>
     <section className="comparison-section" aria-labelledby="compare-plans-heading">
       <div className="comparison-heading"><SectionEyebrow>Platform capabilities</SectionEyebrow><h2 id="compare-plans-heading">Platform Feature Comparison</h2><p>Compare the channels, intelligence, CRM, integration and operational capabilities included at each SamChe AI plan level.</p></div>
