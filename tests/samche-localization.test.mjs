@@ -30,7 +30,7 @@ test('Turkish is a persistent LTR locale with complete core pricing and chat cop
     ['Platform Feature Comparison', 'Platform Özellik Karşılaştırması'], ['Included', 'Dahil'], ['Not included', 'Dahil değil'],
     ['Monthly AI Interactions', 'Aylık AI Etkileşimleri'], ['Dedicated Support', 'Özel Destek'],
     ['Human Handover', 'İnsan Temsilciye Devir'], ['Lead Qualification', 'Potansiyel Müşteri Nitelendirme'],
-    ['Product demos, plans & recommendations', 'Ürün demoları, planlar ve öneriler'], ['Ask SamChe AI', 'SamChe AI’ye Sor'],
+    ['Product demos, plans, recommendations and product support', 'Ürün demoları, planlar, öneriler ve ürün desteği'], ['Ask SamChe AI', 'SamChe AI’ye Sor'],
   ]) assert.equal(translateText(english, 'tr'), turkish, english);
 });
 
@@ -47,16 +47,16 @@ test('homepage hero is product-led and natural in every public locale', () => {
 
 test('static chatbot welcome copy follows the selected site locale without cross-language fallback', () => {
   assert.deepEqual(welcomeCopyForLocale('en'), {
-    title: 'Your SamChe AI sales representative',
-    message: 'I can help you identify the right SamChe AI setup for your business. What type of business do you operate?',
+    title: 'Your SamChe AI sales and product support assistant',
+    message: 'Hello! I can help you with SamChe AI products, plans, features and product support. If you need guidance or troubleshooting, tell me what you’re trying to do and I’ll assist you step by step.',
   });
   assert.deepEqual(welcomeCopyForLocale('tr'), {
-    title: 'SamChe AI satış temsilciniz',
-    message: 'İşletmeniz için en uygun SamChe AI çözümünü belirlemenize yardımcı olabilirim. Hangi sektörde faaliyet gösteriyorsunuz?',
+    title: 'SamChe AI satış ve ürün destek asistanınız',
+    message: 'Merhaba! SamChe AI ürünleri, paketler, özellikler ve ürün desteği konusunda yardımcı olabilirim. Bir konuda yönlendirme veya sorun giderme desteğine ihtiyacınız varsa ne yapmak istediğinizi yazın, size adım adım yardımcı olayım.',
   });
   assert.deepEqual(welcomeCopyForLocale('ar'), {
-    title: 'ممثل مبيعات SamChe AI',
-    message: 'يمكنني مساعدتكم في تحديد إعداد SamChe AI الأنسب لنشاطكم. ما مجال عملكم؟',
+    title: 'مساعد المبيعات ودعم المنتجات من SamChe AI',
+    message: 'مرحبًا! يمكنني مساعدتك في منتجات SamChe AI والباقات والميزات ودعم المنتج. إذا كنت بحاجة إلى إرشاد أو مساعدة في حل مشكلة، فأخبرني بما تحاول القيام به وسأساعدك خطوة بخطوة.',
   });
   for (const locale of ['en', 'tr', 'ar']) {
     const config = resolveSamcheChatConfig({}, locale);
@@ -114,6 +114,19 @@ test('Turkish and Arabic localize every customer-facing string from shared platf
       assert.notEqual(translateText(source, locale), source, `${locale} translation missing for: ${source}`);
     }
   }
+});
+
+test('main navigation exposes localized Product Support immediately before Contact', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const shell = await readFile(new URL('../app/components/site-shell.tsx', import.meta.url), 'utf8');
+  const nav = await readFile(new URL('../app/components/site-header-navigation.tsx', import.meta.url), 'utf8');
+  assert.equal(translateText('Product Support', 'en'), 'Product Support');
+  assert.equal(translateText('Product Support', 'tr'), 'Ürün Desteği');
+  assert.equal(translateText('Product Support', 'ar'), 'دعم المنتجات');
+  assert.match(nav, /href: '\/support', label: 'Product Support'/);
+  assert.match(nav, /aria-current=\{isActive \? 'page' : undefined\}/);
+  assert.match(nav, /usePathname/);
+  assert.doesNotMatch(shell, /href: '\/support', label: 'Product Support'/);
 });
 
 test('support chat and footer labels stay localized in Turkish and Arabic', async () => {

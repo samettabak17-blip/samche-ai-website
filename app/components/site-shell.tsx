@@ -2,21 +2,14 @@ import Link from './internal-link';
 import Image from 'next/image';
 import { SamCheChatWidget } from './samche-chat-widget';
 import { LanguageSwitcher } from './site-localization';
-
-const navigation = [
-  { href: '/', label: 'Home' },
-  { href: '/platform', label: 'Platform' },
-  { href: '/pricing', label: 'Pricing' },
-  { href: '/security', label: 'Security & Privacy' },
-  { href: '/contact', label: 'Contact' },
-];
+import { SiteHeaderNavigation } from './site-header-navigation';
 
 export function SiteHeader() {
   return <header className="site-header">
     <Link className="brand" href="/" aria-label="SamChe AI Platform home"><Image className="brand-logo" src="/samche-ai-platform-approved.png" alt="SamChe AI Platform" width={1800} height={900} priority /></Link>
-    <nav className="desktop-nav" aria-label="Main navigation">{navigation.map((item) => <Link key={item.href} href={item.href}>{item.label}</Link>)}</nav>
+    <SiteHeaderNavigation />
     <LanguageSwitcher />
-    <details className="mobile-nav"><summary aria-label="Open navigation"><span /><span /></summary><nav aria-label="Mobile navigation">{navigation.map((item) => <Link key={item.href} href={item.href}>{item.label}</Link>)}</nav></details>
+    <details className="mobile-nav"><summary aria-label="Open navigation"><span /><span /></summary><SiteHeaderNavigation mobile /></details>
   </header>;
 }
 
