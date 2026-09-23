@@ -127,6 +127,8 @@ test('support chat and footer labels stay localized in Turkish and Arabic', asyn
   assert.match(widget, /translateText\('Ask SamChe AI Assistant', locale\)/);
   assert.match(widget, /message\.time === 'Now' \? \(locale === 'tr' \? 'Şimdi'/);
   assert.match(widget, /index === 0 && message\.title \? config\.welcome_message : message\.text/);
+  assert.match(widget, /timestamp\(locale\)/);
+  assert.match(widget, /locale === 'tr' \? 'tr-TR'/);
 });
 
 test('Turkish and Arabic localize Enterprise visual, voice, FAQ, and compact comparison contracts', () => {

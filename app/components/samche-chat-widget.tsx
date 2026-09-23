@@ -27,8 +27,8 @@ function Orb({ small = false, header = false, avatarUrl }: { small?: boolean; he
   return <span className={`samche-orb${small ? ' samche-orb-small' : ''}${header ? ' samche-header-orb' : ''}`} aria-hidden="true"><span className="samche-mobile-orb" dir="ltr"><span className="samche-orb-logo-wrap" dir="ltr"><span className="samche-logo-sam">SAM</span><span className="samche-logo-che">CHE</span></span>{!small && <span className="samche-orb-ai-tag" dir={locale === 'ar' ? 'rtl' : 'ltr'}>{askLabel}</span>}</span></span>;
 }
 
-function timestamp() {
-  return new Intl.DateTimeFormat('en', { hour: 'numeric', minute: '2-digit' }).format(new Date());
+function timestamp(locale: 'en' | 'tr' | 'ar') {
+  return new Intl.DateTimeFormat(locale === 'tr' ? 'tr-TR' : locale === 'ar' ? 'ar' : 'en', { hour: 'numeric', minute: '2-digit', hour12: locale === 'en' ? undefined : false }).format(new Date());
 }
 
 function leadInputValue(lead: SalesState['lead'], key: string) {
@@ -160,12 +160,12 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
     else recentImageRef.current = null;
     setInput('');
     setErrorMessage('');
-    const userMessage = { role: 'user' as const, text: trimmed || (locale === 'tr' ? 'Bu SamChe AI ekran görüntüsüne bakabilir misiniz?' : locale === 'ar' ? 'هل يمكنكم مراجعة لقطة شاشة SamChe AI هذه؟' : 'Can you review this SamChe AI screenshot?'), time: timestamp(), imageContext: Boolean(imageForTurn) };
+    const userMessage = { role: 'user' as const, text: trimmed || (locale === 'tr' ? 'Bu SamChe AI ekran görüntüsüne bakabilir misiniz?' : locale === 'ar' ? 'هل يمكنكم مراجعة لقطة شاشة SamChe AI هذه؟' : 'Can you review this SamChe AI screenshot?'), time: timestamp(locale), imageContext: Boolean(imageForTurn) };
     setProcessingStatus(getSalesProcessingStatus(trimmed, salesStateRef.current));
     setSending(true);
     setProcessingStatus('Understanding your requirements…');
     const stateCandidate = generateSalesTurn(salesStateRef.current, trimmed, messages, locale);
-    const resolved = await resolveSalesChatTurn({ state: salesStateRef.current, stateCandidate, messages, userMessage, locale, attachment: imageForTurn ? { mimeType: imageForTurn.mimeType, data: imageForTurn.data } : undefined, time: timestamp(), apiBaseUrl: salesChatApiBaseUrl });
+    const resolved = await resolveSalesChatTurn({ state: salesStateRef.current, stateCandidate, messages, userMessage, locale, attachment: imageForTurn ? { mimeType: imageForTurn.mimeType, data: imageForTurn.data } : undefined, time: timestamp(locale), apiBaseUrl: salesChatApiBaseUrl });
     salesStateRef.current = resolved.state;
     setMessages(resolved.messages as Message[]);
     setSalesState(resolved.state);
