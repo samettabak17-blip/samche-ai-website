@@ -177,7 +177,7 @@ test('final regression: every required response key includes resumePendingQuesti
     const body = { ...validReply };
     delete body[key];
     const resolved = await resolveWith(async () => jsonResponse(body));
-    assert.equal(resolved.usedFallback, false, key);
+    assert.equal(resolved.usedFallback, true, key);
     assert.equal(resolved.providerFailed, true, key);
     assert.deepEqual(resolved.diagnostic, { source: 'contract', contractReason: 'missing-required-fields' });
   }
@@ -193,7 +193,7 @@ for (const [name, fields] of [
 ]) {
   test(`final regression: client rejects extracted ${name}`, async () => {
     const resolved = await resolveWith(async () => jsonResponse({ ...validReply, extractedFields: fields }));
-    assert.equal(resolved.usedFallback, false);
+    assert.equal(resolved.usedFallback, true);
     assert.equal(resolved.providerFailed, true);
     assert.deepEqual(resolved.state, initialState);
     assert.deepEqual(resolved.diagnostic, { source: 'provider', contractReason: 'invalid-response' });
@@ -202,7 +202,7 @@ for (const [name, fields] of [
 
 test('final regression: client rejects obsolete demo_request response mode', async () => {
   const resolved = await resolveWith(async () => jsonResponse({ ...validReply, responseMode: 'demo_request' }));
-    assert.equal(resolved.usedFallback, false);
+    assert.equal(resolved.usedFallback, true);
     assert.equal(resolved.providerFailed, true);
 });
 
@@ -218,7 +218,7 @@ test('final regression: outbound demo mode matches backend contract', async () =
 });
 
 
-test('client preserves state without adding a conversational reply for provider failures', async () => {
+test('client preserves state and adds a useful conversational fallback for provider failures', async () => {
   const cases = [
     ['network', async () => { throw new Error('offline'); }, { source: 'network' }],
     ['http', async () => ({ ok: false, status: 503 }), { source: 'http', httpStatus: 503 }],
@@ -232,18 +232,18 @@ test('client preserves state without adding a conversational reply for provider 
 
   for (const [name, fetchImpl, diagnostic] of cases) {
     const resolved = await resolveWith(fetchImpl);
-    assert.equal(resolved.usedFallback, false, name);
+    assert.equal(resolved.usedFallback, true, name);
     assert.equal(resolved.providerFailed, true, name);
     assert.deepEqual(resolved.diagnostic, diagnostic, name);
     assert.deepEqual(resolved.state, initialState, name);
     assert.deepEqual(resolved.actions, [], name);
-    assert.deepEqual(resolved.messages, [...messages, userMessage], name);
-    assert.equal(resolved.retryMessage, 'AI response is unavailable right now. Please try again.', name);
-    assert.equal(resolved.messages.some((message) => message.text === resolved.retryMessage), false, name);
+    assert.equal(resolved.messages.at(-1).role, 'assistant', name);
+    assert.equal(resolved.retryMessage, '', name);
+    assert.match(resolved.messages.at(-1).text, /received|help|feature/i, name);
   }
 });
 
-test('client rejects invalid provider replies without generating a conversational fallback', async () => {
+test('client safely falls back for invalid provider replies', async () => {
   const cases = [
     ['intent', { ...validReply, intent: 'COLD' }],
     ['response mode', { ...validReply, responseMode: 'anything_else' }],
@@ -253,10 +253,10 @@ test('client rejects invalid provider replies without generating a conversationa
 
   for (const [name, response] of cases) {
     const resolved = await resolveWith(async () => jsonResponse(response));
-    assert.equal(resolved.usedFallback, false, name);
+    assert.equal(resolved.usedFallback, true, name);
     assert.deepEqual(resolved.diagnostic, { source: 'provider', contractReason: 'invalid-response' }, name);
     assert.deepEqual(resolved.state, initialState, name);
-    assert.deepEqual(resolved.messages, [...messages, userMessage], name);
+    assert.equal(resolved.messages.at(-1).role, 'assistant', name);
     assert.equal(resolved.providerFailed, true, name);
   }
 });

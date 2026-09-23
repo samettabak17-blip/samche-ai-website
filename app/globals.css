@@ -700,11 +700,14 @@ body { background:radial-gradient(ellipse at 50% -22%,rgba(143,10,30,.23),transp
 .samche-message-bubble li { margin:0 0 4px; overflow-wrap:anywhere; }
 .samche-message-bubble li:last-child { margin-bottom:0; }
 .samche-message-bubble code { padding:1px 4px; border-radius:4px; color:#f7d889; background:rgba(255,255,255,.08); font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:.92em; overflow-wrap:anywhere; }
+.samche-message-bubble a { color:#8fc7ff; text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:2px; }
+.samche-message-bubble a:hover { color:#c4e2ff; }
 .samche-message-row.user .samche-message-bubble { border-color:#ce31534c; border-radius:12px 12px 3px 12px; color:#fff4f6; background:linear-gradient(135deg,#64172c,#36121e); }
 .samche-message-content time { color:#766d73; font-size:8px; }.samche-message-row.user time { text-align:right; }
 .samche-user-avatar { display:grid; width:24px; height:24px; flex:none; place-items:center; border:1px solid #ffffff20; border-radius:50%; color:#b8abb1; background:#252126; }
 .samche-user-avatar svg { width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:1.5; }
-.samche-typing { display:flex; align-items:center; gap:4px; height:31px; padding:0 12px; border:1px solid #ffffff12; border-radius:10px; background:#ffffff09; }
+.samche-typing { display:flex; align-items:center; gap:4px; min-height:31px; height:auto; padding:7px 12px; border:1px solid #ffffff12; border-radius:10px; background:#ffffff09; }
+.samche-typing span { max-width:250px; color:#cbbec4; font-size:9px; line-height:1.35; }
 .samche-typing i { width:4px; height:4px; border-radius:50%; background:#fd6b86; animation:samche-typing 1s infinite ease-in-out; }.samche-typing i:nth-child(2) { animation-delay:.15s; }.samche-typing i:nth-child(3) { animation-delay:.3s; }
 @keyframes samche-typing { 0%,60%,100% { opacity:.4; transform:translateY(0); } 30% { opacity:1; transform:translateY(-3px); } }
 .samche-chat-actions { display:flex; flex-wrap:wrap; gap:6px; padding:0 14px 13px 47px; }
@@ -1531,4 +1534,5 @@ body { background:radial-gradient(ellipse at 50% -22%,rgba(143,10,30,.23),transp
 @media (max-width: 600px) { .help-home { width: min(100% - 32px,1160px); padding-block: 28px 70px; } .help-hero { padding: 24px 18px; } .help-search-form { flex-direction: column; } .help-search-form .button { width: 100%; } .help-category-grid, .help-article-grid, .help-fact-grid, .help-related-grid { grid-template-columns: 1fr; } .help-contact { align-items: stretch; flex-direction: column; margin-top: 44px; } .help-contact .button { width: 100%; } }
 
  .samche-chat-article-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
- .samche-chat-article-links a { color: var(--samche-red, #e34b4b); font-size: 12px; text-decoration: underline; }
+ .samche-chat-article-links a { color: #8fc7ff; font-size: 12px; text-decoration: underline; text-underline-offset:2px; }
+ .samche-chat-article-links a:hover { color:#c4e2ff; }

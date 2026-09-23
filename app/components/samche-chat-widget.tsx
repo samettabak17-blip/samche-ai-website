@@ -8,6 +8,7 @@ import { resolveSalesChatTurn } from '../../lib/samche-sales-chat-client.mjs';
 import { translateText } from '../../lib/samche-localization.mjs';
 import { extractClipboardImage, readImageFile } from '../../lib/chat-attachment.mjs';
 import { parseRestrictedMarkdown } from '../../lib/restricted-markdown.mjs';
+import { getPublishedArticles } from '../../lib/help-center/index.mjs';
 import { useSiteLocale } from './site-localization';
 
 type Message = { role: 'assistant' | 'user'; text: string; title?: string; time: string; imageContext?: boolean; articleRefs?: string[] };
@@ -59,17 +60,23 @@ function leadSummaryFields(lead: SalesState['lead']): Array<[string, string]> {
   return rows.filter(([, value]) => value);
 }
 
-type RestrictedInlineToken = { type: 'text' | 'bold' | 'code' | 'break'; value?: string };
+type RestrictedInlineToken = { type: 'text' | 'bold' | 'code' | 'break' | 'link'; value?: string; href?: string };
 type RestrictedMarkdownBlock = { type: 'paragraph'; children: RestrictedInlineToken[] } | { type: 'ul' | 'ol'; items: RestrictedInlineToken[][] };
 
-function renderAssistantText(text: string) {
-  return (parseRestrictedMarkdown(text) as RestrictedMarkdownBlock[]).map((block, blockIndex) => {
+function renderAssistantText(text: string, articleUrls: Map<string, string>) {
+  const renderToken = (token: RestrictedInlineToken, tokenIndex: number) => token.type === 'bold'
+    ? <strong key={tokenIndex}>{token.value}</strong>
+    : token.type === 'code' ? <code key={tokenIndex}>{token.value}</code>
+      : token.type === 'link' ? <a key={tokenIndex} href={token.href}>{token.value}</a>
+        : token.type === 'break' ? <br key={tokenIndex} />
+          : <span key={tokenIndex}>{token.value}</span>;
+  return (parseRestrictedMarkdown(text, { articleUrls }) as RestrictedMarkdownBlock[]).map((block, blockIndex) => {
     if (block.type === 'ul' || block.type === 'ol') {
       const List = block.type === 'ul' ? 'ul' : 'ol';
-      return <List key={`list-${blockIndex}`}>{block.items.map((item, itemIndex) => <li key={`item-${itemIndex}`}>{item.map((token, tokenIndex) => token.type === 'bold' ? <strong key={tokenIndex}>{token.value}</strong> : token.type === 'code' ? <code key={tokenIndex}>{token.value}</code> : token.type === 'break' ? <br key={tokenIndex} /> : <span key={tokenIndex}>{token.value}</span>)}</li>)}</List>;
+      return <List key={`list-${blockIndex}`}>{block.items.map((item, itemIndex) => <li key={`item-${itemIndex}`}>{item.map(renderToken)}</li>)}</List>;
     }
     const paragraphBlock = block as Extract<RestrictedMarkdownBlock, { type: 'paragraph' }>;
-    return <p key={`paragraph-${blockIndex}`}>{paragraphBlock.children.map((token: RestrictedInlineToken, tokenIndex: number) => token.type === 'bold' ? <strong key={tokenIndex}>{token.value}</strong> : token.type === 'code' ? <code key={tokenIndex}>{token.value}</code> : token.type === 'break' ? <br key={tokenIndex} /> : <span key={tokenIndex}>{token.value}</span>)}</p>;
+    return <p key={`paragraph-${blockIndex}`}>{paragraphBlock.children.map(renderToken)}</p>;
   });
 }
 
@@ -89,13 +96,54 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
   const [errorMessage, setErrorMessage] = useState('');
   const [attachment, setAttachment] = useState<ChatAttachment | null>(null);
   const recentImageRef = useRef<ChatAttachment | null>(null);
-  const [processingStatus, setProcessingStatus] = useState('Matching your requirements to SamChe AI products…');
+  const [processingStatus, setProcessingStatus] = useState('Reviewing your request…');
+  const [revealedMessages, setRevealedMessages] = useState<Record<string, string>>({});
+  const revealedMessagesRef = useRef<Record<string, string>>({});
+  const revealTimersRef = useRef<Map<string, number>>(new Map());
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [visualViewport, setVisualViewport] = useState<ViewportMetrics>({ height: 0, offsetTop: 0, offsetLeft: 0 });
   const salesStateRef = useRef<SalesState>(createInitialSalesState());
   const sessionIdRef = useRef('');
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const timers = revealTimersRef.current;
+    const latestAssistant = [...messages].map((message, index) => ({ message, index })).reverse().find(({ message }) => message.role === 'assistant' && !message.title);
+    if (!latestAssistant) return;
+    const { message, index } = latestAssistant;
+    const key = `${index}-${message.time}`;
+    if (revealedMessagesRef.current[key] === message.text) return;
+    const previousTimer = timers.get(key);
+    if (previousTimer) window.clearInterval(previousTimer);
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      revealedMessagesRef.current[key] = message.text;
+      return;
+    }
+    let position = 0;
+    revealedMessagesRef.current[key] = '';
+    let interval: number | undefined;
+    const kickoff = window.setTimeout(() => {
+      setRevealedMessages((current) => ({ ...current, [key]: '' }));
+      interval = window.setInterval(() => {
+        position = Math.min(message.text.length, position + (message.text.length > 600 ? 3 : 2));
+        const visible = message.text.slice(0, position);
+        revealedMessagesRef.current[key] = visible;
+        setRevealedMessages((current) => ({ ...current, [key]: visible }));
+        if (position >= message.text.length) {
+          if (interval) window.clearInterval(interval);
+          timers.delete(key);
+        }
+      }, 14);
+      timers.set(key, interval);
+    }, 0);
+    timers.set(key, kickoff);
+  }, [messages]);
+
+  useEffect(() => {
+    const timers = revealTimersRef.current;
+    return () => timers.forEach((timer) => window.clearInterval(timer));
+  }, []);
   useEffect(() => {
     const timer = window.setTimeout(() => {
       if (!sessionIdRef.current) sessionIdRef.current = `chat-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
@@ -177,9 +225,9 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
     setInput('');
     setErrorMessage('');
     const userMessage = { role: 'user' as const, text: trimmed || (locale === 'tr' ? 'Bu SamChe AI ekran görüntüsüne bakabilir misiniz?' : locale === 'ar' ? 'هل يمكنكم مراجعة لقطة شاشة SamChe AI هذه؟' : 'Can you review this SamChe AI screenshot?'), time: timestamp(locale), imageContext: Boolean(imageForTurn) };
-    setProcessingStatus(getSalesProcessingStatus(trimmed, salesStateRef.current));
+    setProcessingStatus(getSalesProcessingStatus(trimmed, salesStateRef.current, locale));
     setSending(true);
-    setProcessingStatus('Understanding your requirements…');
+    setMessages((current) => [...current, userMessage]);
     const stateCandidate = generateSalesTurn(salesStateRef.current, trimmed, messages, locale);
     const resolved = await resolveSalesChatTurn({ state: salesStateRef.current, stateCandidate, messages, userMessage, locale, attachment: imageForTurn ? { mimeType: imageForTurn.mimeType, data: imageForTurn.data } : undefined, time: timestamp(locale), apiBaseUrl: salesChatApiBaseUrl });
     salesStateRef.current = resolved.state;
@@ -276,6 +324,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
   const contextualQuickActions = salesState.intent === 'HOT' || summaryReady
     ? config.quick_actions
     : salesState.turns >= 2 ? config.quick_actions.filter((action) => action !== 'Pricing') : [];
+  const articleUrls = new Map(getPublishedArticles(locale).map((article) => [article.slug, `/help/article/${article.slug}`]));
 
   const viewportStyle = {
     '--samche-visual-viewport-height': `${visualViewport.height}px`,
@@ -288,11 +337,16 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
       <header className="samche-chat-header"><Orb small header avatarUrl={config.avatar_url || config.logo_url} /><div className="samche-chat-title"><strong>{config.assistant_display_name}</strong><span><i /> {config.assistant_status_label}</span><small>{config.subtitle}</small></div><div className="samche-chat-menu-wrap"><button className="samche-icon-button samche-menu" type="button" aria-label={config.more_options_label} aria-expanded={menuOpen} title={config.more_options_label} onClick={() => setMenuOpen((value) => !value)}>···</button>{menuOpen && <div className="samche-chat-menu"><button type="button" onClick={() => { setMenuOpen(false); setConfirmReset(true); }}>Clear conversation</button></div>}</div><button className="samche-icon-button" type="button" aria-label="Close chat" onClick={() => setOpen(false)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button></header>
       {confirmReset && <div className="samche-reset-backdrop"><section className="samche-reset-dialog" role="alertdialog" aria-modal="true" aria-labelledby="samche-reset-title" aria-describedby="samche-reset-copy"><h2 id="samche-reset-title">Clear conversation?</h2><p id="samche-reset-copy">Clear this conversation and start again?</p><div><button type="button" onClick={() => setConfirmReset(false)}>CANCEL</button><button type="button" onClick={resetConversation}>CLEAR CONVERSATION</button></div></section></div>}
       <div className="samche-chat-messages" ref={listRef} aria-live="polite">
-        {displayedMessages.map((message, index) => <div className={`samche-message-row ${message.role}`} key={`${index}-${message.time}`}>
+        {displayedMessages.map((message, index) => {
+          const messageKey = `${index}-${message.time}`;
+          const visibleText = message.role === 'assistant' && !message.title ? (revealedMessages[messageKey] ?? message.text) : message.text;
+          const visibleArticleRefs = (message.articleRefs || []).filter((slug) => articleUrls.has(slug));
+          return <div className={`samche-message-row ${message.role}`} key={messageKey}>
           {message.role === 'assistant' && <Orb small avatarUrl={config.avatar_url || config.logo_url} />}
-          <div className="samche-message-content">{message.title && <strong className="samche-welcome-title">{index === 0 ? config.welcome_title : message.title}</strong>}<div className="samche-message-bubble">{index === 0 && message.title ? renderAssistantText(config.welcome_message) : message.role === 'assistant' ? renderAssistantText(message.text) : message.text}</div>{message.role === 'assistant' && message.articleRefs?.length ? <nav className="samche-chat-article-links" aria-label={locale === 'tr' ? 'İlgili yardım makaleleri' : locale === 'ar' ? 'مقالات المساعدة ذات الصلة' : 'Related help articles'}>{message.articleRefs.map((slug) => <a key={slug} href={`/help/article/${encodeURIComponent(slug)}`}>{locale === 'tr' ? 'İlgili doğrulanmış makale' : locale === 'ar' ? 'مقالة مساعدة معتمدة' : 'Read verified help article'}</a>)}</nav> : null}<time>{message.time === 'Now' ? (locale === 'tr' ? 'Şimdi' : locale === 'ar' ? 'الآن' : 'Now') : message.time}</time></div>
+          <div className="samche-message-content">{message.title && <strong className="samche-welcome-title">{index === 0 ? config.welcome_title : message.title}</strong>}<div className="samche-message-bubble">{index === 0 && message.title ? renderAssistantText(config.welcome_message, articleUrls) : message.role === 'assistant' ? renderAssistantText(visibleText, articleUrls) : message.text}</div>{message.role === 'assistant' && visibleArticleRefs.length ? <nav className="samche-chat-article-links" aria-label={locale === 'tr' ? 'İlgili yardım makaleleri' : locale === 'ar' ? 'مقالات المساعدة ذات الصلة' : 'Related help articles'}>{visibleArticleRefs.map((slug) => <a key={slug} href={articleUrls.get(slug)}>{locale === 'tr' ? 'İlgili doğrulanmış makale' : locale === 'ar' ? 'مقالة مساعدة معتمدة' : 'Read verified help article'}</a>)}</nav> : null}<time>{message.time === 'Now' ? (locale === 'tr' ? 'Şimdi' : locale === 'ar' ? 'الآن' : 'Now') : message.time}</time></div>
           {message.role === 'user' && <span className="samche-user-avatar" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5" /><path d="M5 20c.4-4 2.8-6 7-6s6.6 2 7 6" /></svg></span>}
-        </div>)}
+        </div>;
+        })}
         {sending && <div className="samche-message-row assistant" role="status" aria-live="polite"><Orb small /><div className="samche-typing"><span>{processingStatus}</span><i /><i /><i /></div></div>}
         {!sending && errorMessage && <div className="samche-message-row assistant" role="status" aria-live="polite"><Orb small /><div className="samche-message-content"><div className="samche-message-bubble">{errorMessage}</div></div></div>}
       </div>

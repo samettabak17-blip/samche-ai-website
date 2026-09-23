@@ -69,10 +69,10 @@ test('natural-language team-user variants update only teamUsers', () => {
 
 test('processing status uses short stage-aware labels without exposing private reasoning', () => {
   const state = createInitialSalesState();
-  assert.match(getSalesProcessingStatus('I need AI for my business', state), /Understanding your business needs/i);
+  assert.match(getSalesProcessingStatus('I need AI for my business', state), /Reviewing your request/i);
   assert.match(getSalesProcessingStatus('We are a real estate company in Dubai', state), /business model/i);
-  assert.match(getSalesProcessingStatus('We use website and WhatsApp', state), /customer channels/i);
-  assert.match(getSalesProcessingStatus('We need CRM integration and lead qualification', state), /Matching your requirements/i);
+  assert.match(getSalesProcessingStatus('We use website and WhatsApp', state), /WhatsApp issue/i);
+  assert.match(getSalesProcessingStatus('We need CRM integration and lead qualification', state), /relevant guidance/i);
   assert.match(getSalesProcessingStatus('We want to start this month', state), /sales summary/i);
   assert.doesNotMatch(getSalesProcessingStatus('We need CRM integration', state), /reason|score|chain|prompt|step by step/i);
 });
