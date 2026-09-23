@@ -57,6 +57,12 @@ export function SupportPortal() {
   const publishedArticles = getPublishedArticles(locale);
   const publishedCategories = getPublishedCategories(locale);
   const readArticleLabel = locale === 'tr' ? 'Doğrulanmış makaleyi oku' : locale === 'ar' ? 'اقرأ المقالة المعتمدة' : 'Read verified article';
+  const searchSuggestions = search.trim() ? searchHelpArticles(search, locale, { limit: 5 }) : [];
+  function submitKnowledgeSearch(event: FormEvent) {
+    event.preventDefault();
+    const value = search.trim();
+    if (typeof window !== 'undefined') window.location.assign(value ? `/help?locale=${locale}&q=${encodeURIComponent(value)}` : `/help?locale=${locale}`);
+  }
   const filteredKnowledge = search.trim()
     ? searchHelpArticles(search, locale, { limit: 20 })
     : publishedArticles.slice(0, 8).map((article) => ({ slug: article.slug, category: publishedCategories.find((category) => category.slug === article.category)?.label || article.category, title: article.title, summary: article.summary, navigation: article.navigation, url: `/help/article/${article.slug}`, score: 0 }));
@@ -124,7 +130,7 @@ export function SupportPortal() {
       <section className="support-search-hero" aria-labelledby="support-search-heading">
         <SectionEyebrow>Search knowledge &amp; verified guides</SectionEyebrow>
         <h2 id="support-search-heading">How can we help your team today?</h2>
-        <div className="support-search-bar">
+        <form className="support-search-bar" onSubmit={submitKnowledgeSearch} role="search">
           <label htmlFor={searchId} className="sr-only">Search support topics</label>
           <input
             id={searchId}
@@ -132,8 +138,14 @@ export function SupportPortal() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search Web Chatbot, WhatsApp AI, Knowledge Intelligence, CRM, AI Visual..."
+            aria-controls="support-search-suggestions"
+            aria-autocomplete="list"
           />
-        </div>
+          <button className="sr-only" type="submit">Search</button>
+          {search.trim() && <div id="support-search-suggestions" className="support-search-suggestions" role="listbox" aria-label="Search suggestions">
+            {searchSuggestions.length ? searchSuggestions.map((item) => <Link role="option" aria-selected="false" className="support-search-suggestion" key={item.slug} href={item.url}><span className="kb-category">{item.category}</span><strong>{item.title}</strong><small>{item.summary}</small></Link>) : <p className="support-search-empty">No verified guides found for this search.</p>}
+          </div>}
+        </form>
       </section>
 
       <section className="support-tiers-overview" aria-labelledby="support-tiers-heading">

@@ -15,7 +15,10 @@ test('Help Center routes use the shared registry and provide permanent article U
   assert.match(category, /getCategoryBySlug/);
   assert.match(article, /getArticleBySlug/);
   assert.match(article, /generateMetadata/);
+  assert.match(article, /notFound/);
   assert.match(component, /searchHelpArticles/);
+  assert.match(component, /help-search-suggestions/);
+  assert.match(component, /URLSearchParams/);
   assert.match(component, /related/);
   assert.match(component, /Was this article helpful|Makale faydalı oldu mu|هل كانت هذه المقالة مفيدة/);
   assert.match(component, /dir=\{locale === 'ar' \? 'rtl' : 'ltr'\}/);

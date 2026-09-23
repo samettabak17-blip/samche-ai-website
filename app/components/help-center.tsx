@@ -16,13 +16,15 @@ type HelpArticleView = { slug: string; category: string; title: string; summary:
 function SearchForm({ initial = '' }: { initial?: string }) {
   const { locale } = useSiteLocale();
   const text = copy[locale] as HelpCopy;
-  const [query, setQuery] = useState(initial);
-  const [submitted, setSubmitted] = useState(initial);
+  const [query, setQuery] = useState(() => initial || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('q') || '' : ''));
+  const [submitted, setSubmitted] = useState(() => initial || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('q') || '' : ''));
   const results = useMemo(() => searchHelpArticles(submitted, locale, { limit: 8 }), [submitted, locale]);
-  function submit(event: FormEvent) { event.preventDefault(); setSubmitted(query.trim()); }
+  const suggestions = useMemo(() => searchHelpArticles(query, locale, { limit: 5 }), [query, locale]);
+  function submit(event: FormEvent) { event.preventDefault(); const value = query.trim(); setSubmitted(value); if (typeof window !== 'undefined') window.history.pushState({}, '', value ? `/help?locale=${locale}&q=${encodeURIComponent(value)}` : `/help?locale=${locale}`); }
   return <section className="help-search" aria-labelledby="help-search-title">
     <h2 id="help-search-title" className="sr-only">{text.search}</h2>
-    <form onSubmit={submit} role="search" className="help-search-form"><label htmlFor="help-search-input" className="sr-only">{text.search}</label><input id="help-search-input" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={text.placeholder} /><button className="button button-primary button-small" type="submit">{text.search}</button></form>
+    <form onSubmit={submit} role="search" className="help-search-form"><label htmlFor="help-search-input" className="sr-only">{text.search}</label><input id="help-search-input" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={text.placeholder} aria-controls="help-search-suggestions" aria-autocomplete="list" /><button className="button button-primary button-small" type="submit">{text.search}</button></form>
+    {query.trim() && <div id="help-search-suggestions" className="help-search-suggestions" role="listbox" aria-label={text.search}>{suggestions.length ? suggestions.map((result) => <Link role="option" aria-selected="false" key={result.slug} className="help-search-suggestion" href={result.url}><span className="help-result-category">{result.category}</span><strong>{result.title}</strong><small>{result.summary}</small></Link>) : <p className="help-empty">{text.noResults}</p>}</div>}
     {submitted && <div className="help-search-results" aria-live="polite">{results.length ? results.map((result) => <Link key={result.slug} className="help-result" href={result.url}><span className="help-result-category">{result.category}</span><strong>{result.title}</strong><p>{result.summary}</p><small>{result.navigation}</small></Link>) : <p className="help-empty">{text.noResults}</p>}</div>}
   </section>;
 }
