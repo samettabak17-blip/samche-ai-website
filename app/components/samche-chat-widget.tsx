@@ -306,6 +306,6 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
       <p className="samche-chat-disclaimer">{translateText(config.scope_disclaimer, locale)}</p>
       </div>
     </section>}
-    <button className={`samche-chat-launcher${open ? ' is-open' : ''}`} type="button" aria-label={open ? `Close ${config.assistant_display_name} chat` : config.launcher_label} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{open ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg> : <Orb avatarUrl={config.avatar_url || config.logo_url} />}</button>
+    <button id="samche-chat-launcher" className={`samche-chat-launcher${open ? ' is-open' : ''}`} type="button" aria-label={open ? `Close ${config.assistant_display_name} chat` : config.launcher_label} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{open ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg> : <Orb avatarUrl={config.avatar_url || config.logo_url} />}</button>
   </div>;
 }

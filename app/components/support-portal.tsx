@@ -116,6 +116,11 @@ export function SupportPortal() {
 
   return (
     <div className="support-portal page-width">
+      <nav className="support-portal-links" aria-label={locale === 'tr' ? 'Destek seçenekleri' : locale === 'ar' ? 'خيارات الدعم' : 'Support options'}>
+        <Link href="/help">{locale === 'tr' ? 'Yardım Merkezi’ni açın' : locale === 'ar' ? 'تصفح مركز المساعدة' : 'Browse Help Center'}</Link>
+        <a href="#submit-ticket">{locale === 'tr' ? 'Destek talebi gönderin' : locale === 'ar' ? 'إرسال طلب دعم' : 'Submit Support Request'}</a>
+        <a href="#samche-chat-launcher">{locale === 'tr' ? 'SamChe AI’ye sorun' : locale === 'ar' ? 'اسأل SamChe AI' : 'Ask SamChe AI'}</a>
+      </nav>
       <section className="support-search-hero" aria-labelledby="support-search-heading">
         <SectionEyebrow>Search knowledge &amp; verified guides</SectionEyebrow>
         <h2 id="support-search-heading">How can we help your team today?</h2>
