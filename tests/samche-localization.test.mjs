@@ -119,12 +119,13 @@ test('Turkish and Arabic localize every customer-facing string from shared platf
 test('support chat and footer labels stay localized in Turkish and Arabic', async () => {
   const { readFile } = await import('node:fs/promises');
   const widget = await readFile(new URL('../app/components/samche-chat-widget.tsx', import.meta.url), 'utf8');
-  for (const source of ['I can only provide information about SamChe products and services.', 'Ask SamChe AI Assistant', 'Attach screenshot', 'Send message', 'Security']) {
+  for (const source of ['I can only provide information about SamChe products and services.', 'Ask SamChe AI Assistant', 'Attach screenshot', 'Send message', 'Security', 'SamChe AI Platform home', 'SamChe AI Platform on GitHub']) {
     assert.notEqual(translateText(source, 'tr'), source, `Turkish fallback: ${source}`);
     assert.notEqual(translateText(source, 'ar'), source, `Arabic fallback: ${source}`);
   }
   assert.match(widget, /translateText\(config\.scope_disclaimer, locale\)/);
   assert.match(widget, /translateText\('Ask SamChe AI Assistant', locale\)/);
+  assert.match(widget, /message\.time === 'Now' \? \(locale === 'tr' \? 'Şimdi'/);
 });
 
 test('Turkish and Arabic localize Enterprise visual, voice, FAQ, and compact comparison contracts', () => {

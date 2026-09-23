@@ -259,7 +259,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
       <div className="samche-chat-messages" ref={listRef} aria-live="polite">
         {displayedMessages.map((message, index) => <div className={`samche-message-row ${message.role}`} key={`${index}-${message.time}`}>
           {message.role === 'assistant' && <Orb small avatarUrl={config.avatar_url || config.logo_url} />}
-          <div className="samche-message-content">{message.title && <strong className="samche-welcome-title">{message.title}</strong>}<div className="samche-message-bubble">{message.text}</div><time>{message.time}</time></div>
+          <div className="samche-message-content">{message.title && <strong className="samche-welcome-title">{message.title}</strong>}<div className="samche-message-bubble">{message.text}</div><time>{message.time === 'Now' ? (locale === 'tr' ? 'Şimdi' : locale === 'ar' ? 'الآن' : 'Now') : message.time}</time></div>
           {message.role === 'user' && <span className="samche-user-avatar" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5" /><path d="M5 20c.4-4 2.8-6 7-6s6.6 2 7 6" /></svg></span>}
         </div>)}
         {sending && <div className="samche-message-row assistant" role="status" aria-live="polite"><Orb small /><div className="samche-typing"><span>{processingStatus}</span><i /><i /><i /></div></div>}
