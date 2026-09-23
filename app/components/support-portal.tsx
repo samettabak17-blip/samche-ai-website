@@ -4,16 +4,9 @@ import { FormEvent, useEffect, useId, useRef, useState } from 'react';
 import { plans } from '../../lib/site-data.mjs';
 import { formatScreenshotSize, validateScreenshot } from '../../lib/form-ux.mjs';
 import { SectionEyebrow } from './site-shell';
+import Link from './internal-link';
 import { useSiteLocale } from './site-localization';
-
-interface SupportKnowledgeItem {
-  id: string;
-  category: string;
-  title: string;
-  summary: string;
-  steps: string[];
-  planRequired?: string;
-}
+import { getPublishedArticles, getPublishedCategories, searchHelpArticles } from '../../lib/help-center/index.mjs';
 
 type SupportStatusCode = '' | 'attachmentType' | 'attachmentSize' | 'required' | 'email' | 'success' | 'delivery';
 function supportStatusText(code: SupportStatusCode, locale: 'en' | 'tr' | 'ar') {
@@ -22,73 +15,11 @@ function supportStatusText(code: SupportStatusCode, locale: 'en' | 'tr' | 'ar') 
     attachmentSize: { en: 'File is larger than 5 MB.', tr: 'Dosya 5 MB sınırını aşıyor.', ar: 'حجم الملف يتجاوز 5 ميغابايت.' },
     required: { en: 'Please fill in all required fields.', tr: 'Lütfen zorunlu alanları doldurun.', ar: 'يرجى تعبئة جميع الحقول المطلوبة.' },
     email: { en: 'Enter a valid email address.', tr: 'Geçerli bir e-posta adresi girin.', ar: 'يرجى إدخال عنوان بريد إلكتروني صالح.' },
-    success: { en: 'Your support request has been successfully submitted. Our team will review it according to your plan’s support coverage and contact you through your preferred support channel.', tr: 'Destek talebiniz başarıyla iletildi. Ekibimiz, paketinizin destek kapsamına göre talebinizi inceleyerek sizinle iletişime geçecektir.', ar: 'تم إرسال طلب الدعم بنجاح. سيراجع فريقنا طلبكم وفق نطاق الدعم المتاح في خطتكم ويتواصل معكم عبر وسيلة التواصل المفضلة لديكم.' },
+    success: { en: 'Your support request has been successfully submitted.', tr: 'Destek talebiniz başarıyla iletildi.', ar: 'تم إرسال طلب الدعم بنجاح.' },
     delivery: { en: 'Your support request could not be sent right now. Please try again.', tr: 'Destek talebiniz şu anda gönderilemedi. Lütfen yeniden deneyin.', ar: 'تعذر إرسال طلب الدعم حالياً. يرجى المحاولة مرة أخرى.' },
   };
   return code ? messages[code][locale] : '';
 }
-
-const verifiedKnowledgeItems: SupportKnowledgeItem[] = [
-  {
-    id: 'kb-web-chat',
-    category: 'Web Chatbot',
-    title: 'Troubleshooting Web Chatbot Embedding & Page Context',
-    summary: 'How to verify the Web Chatbot script installation and enable page-aware context on your website.',
-    steps: [
-      'Open Channels, then Web Chat Experience in your workspace.',
-      'Check the Web Chat channel status and assigned assistant.',
-      'Review the Web Chat Experience configuration for the affected site.',
-    ],
-  },
-  {
-    id: 'kb-whatsapp-ai',
-    category: 'WhatsApp AI',
-    title: 'WhatsApp AI Connection Status & Message Routing',
-    summary: 'Verifying business number connection and channel availability for Growth, Business, and Enterprise plans.',
-    steps: [
-      'Confirm your account is on Growth plan or higher (WhatsApp AI is not included in Starter).',
-      'Open Channels and select the affected WhatsApp channel.',
-      'Check its Status and assigned active Assistant.',
-      'If the channel cannot be repaired from those controls, submit the affected channel and example conversation for support review.',
-    ],
-    planRequired: 'Growth / Business / Enterprise',
-  },
-  {
-    id: 'kb-knowledge-intel',
-    category: 'Knowledge Intelligence',
-    title: 'Managing Documents, Ingestion States & Retrieval Previews',
-    summary: 'Uploading business documents (PDF, DOCX, TXT, PNG, JPG) and inspecting grounded answers.',
-    steps: [
-      'Open Knowledge Intelligence in the workspace sidebar.',
-      'Find the affected source and review its displayed processing state.',
-      'For product imagery, use Upload visual source and provide the product/entity context.',
-    ],
-  },
-  {
-    id: 'kb-live-inbox',
-    category: 'Inbox / Conversations',
-    title: 'Human Handover & Team Message Handling',
-    summary: 'Moving conversations seamlessly between AI assistance and human support agents.',
-    steps: [
-      'Open Conversations and choose WhatsApp, Web Chatbot, or AI Guide.',
-      'Select the affected conversation and review its available actions.',
-      'If an action is unavailable for your role or channel, submit the conversation context for support review.',
-    ],
-  },
-  {
-    id: 'kb-ai-visual',
-    category: 'AI Visual',
-    title: 'AI Visual Generation Entitlements & Verification',
-    summary: 'Enterprise multimodal visual product generation and personalization.',
-    steps: [
-      'Verify account is on the Enterprise plan (AI Visual is exclusively an Enterprise feature).',
-      'There is no verified customer-facing AI Visual generation switch in the current dashboard.',
-      'Check the affected WhatsApp flow and product or catalog context.',
-      'Include an example prompt, image, and approximate time in a support request so the implementation team can review tenant configuration.',
-    ],
-    planRequired: 'Enterprise only',
-  },
-];
 
 export function SupportPortal() {
   const { locale } = useSiteLocale();
@@ -123,16 +54,12 @@ export function SupportPortal() {
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
   }, []);
 
-  const filteredKnowledge = verifiedKnowledgeItems.filter((item) => {
-    if (!search.trim()) return true;
-    const query = search.toLowerCase();
-    return (
-      item.title.toLowerCase().includes(query) ||
-      item.category.toLowerCase().includes(query) ||
-      item.summary.toLowerCase().includes(query) ||
-      item.steps.some((step) => step.toLowerCase().includes(query))
-    );
-  });
+  const publishedArticles = getPublishedArticles(locale);
+  const publishedCategories = getPublishedCategories(locale);
+  const readArticleLabel = locale === 'tr' ? 'Doğrulanmış makaleyi oku' : locale === 'ar' ? 'اقرأ المقالة المعتمدة' : 'Read verified article';
+  const filteredKnowledge = search.trim()
+    ? searchHelpArticles(search, locale, { limit: 20 })
+    : publishedArticles.slice(0, 8).map((article) => ({ slug: article.slug, category: publishedCategories.find((category) => category.slug === article.category)?.label || article.category, title: article.title, summary: article.summary, navigation: article.navigation, url: `/help/article/${article.slug}`, score: 0 }));
 
   function handleAttachment(file: File) {
     const validation = validateScreenshot(file);
@@ -235,18 +162,10 @@ export function SupportPortal() {
         </div>
         <div className="support-kb-grid">
           {filteredKnowledge.map((item) => (
-            <article className="support-kb-card" key={item.id}>
-              <div className="kb-meta">
-                <span className="kb-category">{item.category}</span>
-                {item.planRequired && <span className="kb-plan-tag">{item.planRequired}</span>}
-              </div>
-              <h3>{item.title}</h3>
-              <p>{item.summary}</p>
-              <ol className="kb-steps">
-                {item.steps.map((step, index) => (
-                  <li key={index}>{step}</li>
-                ))}
-              </ol>
+            <article className="support-kb-card" key={item.slug}>
+              <div className="kb-meta"><span className="kb-category">{item.category}</span></div>
+              <h3>{item.title}</h3><p>{item.summary}</p><p className="kb-navigation">{item.navigation}</p>
+              <Link className="text-link" href={item.url}>{readArticleLabel} <span aria-hidden="true">↗</span></Link>
             </article>
           ))}
           {filteredKnowledge.length === 0 && (

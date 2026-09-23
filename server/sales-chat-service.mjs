@@ -1,4 +1,5 @@
 import { dashboardSupportMap } from '../lib/support-dashboard-map.mjs';
+import { getHelpArticleSources, getPublishedArticles } from '../lib/help-center/index.mjs';
 const MODEL = 'gpt-4o-mini';
 const VISION_MODEL = 'gpt-4o';
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
@@ -10,6 +11,7 @@ const ALLOWED_RESPONSE_MODES = new Set(['qualification_answer', 'in_scope_interr
 const ALLOWED_NEXT_FIELDS = new Set(['industry', 'channels', 'volume', 'integrations', 'leadQualification', 'languages', 'aiGuideNeed', 'apiWorkflow', 'externalIntegrations', 'aiLeadScoring', 'teamUsers', 'timeline', 'contactPreference', null]);
 const ALLOWED_LEAD_FIELDS = new Set(['name', 'email', 'company', 'industry', 'country', 'website', 'mainGoal', 'channels', 'products', 'languages', 'integrations', 'volume', 'timeline', 'contactPreference', 'preferredDemoDate', 'preferredDemoTime', 'teamUsers', 'leadQualification', 'budget', 'apiWorkflow', 'apiAccessNeed', 'customWorkflowNeed', 'aiGuideNeed', 'externalIntegrations', 'aiLeadScoring']);
 const ALLOWED_ACTIONS = ['REQUEST_DEMO', 'WHATSAPP_HANDOFF'];
+const PUBLISHED_HELP_SLUGS = new Set(getPublishedArticles('en').map((article) => article.slug));
 export const SALES_CHAT_CAPABILITIES = Object.freeze({
   canScheduleCalendarMeeting: false,
   canConfirmAppointment: false,
@@ -36,7 +38,11 @@ SUPPORT RULES:
   10. For a follow-up asking where to act, use the exact verified navigation and control labels from the dashboard map only when that map-backed evidence applies. A visible WhatsApp channel with Status: Inactive can be handled by a user with channel management access at Channels → affected WhatsApp channel → Edit channel → Status (Active) and Assigned assistant → Save changes. This does not prove the customer's tenant has that state; screenshots and authorized tenant access are the evidence sources. If the customer lacks that access, ask them to contact their workspace administrator or submit the details through Support. Do not replace these steps with a vague or invented path.
 
 SALES RULES:
-- Preserve known lead fields, never repeat an already known field, ask at most one useful question, never invent commercial facts, and never claim physical delivery or guaranteed outcomes. For a bare greeting, write a short welcome that identifies you as the SamChe AI sales and support assistant and ask at most one general help question.`;
+- Preserve known lead fields, never repeat an already known field, ask at most one useful question, never invent commercial facts, and never claim physical delivery or guaranteed outcomes. For a bare greeting, write a short welcome that identifies you as the SamChe AI sales and support assistant and ask at most one general help question.
+
+HELP CENTER RULES:
+- The context may include verified helpArticles. Use only their supplied content and navigation when grounding support guidance.
+- Return articleRefs containing only the supplied article slugs that directly support the reply. Return [] when no article applies. Never invent a slug or URL.`;
 const EXTRACTED_ARRAY_FIELDS = new Set(['channels', 'products']);
 const EXTRACTED_FIELD_ALIASES = Object.freeze({
   team_users: 'teamUsers', lead_qualification: 'leadQualification', ai_guide_need: 'aiGuideNeed',
@@ -68,13 +74,19 @@ const SALES_CHAT_RESPONSE_FORMAT = Object.freeze({
         extractedFields: { type: 'object', additionalProperties: false, properties: EXTRACTED_FIELD_SCHEMA, required: [...ALLOWED_LEAD_FIELDS] },
         requestedNextField: { anyOf: [{ type: 'string', enum: [...ALLOWED_NEXT_FIELDS].filter(Boolean) }, { type: 'null' }] },
         actionIntent: { type: 'array', items: { type: 'string', enum: ALLOWED_ACTIONS } },
+        articleRefs: { type: 'array', items: { type: 'string' } },
       },
-      required: ['reply', 'intent', 'responseMode', 'resumePendingQuestion', 'extractedFields', 'requestedNextField', 'actionIntent'],
+      required: ['reply', 'intent', 'responseMode', 'resumePendingQuestion', 'extractedFields', 'requestedNextField', 'actionIntent', 'articleRefs'],
     },
   },
 });
 
 function text(value, limit) { return typeof value === 'string' ? value.slice(0, limit) : ''; }
+
+function sanitizeArticleRefs(value) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((slug) => typeof slug === 'string' && PUBLISHED_HELP_SLUGS.has(slug)))].slice(0, 3);
+}
 
 function supportIntentFor(message) {
   const text = String(message || '').toLowerCase();
@@ -263,6 +275,7 @@ function buildContext(body, commercialFacts) {
     approvedPlanFacts: commercialFacts.plans.map((plan) => ({ ...plan })),
     approvedProductFacts: commercialFacts.products.map((product) => ({ ...product })),
     verifiedDashboardMap: dashboardSupportMap,
+    helpArticles: getHelpArticleSources(text(body.userMessage, MAX_MESSAGE_LENGTH), detectInputLanguage(body.userMessage), 3),
     capabilities: SALES_CHAT_CAPABILITIES,
     allowedActions: [...ALLOWED_ACTIONS],
     userMessage: text(body.userMessage, MAX_MESSAGE_LENGTH),
@@ -313,7 +326,7 @@ export function validateSalesLlmOutput(output, { plans, products, allowedActions
   if (value.responseMode === 'capability_interrupt' && value.intent !== 'capability_question') return failure('response_mode_intent_mismatch');
   if (value.responseMode === 'pricing_interrupt' && !['pricing', 'pricing_question'].includes(value.intent)) return failure('response_mode_intent_mismatch');
   if (['in_scope_interrupt', 'capability_interrupt', 'pricing_interrupt', 'demo_interrupt'].includes(value.responseMode) && value.resumePendingQuestion !== true) return failure('interrupt_resume_required');
-  return { ok: true, value: { reply: value.reply.trim(), intent: value.intent, responseMode: value.responseMode, resumePendingQuestion: value.resumePendingQuestion, extractedFields: value.extractedFields, requestedNextField: value.requestedNextField ?? null, actionIntent: value.actionIntent } };
+  return { ok: true, value: { reply: value.reply.trim(), intent: value.intent, responseMode: value.responseMode, resumePendingQuestion: value.resumePendingQuestion, extractedFields: value.extractedFields, requestedNextField: value.requestedNextField ?? null, actionIntent: value.actionIntent, articleRefs: sanitizeArticleRefs(value.articleRefs) } };
 }
 
 function validateSalesReplyText(reply, { plans, products }) {
@@ -405,6 +418,7 @@ function safelySalvageProviderReply(output, context, commercialFacts) {
     extractedFields,
     requestedNextField: ALLOWED_NEXT_FIELDS.has(value.requestedNextField ?? null) ? value.requestedNextField ?? null : null,
     actionIntent: [],
+    articleRefs: sanitizeArticleRefs(value.articleRefs),
   }, context);
 }
 
@@ -477,6 +491,7 @@ function enforceInterruptResponse(candidate, context, commercialFacts) {
     extractedFields: usable ? sanitizedCandidate.extractedFields : {},
     requestedNextField: context.pendingField || (usable ? sanitizedCandidate.requestedNextField : null),
     resumePendingQuestion: Boolean(context.lastPendingQuestion && context.pendingField), actionIntent: [],
+    articleRefs: usable ? sanitizeArticleRefs(sanitizedCandidate.articleRefs) : [],
   };
 }
 
@@ -485,7 +500,7 @@ function enforceSupportResponse(candidate, context) {
     && !unavailableSalesClaims(candidate.reply, SALES_CHAT_CAPABILITIES)
     && (context.hasImage || candidate.responseMode === 'support' || candidate.intent === 'support');
   const reply = isUsable ? candidate.reply : safeSupportReply(context);
-  return { reply, intent: 'support', responseMode: 'support', resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [] };
+  return { reply, intent: 'support', responseMode: 'support', resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: candidate ? sanitizeArticleRefs(candidate.articleRefs) : [] };
 }
 
 export function createSalesChatService({ openaiClient, commercialFacts, textModel = MODEL, visionModel = VISION_MODEL, timeoutMs = 20000, environment = process.env, logger = console } = {}) {

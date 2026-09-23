@@ -415,7 +415,7 @@ test('uses strict JSON Schema response format for the provider contract', async 
   assert.equal(request.response_format.type, 'json_schema');
   assert.equal(request.response_format.json_schema.strict, true);
   assert.equal(request.response_format.json_schema.schema.additionalProperties, false);
-  assert.deepEqual(request.response_format.json_schema.schema.required, ['reply', 'intent', 'responseMode', 'resumePendingQuestion', 'extractedFields', 'requestedNextField', 'actionIntent']);
+  assert.deepEqual(request.response_format.json_schema.schema.required, ['reply', 'intent', 'responseMode', 'resumePendingQuestion', 'extractedFields', 'requestedNextField', 'actionIntent', 'articleRefs']);
 });
 
 test('normalizes only explicit safe enum and field aliases before validation', () => {

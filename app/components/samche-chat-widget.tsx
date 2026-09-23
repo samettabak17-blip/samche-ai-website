@@ -10,7 +10,7 @@ import { extractClipboardImage, readImageFile } from '../../lib/chat-attachment.
 import { parseRestrictedMarkdown } from '../../lib/restricted-markdown.mjs';
 import { useSiteLocale } from './site-localization';
 
-type Message = { role: 'assistant' | 'user'; text: string; title?: string; time: string; imageContext?: boolean };
+type Message = { role: 'assistant' | 'user'; text: string; title?: string; time: string; imageContext?: boolean; articleRefs?: string[] };
 type SalesState = ReturnType<typeof createInitialSalesState>;
 type SalesAction = { label: string; type: 'link' | 'demo' | 'whatsapp'; href?: string };
 type ChatAttachment = { name: string; mimeType: string; data: string; preview: string };
@@ -290,7 +290,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
       <div className="samche-chat-messages" ref={listRef} aria-live="polite">
         {displayedMessages.map((message, index) => <div className={`samche-message-row ${message.role}`} key={`${index}-${message.time}`}>
           {message.role === 'assistant' && <Orb small avatarUrl={config.avatar_url || config.logo_url} />}
-          <div className="samche-message-content">{message.title && <strong className="samche-welcome-title">{index === 0 ? config.welcome_title : message.title}</strong>}<div className="samche-message-bubble">{index === 0 && message.title ? renderAssistantText(config.welcome_message) : message.role === 'assistant' ? renderAssistantText(message.text) : message.text}</div><time>{message.time === 'Now' ? (locale === 'tr' ? 'Şimdi' : locale === 'ar' ? 'الآن' : 'Now') : message.time}</time></div>
+          <div className="samche-message-content">{message.title && <strong className="samche-welcome-title">{index === 0 ? config.welcome_title : message.title}</strong>}<div className="samche-message-bubble">{index === 0 && message.title ? renderAssistantText(config.welcome_message) : message.role === 'assistant' ? renderAssistantText(message.text) : message.text}</div>{message.role === 'assistant' && message.articleRefs?.length ? <nav className="samche-chat-article-links" aria-label={locale === 'tr' ? 'İlgili yardım makaleleri' : locale === 'ar' ? 'مقالات المساعدة ذات الصلة' : 'Related help articles'}>{message.articleRefs.map((slug) => <a key={slug} href={`/help/article/${encodeURIComponent(slug)}`}>{locale === 'tr' ? 'İlgili doğrulanmış makale' : locale === 'ar' ? 'مقالة مساعدة معتمدة' : 'Read verified help article'}</a>)}</nav> : null}<time>{message.time === 'Now' ? (locale === 'tr' ? 'Şimdi' : locale === 'ar' ? 'الآن' : 'Now') : message.time}</time></div>
           {message.role === 'user' && <span className="samche-user-avatar" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5" /><path d="M5 20c.4-4 2.8-6 7-6s6.6 2 7 6" /></svg></span>}
         </div>)}
         {sending && <div className="samche-message-row assistant" role="status" aria-live="polite"><Orb small /><div className="samche-typing"><span>{processingStatus}</span><i /><i /><i /></div></div>}

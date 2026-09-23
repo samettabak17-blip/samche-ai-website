@@ -1,0 +1,62 @@
+'use client';
+
+import { FormEvent, useMemo, useState } from 'react';
+import Link from './internal-link';
+import { useSiteLocale } from './site-localization';
+import { getArticleBySlug, getCategoryBySlug, getPublishedCategories, getPublishedArticles, searchHelpArticles } from '../../lib/help-center/index.mjs';
+
+const copy = {
+  en: { eyebrow: 'SamChe AI Help Center', title: 'Find the verified answer.', intro: 'Search product guidance grounded in the current SamChe AI dashboard.', search: 'Search help articles', placeholder: 'Search Web Chatbot, WhatsApp AI, dashboard labels, or error text…', browse: 'Browse by product', popular: 'Popular articles', recent: 'Recently verified guides', getting: 'Getting Started', troubleshooting: 'Troubleshooting', noResults: 'No published guide matches this search.', support: 'Contact Support', supportText: 'If the verified steps do not resolve your issue, send the account context and visible evidence to the SamChe AI team.', open: 'Read article', category: 'Category', verified: 'Last verified', contents: 'Table of contents', prerequisites: 'Prerequisites', expected: 'Expected result', problems: 'Common problems', related: 'Related articles', feedback: 'Was this article helpful?', yes: 'Yes', no: 'No', thanks: 'Thanks for your feedback on this device.', back: 'Help Center', previous: 'Back to category', gap: 'This capability is not documented as a customer-facing dashboard control. Contact Support for implementation review.' },
+  tr: { eyebrow: 'SamChe AI Yardım Merkezi', title: 'Doğrulanmış yanıtı bulun.', intro: 'Mevcut SamChe AI paneline dayanan ürün rehberlerinde arama yapın.', search: 'Yardım makalelerinde ara', placeholder: 'Web Chatbot, WhatsApp AI, panel etiketleri veya hata metni arayın…', browse: 'Ürüne göre göz atın', popular: 'Popüler makaleler', recent: 'Son doğrulanan rehberler', getting: 'Başlangıç', troubleshooting: 'Sorun giderme', noResults: 'Bu aramayla eşleşen yayınlanmış rehber yok.', support: 'Support ile iletişime geçin', supportText: 'Doğrulanmış adımlar sorunu çözmezse hesap bağlamını ve görünen kanıtı SamChe AI ekibine gönderin.', open: 'Makaleyi oku', category: 'Kategori', verified: 'Son doğrulama', contents: 'İçindekiler', prerequisites: 'Ön koşullar', expected: 'Beklenen sonuç', problems: 'Yaygın sorunlar', related: 'İlgili makaleler', feedback: 'Bu makale faydalı oldu mu?', yes: 'Evet', no: 'Hayır', thanks: 'Bu cihazdaki geri bildiriminiz için teşekkürler.', back: 'Yardım Merkezi', previous: 'Kategoriye dön', gap: 'Bu yetenek müşteri-facing panel kontrolü olarak belgelenmemiştir. Uygulama incelemesi için Support ile iletişime geçin.' },
+  ar: { eyebrow: 'مركز مساعدة SamChe AI', title: 'اعثر على الإجابة المعتمدة.', intro: 'ابحث في إرشادات المنتج المستندة إلى لوحة SamChe AI الحالية.', search: 'ابحث في مقالات المساعدة', placeholder: 'ابحث عن Web Chatbot أو WhatsApp AI أو أسماء اللوحة أو نص الخطأ…', browse: 'تصفح حسب المنتج', popular: 'المقالات الشائعة', recent: 'الأدلة التي تم التحقق منها مؤخراً', getting: 'البدء', troubleshooting: 'استكشاف المشكلات', noResults: 'لا توجد أدلة منشورة تطابق هذا البحث.', support: 'تواصل مع Support', supportText: 'إذا لم تحل الخطوات المعتمدة المشكلة، أرسل سياق الحساب والأدلة الظاهرة إلى فريق SamChe AI.', open: 'قراءة المقالة', category: 'الفئة', verified: 'آخر تحقق', contents: 'المحتويات', prerequisites: 'المتطلبات السابقة', expected: 'النتيجة المتوقعة', problems: 'المشكلات الشائعة', related: 'مقالات ذات صلة', feedback: 'هل كانت هذه المقالة مفيدة؟', yes: 'نعم', no: 'لا', thanks: 'شكراً لملاحظاتكم على هذا الجهاز.', back: 'مركز المساعدة', previous: 'العودة إلى الفئة', gap: 'لم يتم توثيق هذه الإمكانية كتحكم موجه للعميل في لوحة التحكم. تواصل مع Support لمراجعة التنفيذ.' },
+} as const;
+type HelpCopy = { [key: string]: string };
+type HelpArticleView = { slug: string; category: string; title: string; summary: string; navigation: string; plan: string; prerequisites: string; expected: string; related: string[]; verification: { verifiedOn: string }; sections: Array<{ heading: string; body: string; steps: string[] }> };
+
+function SearchForm({ initial = '' }: { initial?: string }) {
+  const { locale } = useSiteLocale();
+  const text = copy[locale] as HelpCopy;
+  const [query, setQuery] = useState(initial);
+  const [submitted, setSubmitted] = useState(initial);
+  const results = useMemo(() => searchHelpArticles(submitted, locale, { limit: 8 }), [submitted, locale]);
+  function submit(event: FormEvent) { event.preventDefault(); setSubmitted(query.trim()); }
+  return <section className="help-search" aria-labelledby="help-search-title">
+    <h2 id="help-search-title" className="sr-only">{text.search}</h2>
+    <form onSubmit={submit} role="search" className="help-search-form"><label htmlFor="help-search-input" className="sr-only">{text.search}</label><input id="help-search-input" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={text.placeholder} /><button className="button button-primary button-small" type="submit">{text.search}</button></form>
+    {submitted && <div className="help-search-results" aria-live="polite">{results.length ? results.map((result) => <Link key={result.slug} className="help-result" href={result.url}><span className="help-result-category">{result.category}</span><strong>{result.title}</strong><p>{result.summary}</p><small>{result.navigation}</small></Link>) : <p className="help-empty">{text.noResults}</p>}</div>}
+  </section>;
+}
+
+export function HelpCenterHome() {
+  const { locale } = useSiteLocale();
+  const text = copy[locale] as HelpCopy;
+  const categories = getPublishedCategories(locale);
+  const articles = getPublishedArticles(locale);
+  const popular = ['whatsapp-ai-troubleshooting', 'web-chatbot-setup', 'knowledge-intelligence-sources', 'human-handoff'].map((slug) => articles.find((article) => article.slug === slug)).filter(Boolean);
+  const recent = articles.slice(-5).reverse();
+  return <div className="help-center" dir={locale === 'ar' ? 'rtl' : 'ltr'}><main id="main-content" className="help-home page-width"><section className="help-hero"><p className="eyebrow"><span aria-hidden="true" />{text.eyebrow}</p><h1>{text.title}</h1><p>{text.intro}</p><SearchForm /></section><section className="help-section" aria-labelledby="help-categories"><h2 id="help-categories">{text.browse}</h2><div className="help-category-grid">{categories.map((category) => <Link key={category.slug} href={`/help/category/${category.slug}`} className="help-category-card"><strong>{category.label}</strong><span>{category.description}</span><small>{category.articleCount} {locale === 'ar' ? 'مقالات' : locale === 'tr' ? 'makale' : 'articles'}</small></Link>)}</div></section><section className="help-section" aria-labelledby="help-popular"><h2 id="help-popular">{text.popular}</h2><div className="help-article-grid">{popular.map((article) => article && <HelpCard key={article.slug} article={article} text={text} />)}</div></section><section className="help-section" aria-labelledby="help-recent"><h2 id="help-recent">{text.recent}</h2><div className="help-article-grid">{recent.map((article) => <HelpCard key={article.slug} article={article} text={text} />)}</div></section><HelpContact text={text} /></main></div>;
+}
+
+function HelpCard({ article, text }: { article: HelpArticleView; text: HelpCopy }) {
+  return <Link className="help-article-card" href={`/help/article/${article.slug}`}><span className="help-result-category">{article.category}</span><h3>{article.title}</h3><p>{article.summary}</p><span>{text.open} <span aria-hidden="true">↗</span></span></Link>;
+}
+
+function HelpContact({ text }: { text: HelpCopy }) { return <section className="help-contact"><div><h2>{text.support}</h2><p>{text.supportText}</p></div><Link className="button button-outline" href="/support#submit-ticket">{text.support} <span aria-hidden="true">↗</span></Link></section>; }
+
+export function HelpCategoryClient({ categorySlug }: { categorySlug: string }) {
+  const { locale } = useSiteLocale();
+  const text = copy[locale] as HelpCopy;
+  const category = getCategoryBySlug(categorySlug, locale);
+  if (!category) return <main className="help-home page-width"><HelpContact text={text} /></main>;
+  return <div className="help-center" dir={locale === 'ar' ? 'rtl' : 'ltr'}><main id="main-content" className="help-home page-width"><div className="help-breadcrumbs"><Link href="/help">{text.back}</Link><span aria-hidden="true">/</span><span>{category.label}</span></div><section className="help-hero help-hero-compact"><p className="eyebrow"><span aria-hidden="true" />{category.label}</p><h1>{category.label}</h1><p>{category.description}</p><SearchForm /></section><section className="help-section"><div className="help-article-grid">{category.articles.map((article) => <HelpCard key={article.slug} article={article} text={text} />)}</div></section><HelpContact text={text} /></main></div>;
+}
+
+export function HelpArticleClient({ slug }: { slug: string }) {
+  const { locale } = useSiteLocale();
+  const text = copy[locale] as HelpCopy;
+  const articleRecord = getArticleBySlug(slug, locale);
+  if (!articleRecord) return <main className="help-home page-width"><HelpContact text={text} /></main>;
+  const article = articleRecord as HelpArticleView;
+  const related = article.related.map((relatedSlug: string) => getArticleBySlug(relatedSlug, locale)).filter(Boolean);
+  return <div className="help-center" dir={locale === 'ar' ? 'rtl' : 'ltr'}><main id="main-content" className="help-home page-width"><div className="help-breadcrumbs"><Link href="/help">{text.back}</Link><span aria-hidden="true">/</span><Link href={`/help/category/${article.category}`}>{article.category}</Link><span aria-hidden="true">/</span><span>{article.title}</span></div><div className="help-article-layout"><aside className="help-article-sidebar"><strong>{text.contents}</strong><nav aria-label={text.contents}><ol>{article.sections.map((section, sectionIndex) => <li key={section.heading}><a href={`#section-${sectionIndex}`}>{section.heading}</a></li>)}</ol></nav></aside><article className="help-article"><p className="eyebrow"><span aria-hidden="true" />{article.category}</p><h1>{article.title}</h1><p className="help-article-summary">{article.summary}</p><div className="help-article-meta"><span>{text.verified}: {article.verification.verifiedOn}</span><span>{article.plan}</span></div><div className="help-fact-grid"><div><strong>{text.prerequisites}</strong><p>{article.prerequisites}</p></div><div><strong>{text.expected}</strong><p>{article.expected}</p></div></div>{article.sections.map((section, sectionIndex) => <section className="help-article-section" id={`section-${sectionIndex}`} key={section.heading}><h2>{section.heading}</h2><p>{section.body}</p>{section.steps.length > 0 && <ol>{section.steps.map((step) => <li key={step}>{step}</li>)}</ol>}</section>)}<section className="help-feedback" aria-label={text.feedback}><p>{text.feedback}</p><button type="button" onClick={(event) => { event.currentTarget.parentElement?.setAttribute('data-feedback', 'yes'); }}>{text.yes}</button><button type="button" onClick={(event) => { event.currentTarget.parentElement?.setAttribute('data-feedback', 'no'); }}>{text.no}</button><small>{text.thanks}</small></section><section className="help-related"><h2>{text.related}</h2><div className="help-related-grid">{related.map((relatedArticle) => relatedArticle && <Link key={relatedArticle.slug} className="help-article-card" href={`/help/article/${relatedArticle.slug}`}><h3>{relatedArticle.title}</h3><p>{relatedArticle.summary}</p></Link>)}</div></section><HelpContact text={text} /></article></div></main></div>;
+}
