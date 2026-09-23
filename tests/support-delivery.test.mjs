@@ -10,7 +10,7 @@ const smtpEnv = { SUPPORT_EMAIL_TRANSPORT: 'smtp', SMTP_HOST: 'smtp.hostinger.co
 test('support API path is wired to the server handler', async () => {
   const server = await readFile(new URL('../server/server.mjs', import.meta.url), 'utf8');
   assert.match(server, /req\.url === '\/api\/support'/);
-  assert.match(server, /supportHandler\(await readBody\(req\)/);
+  assert.match(server, /supportHandler\(body, req\.socket\.remoteAddress/);
 });
 
 test('support delivery has one fixed destination and requires recipient acknowledgement', async () => {
@@ -78,6 +78,46 @@ test('SMTP requires a complete TLS configuration and cannot redirect the destina
     const result = await deliverSupportEmail(valid, { env: { ...smtpEnv, ...override }, createTransportImpl: () => { called = true; return { sendMail: async () => ({ accepted: [SUPPORT_RECIPIENT] }) }; } });
     assert.equal(result.ok, false);
     assert.equal(called, false);
+  }
+});
+
+test('SMTP takes precedence over configured HTTP delivery and logs only safe stages', async () => {
+  const events = [];
+  let httpCalled = false;
+  const handler = createSupportHandler({ env: { ...env, ...smtpEnv }, logger: {
+    info: (event, details) => events.push({ event, details }),
+    warn: (event, details) => events.push({ event, details }),
+  }, fetchImpl: async () => { httpCalled = true; throw new Error('HTTP should not run'); },
+  createTransportImpl: () => ({ sendMail: async () => ({ accepted: [SUPPORT_RECIPIENT] }) }) });
+  assert.equal((await handler(valid)).status, 202);
+  assert.equal(httpCalled, false);
+  assert.deepEqual(events.map(({ event }) => event), ['support_request_received', 'support_request_validated', 'support_email_transport_selected', 'support_smtp_connection_attempt', 'support_smtp_accepted']);
+  assert.equal(events[2].details.transport, 'smtp');
+  assert.equal(new Set(events.map(({ details }) => details.requestId)).size, 1);
+  assert.doesNotMatch(JSON.stringify(events), /test-only-password|test@example\.com|ACME|Test issue/);
+});
+
+test('SMTP failures identify configuration, authentication, timeout, and recipient rejection without leaking details', async () => {
+  const cases = [
+    { environment: { ...smtpEnv, SMTP_PASSWORD: '' }, expected: { stage: 'configuration', category: 'invalid_configuration', field: 'SMTP_PASSWORD' } },
+    { error: Object.assign(new Error('secret credential detail'), { code: 'EAUTH', responseCode: 535 }), expected: { stage: 'smtp_send', category: 'authentication', code: 'EAUTH', responseCode: 535 } },
+    { error: Object.assign(new Error('secret socket detail'), { code: 'ETIMEDOUT' }), expected: { stage: 'smtp_send', category: 'timeout', code: 'ETIMEDOUT' } },
+    { receipt: { accepted: [], rejected: [SUPPORT_RECIPIENT] }, expected: { stage: 'smtp_acceptance', category: 'recipient_not_accepted' } },
+  ];
+  for (const scenario of cases) {
+    const events = [];
+    const handler = createSupportHandler({ env: scenario.environment || smtpEnv, logger: {
+      info: (event, details) => events.push({ event, details }),
+      warn: (event, details) => events.push({ event, details }),
+    }, createTransportImpl: () => ({ sendMail: async () => {
+      if (scenario.error) throw scenario.error;
+      return scenario.receipt;
+    } }) });
+    assert.equal((await handler(valid)).status, 503);
+    const failure = events.find(({ event }) => event === 'support_smtp_failed');
+    assert.ok(failure);
+    for (const [key, value] of Object.entries(scenario.expected)) assert.equal(failure.details[key], value);
+    assert.doesNotMatch(JSON.stringify(events), /secret|test-only-password|test@example\.com|ACME|Test issue/);
   }
 });
 

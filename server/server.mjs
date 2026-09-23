@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
@@ -107,7 +108,14 @@ const server = createServer(async (req, res) => {
     }
     if (req.method === 'POST' && req.url === '/api/contact') return await handleContact(req, res);
     if (req.method === 'POST' && req.url === '/api/support') {
-      const result = await supportHandler(await readBody(req), req.socket.remoteAddress || 'unknown');
+      const requestId = randomUUID();
+      let body;
+      try { body = await readBody(req); }
+      catch (error) {
+        console.warn('support_request_failed', { requestId, stage: 'request_body', category: error?.message === 'body_too_large' ? 'body_too_large' : 'invalid_json' });
+        return json(res, error?.message === 'body_too_large' ? 413 : 400, { ok: false, error: 'invalid_request' });
+      }
+      const result = await supportHandler(body, req.socket.remoteAddress || 'unknown', requestId);
       return json(res, result.status, result.body);
     }
     if (req.method === 'GET' || req.method === 'HEAD') {

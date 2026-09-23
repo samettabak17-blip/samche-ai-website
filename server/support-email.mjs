@@ -1,5 +1,17 @@
+import { randomUUID } from 'node:crypto';
+
 export const SUPPORT_RECIPIENT = 'support@samchecompany.com';
 export const MAX_SUPPORT_IMAGE_BYTES = 5 * 1024 * 1024;
+const SMTP_ERROR_CODES = new Set(['EAUTH', 'ECONNECTION', 'ETIMEDOUT', 'ESOCKET', 'EDNS', 'EENVELOPE', 'EMESSAGE', 'ESTREAM']);
+const diagnostic = (emit, event, details) => emit?.(event, details);
+function smtpFailure(error) {
+  const code = SMTP_ERROR_CODES.has(error?.code) ? error.code : 'UNKNOWN';
+  const responseCode = Number.isInteger(error?.responseCode) && error.responseCode >= 400 && error.responseCode <= 599 ? error.responseCode : undefined;
+  const category = code === 'EAUTH' || responseCode === 535 ? 'authentication' : code === 'ETIMEDOUT' ? 'timeout'
+    : code === 'ECONNECTION' || code === 'ESOCKET' || code === 'EDNS' ? 'connection'
+      : code === 'EENVELOPE' ? 'envelope' : 'smtp_error';
+  return { stage: 'smtp_send', category, code, ...(responseCode ? { responseCode } : {}) };
+}
 const IMAGE_SIGNATURES = { 'image/png': '89504e470d0a1a0a', 'image/jpeg': 'ffd8ff', 'image/webp': '52494646' };
 const PLANS = new Set(['starter', 'growth', 'business', 'enterprise']);
 const PRODUCT_AREAS = new Set(['web-chatbot', 'whatsapp-ai', 'ai-guide', 'knowledge-intelligence', 'crm-pipeline', 'live-inbox', 'ai-visual', 'ai-voice', 'integrations', 'billing', 'account']);
@@ -44,7 +56,7 @@ function supportMessage(request, from) {
     text: Object.entries(request).filter(([key]) => key !== 'attachment').map(([key, value]) => `${key}: ${value}`).join('\n') };
 }
 
-async function deliverBySmtp(request, env, createTransportImpl) {
+async function deliverBySmtp(request, env, createTransportImpl, emit) {
   const host = env.SMTP_HOST?.trim();
   const portValue = env.SMTP_PORT?.trim();
   const user = env.SMTP_USER?.trim();
@@ -52,55 +64,114 @@ async function deliverBySmtp(request, env, createTransportImpl) {
   const from = env.SUPPORT_EMAIL_FROM?.trim();
   const to = env.SUPPORT_EMAIL_TO?.trim();
   const port = Number(portValue);
-  if (!host || !/^[a-z0-9.-]+$/i.test(host) || !portValue || !/^\d+$/.test(portValue) || !Number.isInteger(port) || port < 1 || port > 65535
-    || env.SMTP_SECURE?.trim().toLowerCase() !== 'true' || !EMAIL_ADDRESS.test(user || '') || !password
-    || !EMAIL_ADDRESS.test(from || '') || to !== SUPPORT_RECIPIENT) return { ok: false, reason: 'not_configured' };
+  const invalidField = !host || !/^[a-z0-9.-]+$/i.test(host) ? 'SMTP_HOST'
+    : !portValue || !/^\d+$/.test(portValue) || !Number.isInteger(port) || port < 1 || port > 65535 ? 'SMTP_PORT'
+      : env.SMTP_SECURE?.trim().toLowerCase() !== 'true' ? 'SMTP_SECURE'
+        : !EMAIL_ADDRESS.test(user || '') ? 'SMTP_USER' : !password ? 'SMTP_PASSWORD'
+          : !EMAIL_ADDRESS.test(from || '') ? 'SUPPORT_EMAIL_FROM'
+            : to !== SUPPORT_RECIPIENT ? 'SUPPORT_EMAIL_TO' : null;
+  if (invalidField) {
+    diagnostic(emit, 'support_smtp_failed', { stage: 'configuration', category: 'invalid_configuration', field: invalidField });
+    return { ok: false, reason: 'not_configured' };
+  }
+  let nodemailer;
+  try { nodemailer = createTransportImpl ? null : await import('nodemailer'); }
+  catch {
+    diagnostic(emit, 'support_smtp_failed', { stage: 'module_load', category: 'nodemailer_unavailable' });
+    return { ok: false, reason: 'delivery_failed' };
+  }
+  let stage = 'transport_init';
   try {
-    const nodemailer = createTransportImpl ? null : await import('nodemailer');
     const createTransport = createTransportImpl || nodemailer.createTransport || nodemailer.default?.createTransport;
+    if (typeof createTransport !== 'function') {
+      diagnostic(emit, 'support_smtp_failed', { stage: 'transport_init', category: 'missing_transport' });
+      return { ok: false, reason: 'delivery_failed' };
+    }
     const transport = createTransport({ host, port, secure: true, auth: { user, pass: password },
       connectionTimeout: 15000, greetingTimeout: 10000, socketTimeout: 20000, logger: false, debug: false,
       disableFileAccess: true, disableUrlAccess: true, tls: { minVersion: 'TLSv1.2' } });
+    stage = 'smtp_send';
+    diagnostic(emit, 'support_smtp_connection_attempt', { stage: 'smtp_send' });
     const message = { ...supportMessage(request, from), attachments: request.attachment ? [{ filename: request.attachment.name,
       content: Buffer.from(request.attachment.data, 'base64'), contentType: request.attachment.mimeType }] : [] };
     const receipt = await transport.sendMail(message);
     if (!Array.isArray(receipt?.accepted) || !receipt.accepted.some((address) => String(address).toLowerCase() === SUPPORT_RECIPIENT)
-      || receipt.rejected?.some((address) => String(address).toLowerCase() === SUPPORT_RECIPIENT)) return { ok: false, reason: 'unverified_delivery' };
+      || receipt.rejected?.some((address) => String(address).toLowerCase() === SUPPORT_RECIPIENT)) {
+      diagnostic(emit, 'support_smtp_failed', { stage: 'smtp_acceptance', category: 'recipient_not_accepted' });
+      return { ok: false, reason: 'unverified_delivery' };
+    }
+    diagnostic(emit, 'support_smtp_accepted', { stage: 'smtp_acceptance' });
     return { ok: true };
-  } catch { return { ok: false, reason: 'delivery_failed' }; }
+  } catch (error) {
+    diagnostic(emit, 'support_smtp_failed', { ...smtpFailure(error), stage });
+    return { ok: false, reason: 'delivery_failed' };
+  }
 }
 
-export async function deliverSupportEmail(request, { env = process.env, fetchImpl = fetch, createTransportImpl } = {}) {
+export async function deliverSupportEmail(request, { env = process.env, fetchImpl = fetch, createTransportImpl, emit } = {}) {
   const selectedTransport = env.SUPPORT_EMAIL_TRANSPORT?.trim().toLowerCase() || 'api';
-  if (selectedTransport === 'smtp') return deliverBySmtp(request, env, createTransportImpl);
-  if (selectedTransport !== 'api') return { ok: false, reason: 'not_configured' };
+  diagnostic(emit, 'support_email_transport_selected', { transport: selectedTransport === 'smtp' || selectedTransport === 'api' ? selectedTransport : 'invalid' });
+  if (selectedTransport === 'smtp') return deliverBySmtp(request, env, createTransportImpl, emit);
+  if (selectedTransport !== 'api') {
+    diagnostic(emit, 'support_email_failed', { stage: 'configuration', category: 'invalid_transport' });
+    return { ok: false, reason: 'not_configured' };
+  }
   const url = env.SUPPORT_EMAIL_API_URL?.trim();
   const token = env.SUPPORT_EMAIL_API_TOKEN?.trim();
   const from = env.SUPPORT_EMAIL_FROM?.trim();
-  if (!url || !token || !from) return { ok: false, reason: 'not_configured' };
+  if (!url || !token || !from) {
+    diagnostic(emit, 'support_email_failed', { stage: 'configuration', category: 'incomplete_api_configuration' });
+    return { ok: false, reason: 'not_configured' };
+  }
   let endpoint;
-  try { endpoint = new URL(url); } catch { return { ok: false, reason: 'not_configured' }; }
-  if (endpoint.protocol !== 'https:') return { ok: false, reason: 'not_configured' };
+  try { endpoint = new URL(url); } catch {
+    diagnostic(emit, 'support_email_failed', { stage: 'configuration', category: 'invalid_api_url' });
+    return { ok: false, reason: 'not_configured' };
+  }
+  if (endpoint.protocol !== 'https:') {
+    diagnostic(emit, 'support_email_failed', { stage: 'configuration', category: 'invalid_api_url' });
+    return { ok: false, reason: 'not_configured' };
+  }
   const payload = { ...supportMessage(request, from), attachment: request.attachment || null };
   try {
     const response = await fetchImpl(endpoint, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', accept: 'application/json' }, body: JSON.stringify(payload), signal: AbortSignal.timeout(15000) });
-    if (!response.ok) return { ok: false, reason: 'delivery_failed' };
+    if (!response.ok) {
+      diagnostic(emit, 'support_email_failed', { stage: 'api_send', category: 'provider_http', status: response.status });
+      return { ok: false, reason: 'delivery_failed' };
+    }
     const receipt = await response.json();
-    if (receipt?.accepted !== true || receipt?.recipient !== SUPPORT_RECIPIENT) return { ok: false, reason: 'unverified_delivery' };
+    if (receipt?.accepted !== true || receipt?.recipient !== SUPPORT_RECIPIENT) {
+      diagnostic(emit, 'support_email_failed', { stage: 'api_acceptance', category: 'recipient_not_accepted' });
+      return { ok: false, reason: 'unverified_delivery' };
+    }
+    diagnostic(emit, 'support_email_accepted', { stage: 'api_acceptance' });
     return { ok: true };
-  } catch { return { ok: false, reason: 'delivery_failed' }; }
+  } catch {
+    diagnostic(emit, 'support_email_failed', { stage: 'api_send', category: 'request_failed' });
+    return { ok: false, reason: 'delivery_failed' };
+  }
 }
 
-export function createSupportHandler({ env = process.env, fetchImpl = fetch, createTransportImpl, now = () => Date.now() } = {}) {
+export function createSupportHandler({ env = process.env, fetchImpl = fetch, createTransportImpl, now = () => Date.now(), logger = console } = {}) {
   const requests = new Map();
-  return async function handle(body, ip = 'unknown') {
+  return async function handle(body, ip = 'unknown', requestId) {
+    const id = requestId || randomUUID();
+    const emit = (event, details) => logger[event.endsWith('_failed') ? 'warn' : 'info'](event, { requestId: id, ...details });
+    emit('support_request_received', { stage: 'handler' });
     const timestamp = now();
     const recent = (requests.get(ip) || []).filter((time) => timestamp - time < 60_000);
-    if (recent.length >= 3) return { status: 429, body: { ok: false, error: 'rate_limited' } };
+    if (recent.length >= 3) {
+      emit('support_request_failed', { stage: 'rate_limit', category: 'rate_limited' });
+      return { status: 429, body: { ok: false, error: 'rate_limited' } };
+    }
     recent.push(timestamp); requests.set(ip, recent);
     const validated = validateSupportRequest(body);
-    if (!validated.ok) return { status: 400, body: { ok: false, error: validated.reason } };
-    const result = await deliverSupportEmail(validated.request, { env, fetchImpl, createTransportImpl });
+    if (!validated.ok) {
+      emit('support_request_failed', { stage: 'validation', category: validated.reason });
+      return { status: 400, body: { ok: false, error: validated.reason } };
+    }
+    emit('support_request_validated', { stage: 'validation', attachment: Boolean(validated.request.attachment) });
+    const result = await deliverSupportEmail(validated.request, { env, fetchImpl, createTransportImpl, emit });
     return result.ok ? { status: 202, body: { ok: true } } : { status: 503, body: { ok: false, error: 'delivery_unavailable' } };
   };
 }
