@@ -16,3 +16,4 @@ Task 1: complete (tests: `node --test tests/help-center-troubleshooting.test.mjs
 Task 2: complete (tests: `node --test tests/help-center-inventory.test.mjs` → 2/2 pass; generated inventory and 17-row coverage matrix)
 Task 3: complete (tests: `node --test tests/help-center-troubleshooting.test.mjs tests/help-center-registry.test.mjs tests/help-center-chat-retrieval.test.mjs tests/help-center-routes.test.mjs` → 17/17 pass; 50 new troubleshooting records, 69 published total)
 Task 4: complete (tests: `node --test tests/help-center-troubleshooting.test.mjs tests/chatbot-response-resilience.test.mjs` → 19/19 pass; canonical article presentation and structured localized chatbot recommendations)
+Task 5: complete (tests: `node --test tests/dashboard-knowledge-sync.test.mjs` → 2/2 pass; report-only weekly dashboard knowledge sync)
