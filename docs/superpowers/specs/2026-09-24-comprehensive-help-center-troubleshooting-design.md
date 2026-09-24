@@ -23,6 +23,7 @@ The article count is not a target by itself. New public articles are created onl
 - Do not modify Hostinger environment variables, DNS, Render, or `samche-api-service`.
 - Do not publish generic SaaS instructions, fabricate Dashboard screens, or imply tenant inspection without authorized tenant data.
 - Do not turn roadmap or unverified capabilities into operational documentation.
+- Implementation-managed capabilities may have public troubleshooting articles only when those articles state what the customer can verify, what the customer cannot configure, what requires SamChe intervention, and what evidence must accompany a support request. They must never invent customer-facing controls.
 - Preserve unrelated untracked files.
 
 ## Article inventory model
@@ -82,6 +83,32 @@ The inventory will evaluate each category below against evidence and create only
 - Plans / Entitlements: visibility, cumulative plan capabilities, channel/feature limits, language/interaction/visual/voice usage, and support-channel boundaries.
 - Support / Service: request submission, evidence checklist, screenshots, plan support options, AI versus human support boundary.
 - Billing / Usage: only explicitly verified interaction, visual, voice, annual/monthly, setup, onboarding, and overage behavior.
+- Security / Privacy: only explicitly verified access, data handling, privacy, and security behavior.
+- Troubleshooting / Cross-product issues: cross-channel failures, shared state, escalation boundaries, and evidence collection only where supported by verified product behavior.
+
+Every required category must appear in a mandatory coverage matrix/report, including categories with no verified customer-facing content. The matrix contains:
+
+| Category | Audit status | Verified customer-facing areas | Implementation-managed areas | Admin-only areas | Roadmap/unverified areas | Published article count | Draft/Needs Review count | Source evidence | Remaining documentation gaps |
+| --- | --- | --- | --- | --- | --- | ---: | ---: | --- | --- |
+| Account / Access | required | required | required | required | required | required | required | required | required |
+| Dashboard / Overview | required | required | required | required | required | required | required | required | required |
+| Web Chatbot | required | required | required | required | required | required | required | required | required |
+| WhatsApp AI | required | required | required | required | required | required | required | required | required |
+| AI Guide | required | required | required | required | required | required | required | required | required |
+| Knowledge Intelligence | required | required | required | required | required | required | required | required | required |
+| Conversations / Shared Inbox | required | required | required | required | required | required | required | required | required |
+| CRM / Contacts / Leads / Pipeline | required | required | required | required | required | required | required | required | required |
+| Integrations | required | required | required | required | required | required | required | required | required |
+| AI Visual | required | required | required | required | required | required | required | required | required |
+| AI Voice | required | required | required | required | required | required | required | required | required |
+| Team / Permissions | required | required | required | required | required | required | required | required | required |
+| Plans / Entitlements | required | required | required | required | required | required | required | required | required |
+| Support / Service | required | required | required | required | required | required | required | required | required |
+| Billing / Usage | required | required | required | required | required | required | required | required | required |
+| Security / Privacy | required | required | required | required | required | required | required | required | required |
+| Troubleshooting / Cross-product issues | required | required | required | required | required | required | required | required | required |
+
+Allowed audit statuses are exactly: `VERIFIED CUSTOMER-ACCESSIBLE`, `IMPLEMENTATION-MANAGED`, `ADMIN-ONLY`, `ROADMAP`, `UNVERIFIED`, and `NO VERIFIED CONTENT`. No category may be silently skipped.
 
 ## Article quality and publication gate
 
@@ -111,11 +138,13 @@ High-volume families use structured decision trees rather than flat prose. Whats
 
 ## Registry and module structure
 
-Keep existing registry consumers stable while moving new records into category modules and a shared article factory/schema. The aggregator will expose the same published article/search/source APIs, plus inventory validation and issue-family metadata. Search keywords are localized and include only truthful variants such as WhatsApp/wp/chatbot, Turkish response-failure terms, knowledge/PDF/old-price terms, and CRM/lead/pipeline terminology.
+Keep existing registry consumers stable while moving new records into category modules and a shared article factory/schema. The canonical published article registry is the single source for `/help`, `/support` search, Help Center categories, article routing, related articles, and chatbot article retrieval. There must not be a second chatbot-only article corpus. The aggregator will expose the same published article/search/source APIs, plus inventory validation and issue-family metadata. Search keywords are localized and include only truthful variants such as WhatsApp/wp/chatbot, Turkish response-failure terms, knowledge/PDF/old-price terms, and CRM/lead/pipeline terminology.
+
+For article ID or slug X, every surface may use exactly the same canonical record when X is published. Draft, `Needs Review`, `Retired`, `Unverified`, `Roadmap`, and unpublished records are excluded from public search, support search, category listings, related recommendations, chatbot retrieval, chatbot article links, and the sitemap. Article metadata and status must be identical across all surfaces.
 
 ## Chatbot retrieval
 
-Every published troubleshooting record is searchable by symptom, feature name, Dashboard terminology, plan, common error phrase, and EN/TR/AR wording. Retrieval remains bounded and status-filtered. The provider receives verified article sources and Dashboard grounding; stale or unverified content is never silently promoted.
+The OpenAI support chatbot imports articles from the canonical published Help Center registry described above; it must never read a separate chatbot-only corpus. Every published troubleshooting record is searchable by symptom, feature name, Dashboard terminology, plan, common error phrase, and EN/TR/AR wording. Retrieval remains bounded and status-filtered. The provider receives verified article sources and Dashboard grounding; stale or unverified content is never silently promoted. Chatbot links must resolve only to canonical published article URLs and must never be fabricated.
 
 ## Weekly sync compatibility
 
@@ -125,7 +154,13 @@ The weekly Dashboard audit consumes the inventory and returns affected article I
 
 Add regression coverage for:
 
+- canonical registry identity across Help Center, support search, categories, routing, related articles, and chatbot retrieval
+- identical article metadata/status across all surfaces
+- published article available to both Help Center and chatbot
+- draft, retired, and unpublished article unavailable to both Help Center and chatbot
 - unique article IDs/slugs
+- zero broken category references
+- zero broken related-article references
 - complete EN/TR/AR content for every published record
 - source evidence and verification metadata
 - exclusion of `Needs Review`, `Retired`, `Roadmap`, and `Unverified` records
@@ -136,6 +171,38 @@ Add regression coverage for:
 - related article links
 - inventory compatibility with weekly sync impact reports
 - preservation of existing Help Center, support, chatbot, screenshot, persistence, and article-link behavior
+
+## Deterministic acceptance gates
+
+The implementation cannot be marked complete with a partial or “mostly pass” result. Each gate is binary and must pass:
+
+### Registry integrity
+
+PASS only if there are zero duplicate article IDs, zero duplicate slugs, zero invalid schema records, zero broken category references, and zero broken related-article references.
+
+### Category audit
+
+PASS only if every required category appears in the coverage matrix with one allowed audit status, evidence, counts, and remaining gaps. No category may be silently skipped.
+
+### Published article completeness
+
+PASS only if every published article has complete EN, TR, and AR content; ID; slug; category; verification status; source evidence; last verified date; plan applicability where relevant; related routes where relevant; and chatbot/search keywords where relevant.
+
+### Status exclusion
+
+PASS only if every non-published status is absent from Help Center search, support search, category listings, related recommendations, chatbot retrieval, chatbot article links, and the sitemap.
+
+### Search
+
+PASS only if EN/TR/AR search works, published-only filtering works, localized synonym search works, and known troubleshooting phrases retrieve relevant published articles.
+
+### Chatbot
+
+PASS only if retrieval uses the canonical registry, links only published verified articles, produces no fabricated URL, excludes stale or retired content, retrieves an appropriate article for symptom queries, and describes implementation-managed boundaries accurately.
+
+### Validation
+
+PASS only if the full test suite, typecheck, lint, build, production HTTP smoke checks, browser acceptance checks, published article route checks, invalid/unpublished article 404 checks, and sitemap verification all pass.
 
 Run the full website test suite, targeted Help Center tests, typecheck, lint, build, local production HTTP checks, and browser smoke tests for search, article links, and support retrieval. Public production verification remains pending deployment.
 
