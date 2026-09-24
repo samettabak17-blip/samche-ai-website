@@ -7,6 +7,7 @@ import {
   getHelpArticleSources,
   getHelpCoverageInventory,
   getHelpArticleStatistics,
+  getHelpCenterStats,
   filterPublishedHelpArticles,
   getPublishedCategories,
 } from '../lib/help-center/index.mjs';
@@ -77,12 +78,35 @@ test('article statistics equal the canonical published registry after publicatio
   );
 });
 
+test('canonical help center stats expose exact verified totals category counts and locale coverage', () => {
+  const stats = getHelpCenterStats('tr');
+  assert.equal(stats.totalPublished, 68);
+  assert.equal(stats.totalTroubleshooting, 50);
+  assert.equal(stats.totalCategories, 11);
+  assert.deepEqual(stats.byLocale, { en: 68, tr: 68, ar: 68 });
+  assert.deepEqual(stats.byStatus, { Published: 68 });
+  assert.deepEqual(stats.byCategory.map(({ slug, count }) => [slug, count]), [
+    ['getting-started', 5], ['dashboard-account', 5], ['ai-assistants', 3],
+    ['web-chatbot', 5], ['whatsapp-ai', 9], ['ai-guide', 3], ['knowledge', 9],
+    ['conversations', 5], ['crm-operations', 6], ['team-access', 2], ['support', 16],
+  ]);
+
+  const turkishArticle = getPublishedArticles('tr').find((article) => article.slug === 'whatsapp-ai-not-replying');
+  assert.equal(turkishArticle.categoryLabel, 'WhatsApp AI');
+  assert.equal(turkishArticle.articleType, 'troubleshooting');
+  assert.equal(turkishArticle.articleTypeLabel, 'Sorun Giderme');
+});
+
 test('publication filter excludes draft retired unverified roadmap and unpublished records', () => {
-  const record = (status) => ({ slug: status.toLowerCase().replaceAll(' ', '-'), verification: { status } });
+  const record = (status) => ({
+    slug: status.toLowerCase().replaceAll(' ', '-'),
+    verification: { status, verifiedOn: '2026-09-25', sourceFiles: ['verified.tsx'], reviewTriggers: ['source changes'] },
+  });
+  const incompletePublished = { slug: 'incomplete-published', verification: { status: 'Published', verifiedOn: '', sourceFiles: [], reviewTriggers: [] } };
   assert.deepEqual(
     filterPublishedHelpArticles([
       record('Published'), record('Draft'), record('Needs Review'), record('Retired'),
-      record('Unverified'), record('Roadmap'), record('Unpublished'),
+      record('Unverified'), record('Roadmap'), record('Unpublished'), incompletePublished,
     ]).map(({ verification }) => verification.status),
     ['Published'],
   );
