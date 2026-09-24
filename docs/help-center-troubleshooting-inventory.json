@@ -1,0 +1,747 @@
+{
+  "generatedOn": "2026-09-24",
+  "dashboardRoot": "C:\\Users\\smttb\\Documents\\samche-api-service\\dashboard",
+  "candidates": [
+    {
+      "id": "dashboard-overview",
+      "category": "Dashboard / Overview",
+      "area": "Dashboard Overview",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "sourceFiles": [
+        "dashboard/src/app/router.tsx",
+        "dashboard/src/features/overview/overview-page.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "sourceRoutes": [
+        "/app/:tenantId/overview"
+      ],
+      "verifiedControls": [
+        "date-filtered analytics",
+        "Conversations Over Time",
+        "Top Channels",
+        "Recent Conversations"
+      ],
+      "plan": "all",
+      "remainingDocumentationGaps": []
+    },
+    {
+      "id": "ai-assistants",
+      "category": "Account / Access",
+      "area": "AI Assistants",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "sourceFiles": [
+        "dashboard/src/features/assistants/assistants-page.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "sourceRoutes": [
+        "/app/:tenantId/assistants"
+      ],
+      "verifiedControls": [
+        "New assistant",
+        "Assistant name",
+        "Status",
+        "Edit assistant",
+        "Delete assistant",
+        "Model",
+        "System prompt"
+      ],
+      "plan": "all",
+      "remainingDocumentationGaps": []
+    },
+    {
+      "id": "channels",
+      "category": "WhatsApp AI",
+      "area": "Channels",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "sourceFiles": [
+        "dashboard/src/features/channels/channels-page.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "sourceRoutes": [
+        "/app/:tenantId/channels"
+      ],
+      "verifiedControls": [
+        "New channel",
+        "Channel type",
+        "Display name",
+        "External channel ID",
+        "Assigned assistant",
+        "Status",
+        "Edit channel",
+        "Delete channel",
+        "Web Chat Experience"
+      ],
+      "plan": "channel dependent",
+      "remainingDocumentationGaps": []
+    },
+    {
+      "id": "web-chatbot",
+      "category": "Web Chatbot",
+      "area": "Web Chatbot",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "sourceFiles": [
+        "dashboard/src/features/channels/web-chat-management.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "sourceRoutes": [
+        "/app/:tenantId/channels/web-chat"
+      ],
+      "verifiedControls": [
+        "Web Chat Setup",
+        "assigned assistant",
+        "active/inactive widget status",
+        "primary language",
+        "widget appearance",
+        "launcher appearance",
+        "logo/avatar upload",
+        "site discovery",
+        "theme preview",
+        "embed/integration details"
+      ],
+      "plan": "all",
+      "remainingDocumentationGaps": []
+    },
+    {
+      "id": "whatsapp-ai",
+      "category": "WhatsApp AI",
+      "area": "WhatsApp AI",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "sourceFiles": [
+        "dashboard/src/features/channels/channels-page.tsx",
+        "dashboard/src/features/channels/whatsapp-embedded-signup.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "sourceRoutes": [
+        "/app/:tenantId/channels"
+      ],
+      "verifiedControls": [
+        "WhatsApp channel",
+        "Edit channel",
+        "Status",
+        "Assigned assistant",
+        "External channel ID",
+        "Save changes"
+      ],
+      "plan": "Growth+",
+      "remainingDocumentationGaps": []
+    },
+    {
+      "id": "ai-guide",
+      "category": "AI Guide",
+      "area": "AI Guide",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "sourceFiles": [
+        "dashboard/src/features/guide-experience/guide-experience-page.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "sourceRoutes": [
+        "/app/:tenantId/guide-experience"
+      ],
+      "verifiedControls": [
+        "Guide Experience configuration",
+        "guide channel management"
+      ],
+      "plan": "Business+",
+      "remainingDocumentationGaps": []
+    },
+    {
+      "id": "knowledge-base",
+      "category": "Knowledge Intelligence",
+      "area": "Knowledge Base",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "sourceFiles": [
+        "dashboard/src/features/knowledge-base/knowledge-base-page.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "sourceRoutes": [
+        "/app/:tenantId/knowledge-base"
+      ],
+      "verifiedControls": [
+        "New document",
+        "Title",
+        "Text content",
+        "Associated assistant",
+        "Status",
+        "Edit document",
+        "Delete document"
+      ],
+      "plan": "all",
+      "remainingDocumentationGaps": []
+    },
+    {
+      "id": "knowledge-intelligence",
+      "category": "Knowledge Intelligence",
+      "area": "Knowledge Intelligence",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "sourceFiles": [
+        "dashboard/src/features/knowledge-intelligence/knowledge-intelligence-page.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "sourceRoutes": [
+        "/app/:tenantId/knowledge"
+      ],
+      "verifiedControls": [
+        "sources",
+        "visual source upload",
+        "manual source/entity creation",
+        "processing/indexing state",
+        "assistant assignment",
+        "reindex",
+        "archive",
+        "retrieval preview",
+        "business identities",
+        "profiles",
+        "recommendations",
+        "configurations"
+      ],
+      "plan": "all; depth varies by plan/scope",
+      "remainingDocumentationGaps": []
+    },
+    {
+      "id": "knowledge-approvals",
+      "category": "Knowledge Intelligence",
+      "area": "Knowledge Approvals",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "sourceFiles": [
+        "dashboard/src/features/knowledge-intelligence/knowledge-intelligence-page.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "sourceRoutes": [
+        "/app/:tenantId/knowledge-base/candidates"
+      ],
+      "verifiedControls": [
+        "candidate evidence",
+        "approve candidate",
+        "reject candidate",
+        "entity/media approve/reject",
+        "profile approve/reject/activate/rollback",
+        "assistant configuration approve/reject/activate/rollback"
+      ],
+      "plan": "scope dependent",
+      "remainingDocumentationGaps": []
+    },
+    {
+      "id": "conversations-shared-inbox",
+      "category": "Conversations / Shared Inbox",
+      "area": "Conversations / Shared Inbox",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "sourceFiles": [
+        "dashboard/src/features/conversations/conversations-page.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "sourceRoutes": [
+        "/app/:tenantId/conversations/:channel"
+      ],
+      "verifiedControls": [
+        "WhatsApp",
+        "Web Chatbot",
+        "AI Guide",
+        "conversation search/filter",
+        "message history",
+        "attachments",
+        "take over",
+        "return to AI",
+        "pause/resume AI",
+        "human typing",
+        "close conversation"
+      ],
+      "plan": "Shared Inbox Growth+",
+      "remainingDocumentationGaps": []
+    },
+    {
+      "id": "human-handoff",
+      "category": "Conversations / Shared Inbox",
+      "area": "Human Handoff",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "sourceFiles": [
+        "dashboard/src/features/conversations/conversation-detail-page.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "sourceRoutes": [
+        "/app/:tenantId/conversations/:channel/:conversationId"
+      ],
+      "verifiedControls": [
+        "Take over",
+        "Return to AI",
+        "Pause AI",
+        "Resume AI",
+        "Human typing indicator",
+        "Close conversation"
+      ],
+      "plan": "plan/channel dependent",
+      "remainingDocumentationGaps": []
+    },
+    {
+      "id": "crm-contacts",
+      "category": "CRM / Contacts / Leads / Pipeline",
+      "area": "CRM Contacts",
+      "auditStatus": "UNVERIFIED",
+      "sourceFiles": [
+        "dashboard/src/app/router.tsx",
+        "dashboard/src/components/layout/sidebar.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "sourceRoutes": [],
+      "verifiedControls": [],
+      "plan": "Growth+",
+      "remainingDocumentationGaps": []
+    },
+    {
+      "id": "crm-leads",
+      "category": "CRM / Contacts / Leads / Pipeline",
+      "area": "CRM Leads",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "sourceFiles": [
+        "dashboard/src/features/leads/leads-page.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "sourceRoutes": [
+        "/app/:tenantId/leads"
+      ],
+      "verifiedControls": [
+        "temperature/stage/source/assignee filters",
+        "lead detail",
+        "assign lead",
+        "change stage",
+        "request rescore",
+        "open conversation"
+      ],
+      "plan": "Growth+",
+      "remainingDocumentationGaps": []
+    },
+    {
+      "id": "pipeline",
+      "category": "CRM / Contacts / Leads / Pipeline",
+      "area": "Pipeline",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "sourceFiles": [
+        "dashboard/src/features/pipeline/pipeline-page.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "sourceRoutes": [
+        "/app/:tenantId/pipeline"
+      ],
+      "verifiedControls": [
+        "New deal",
+        "deal title/contact/stage/value/currency/probability/close date/owner/source/notes",
+        "move stage",
+        "edit",
+        "archive"
+      ],
+      "plan": "Growth+",
+      "remainingDocumentationGaps": []
+    },
+    {
+      "id": "integrations",
+      "category": "Integrations",
+      "area": "Integrations",
+      "auditStatus": "IMPLEMENTATION-MANAGED",
+      "sourceFiles": [
+        "dashboard/src/app/router.tsx",
+        "dashboard/src/components/layout/sidebar.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "sourceRoutes": [],
+      "verifiedControls": [],
+      "plan": "plan/scope dependent",
+      "remainingDocumentationGaps": []
+    },
+    {
+      "id": "ai-visual-generation",
+      "category": "AI Visual",
+      "area": "AI Visual generation",
+      "auditStatus": "IMPLEMENTATION-MANAGED",
+      "sourceFiles": [
+        "dashboard/src/app/router.tsx",
+        "dashboard/src/components/layout/sidebar.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "sourceRoutes": [],
+      "verifiedControls": [],
+      "plan": "Enterprise only; 200 shared visual generations per billing period",
+      "remainingDocumentationGaps": []
+    },
+    {
+      "id": "ai-voice",
+      "category": "AI Voice",
+      "area": "AI Voice",
+      "auditStatus": "IMPLEMENTATION-MANAGED",
+      "sourceFiles": [
+        "dashboard/src/app/router.tsx",
+        "dashboard/src/components/layout/sidebar.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "sourceRoutes": [],
+      "verifiedControls": [],
+      "plan": "Enterprise base entitlement; other plans use a separately priced add-on",
+      "remainingDocumentationGaps": []
+    },
+    {
+      "id": "analytics",
+      "category": "Dashboard / Overview",
+      "area": "Analytics",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "sourceFiles": [
+        "dashboard/src/features/overview/overview-page.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "sourceRoutes": [
+        "/app/:tenantId/overview"
+      ],
+      "verifiedControls": [
+        "date-filtered conversation timeseries",
+        "channel distribution",
+        "recent conversation activity"
+      ],
+      "plan": "all",
+      "remainingDocumentationGaps": []
+    },
+    {
+      "id": "account-settings",
+      "category": "Account / Access",
+      "area": "Account Settings",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "sourceFiles": [
+        "dashboard/src/features/settings/settings-page.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "sourceRoutes": [
+        "/app/:tenantId/settings"
+      ],
+      "verifiedControls": [
+        "account information",
+        "selected tenant",
+        "plan/billing cycle view",
+        "plan management/request",
+        "password change"
+      ],
+      "plan": "all",
+      "remainingDocumentationGaps": []
+    },
+    {
+      "id": "support-portal",
+      "category": "Support / Service",
+      "area": "Support Portal",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "sourceFiles": [
+        "dashboard/src/app/router.tsx",
+        "dashboard/src/components/layout/sidebar.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "sourceRoutes": [
+        "/support"
+      ],
+      "verifiedControls": [
+        "Submit Support Request",
+        "PNG/JPEG/WEBP attachment up to 5 MB"
+      ],
+      "plan": "all; support channel follows plan entitlement",
+      "remainingDocumentationGaps": []
+    }
+  ],
+  "coverage": [
+    {
+      "category": "Account / Access",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "verifiedCustomerAccessibleAreas": [
+        "Account / Access"
+      ],
+      "implementationManagedAreas": [],
+      "adminOnlyAreas": [],
+      "roadmapAreas": [],
+      "unverifiedAreas": [],
+      "publishedArticleCount": 0,
+      "draftOrNeedsReviewCount": 0,
+      "sourceEvidence": [
+        "dashboard/src/features/assistants/assistants-page.tsx",
+        "website/lib/support-dashboard-map.mjs",
+        "dashboard/src/features/settings/settings-page.tsx"
+      ],
+      "remainingDocumentationGaps": []
+    },
+    {
+      "category": "Dashboard / Overview",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "verifiedCustomerAccessibleAreas": [
+        "Dashboard / Overview"
+      ],
+      "implementationManagedAreas": [],
+      "adminOnlyAreas": [],
+      "roadmapAreas": [],
+      "unverifiedAreas": [],
+      "publishedArticleCount": 0,
+      "draftOrNeedsReviewCount": 0,
+      "sourceEvidence": [
+        "dashboard/src/app/router.tsx",
+        "dashboard/src/features/overview/overview-page.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "remainingDocumentationGaps": []
+    },
+    {
+      "category": "Web Chatbot",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "verifiedCustomerAccessibleAreas": [
+        "Web Chatbot"
+      ],
+      "implementationManagedAreas": [],
+      "adminOnlyAreas": [],
+      "roadmapAreas": [],
+      "unverifiedAreas": [],
+      "publishedArticleCount": 2,
+      "draftOrNeedsReviewCount": 0,
+      "sourceEvidence": [
+        "dashboard/src/features/channels/web-chat-management.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "remainingDocumentationGaps": []
+    },
+    {
+      "category": "WhatsApp AI",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "verifiedCustomerAccessibleAreas": [
+        "WhatsApp AI"
+      ],
+      "implementationManagedAreas": [],
+      "adminOnlyAreas": [],
+      "roadmapAreas": [],
+      "unverifiedAreas": [],
+      "publishedArticleCount": 2,
+      "draftOrNeedsReviewCount": 0,
+      "sourceEvidence": [
+        "dashboard/src/features/channels/channels-page.tsx",
+        "website/lib/support-dashboard-map.mjs",
+        "dashboard/src/features/channels/whatsapp-embedded-signup.tsx"
+      ],
+      "remainingDocumentationGaps": []
+    },
+    {
+      "category": "AI Guide",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "verifiedCustomerAccessibleAreas": [
+        "AI Guide"
+      ],
+      "implementationManagedAreas": [],
+      "adminOnlyAreas": [],
+      "roadmapAreas": [],
+      "unverifiedAreas": [],
+      "publishedArticleCount": 1,
+      "draftOrNeedsReviewCount": 0,
+      "sourceEvidence": [
+        "dashboard/src/features/guide-experience/guide-experience-page.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "remainingDocumentationGaps": []
+    },
+    {
+      "category": "Knowledge Intelligence",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "verifiedCustomerAccessibleAreas": [
+        "Knowledge Intelligence"
+      ],
+      "implementationManagedAreas": [],
+      "adminOnlyAreas": [],
+      "roadmapAreas": [],
+      "unverifiedAreas": [],
+      "publishedArticleCount": 1,
+      "draftOrNeedsReviewCount": 0,
+      "sourceEvidence": [
+        "dashboard/src/features/knowledge-base/knowledge-base-page.tsx",
+        "website/lib/support-dashboard-map.mjs",
+        "dashboard/src/features/knowledge-intelligence/knowledge-intelligence-page.tsx"
+      ],
+      "remainingDocumentationGaps": []
+    },
+    {
+      "category": "Conversations / Shared Inbox",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "verifiedCustomerAccessibleAreas": [
+        "Conversations / Shared Inbox"
+      ],
+      "implementationManagedAreas": [],
+      "adminOnlyAreas": [],
+      "roadmapAreas": [],
+      "unverifiedAreas": [],
+      "publishedArticleCount": 1,
+      "draftOrNeedsReviewCount": 0,
+      "sourceEvidence": [
+        "dashboard/src/features/conversations/conversations-page.tsx",
+        "website/lib/support-dashboard-map.mjs",
+        "dashboard/src/features/conversations/conversation-detail-page.tsx"
+      ],
+      "remainingDocumentationGaps": []
+    },
+    {
+      "category": "CRM / Contacts / Leads / Pipeline",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "verifiedCustomerAccessibleAreas": [
+        "CRM / Contacts / Leads / Pipeline"
+      ],
+      "implementationManagedAreas": [],
+      "adminOnlyAreas": [],
+      "roadmapAreas": [],
+      "unverifiedAreas": [],
+      "publishedArticleCount": 0,
+      "draftOrNeedsReviewCount": 0,
+      "sourceEvidence": [
+        "dashboard/src/app/router.tsx",
+        "dashboard/src/components/layout/sidebar.tsx",
+        "website/lib/support-dashboard-map.mjs",
+        "dashboard/src/features/leads/leads-page.tsx",
+        "dashboard/src/features/pipeline/pipeline-page.tsx"
+      ],
+      "remainingDocumentationGaps": []
+    },
+    {
+      "category": "Integrations",
+      "auditStatus": "IMPLEMENTATION-MANAGED",
+      "verifiedCustomerAccessibleAreas": [],
+      "implementationManagedAreas": [
+        "Integrations"
+      ],
+      "adminOnlyAreas": [],
+      "roadmapAreas": [],
+      "unverifiedAreas": [],
+      "publishedArticleCount": 0,
+      "draftOrNeedsReviewCount": 0,
+      "sourceEvidence": [
+        "dashboard/src/app/router.tsx",
+        "dashboard/src/components/layout/sidebar.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "remainingDocumentationGaps": []
+    },
+    {
+      "category": "AI Visual",
+      "auditStatus": "IMPLEMENTATION-MANAGED",
+      "verifiedCustomerAccessibleAreas": [],
+      "implementationManagedAreas": [
+        "AI Visual"
+      ],
+      "adminOnlyAreas": [],
+      "roadmapAreas": [],
+      "unverifiedAreas": [],
+      "publishedArticleCount": 0,
+      "draftOrNeedsReviewCount": 0,
+      "sourceEvidence": [
+        "dashboard/src/app/router.tsx",
+        "dashboard/src/components/layout/sidebar.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "remainingDocumentationGaps": []
+    },
+    {
+      "category": "AI Voice",
+      "auditStatus": "IMPLEMENTATION-MANAGED",
+      "verifiedCustomerAccessibleAreas": [],
+      "implementationManagedAreas": [
+        "AI Voice"
+      ],
+      "adminOnlyAreas": [],
+      "roadmapAreas": [],
+      "unverifiedAreas": [],
+      "publishedArticleCount": 0,
+      "draftOrNeedsReviewCount": 0,
+      "sourceEvidence": [
+        "dashboard/src/app/router.tsx",
+        "dashboard/src/components/layout/sidebar.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "remainingDocumentationGaps": []
+    },
+    {
+      "category": "Team / Permissions",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "verifiedCustomerAccessibleAreas": [
+        "Team / Permissions"
+      ],
+      "implementationManagedAreas": [],
+      "adminOnlyAreas": [],
+      "roadmapAreas": [],
+      "unverifiedAreas": [],
+      "publishedArticleCount": 0,
+      "draftOrNeedsReviewCount": 0,
+      "sourceEvidence": [],
+      "remainingDocumentationGaps": []
+    },
+    {
+      "category": "Plans / Entitlements",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "verifiedCustomerAccessibleAreas": [
+        "Plans / Entitlements"
+      ],
+      "implementationManagedAreas": [],
+      "adminOnlyAreas": [],
+      "roadmapAreas": [],
+      "unverifiedAreas": [],
+      "publishedArticleCount": 0,
+      "draftOrNeedsReviewCount": 0,
+      "sourceEvidence": [],
+      "remainingDocumentationGaps": []
+    },
+    {
+      "category": "Support / Service",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "verifiedCustomerAccessibleAreas": [
+        "Support / Service"
+      ],
+      "implementationManagedAreas": [],
+      "adminOnlyAreas": [],
+      "roadmapAreas": [],
+      "unverifiedAreas": [],
+      "publishedArticleCount": 0,
+      "draftOrNeedsReviewCount": 0,
+      "sourceEvidence": [
+        "dashboard/src/app/router.tsx",
+        "dashboard/src/components/layout/sidebar.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "remainingDocumentationGaps": []
+    },
+    {
+      "category": "Billing / Usage",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "verifiedCustomerAccessibleAreas": [
+        "Billing / Usage"
+      ],
+      "implementationManagedAreas": [],
+      "adminOnlyAreas": [],
+      "roadmapAreas": [],
+      "unverifiedAreas": [],
+      "publishedArticleCount": 0,
+      "draftOrNeedsReviewCount": 0,
+      "sourceEvidence": [],
+      "remainingDocumentationGaps": []
+    },
+    {
+      "category": "Security / Privacy",
+      "auditStatus": "NO VERIFIED CONTENT",
+      "verifiedCustomerAccessibleAreas": [],
+      "implementationManagedAreas": [],
+      "adminOnlyAreas": [],
+      "roadmapAreas": [],
+      "unverifiedAreas": [],
+      "publishedArticleCount": 0,
+      "draftOrNeedsReviewCount": 0,
+      "sourceEvidence": [],
+      "remainingDocumentationGaps": [
+        "No verified customer-facing behavior is currently documented."
+      ]
+    },
+    {
+      "category": "Troubleshooting / Cross-product issues",
+      "auditStatus": "NO VERIFIED CONTENT",
+      "verifiedCustomerAccessibleAreas": [],
+      "implementationManagedAreas": [],
+      "adminOnlyAreas": [],
+      "roadmapAreas": [],
+      "unverifiedAreas": [],
+      "publishedArticleCount": 0,
+      "draftOrNeedsReviewCount": 0,
+      "sourceEvidence": [],
+      "remainingDocumentationGaps": [
+        "No verified customer-facing behavior is currently documented."
+      ]
+    }
+  ]
+}
