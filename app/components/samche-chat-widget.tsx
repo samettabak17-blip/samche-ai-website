@@ -142,7 +142,9 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
     return () => timers.forEach((timer) => window.cancelAnimationFrame(timer));
   }, []);
   useEffect(() => {
-    const timer = window.setTimeout(() => {
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
       if (!sessionIdRef.current) sessionIdRef.current = `chat-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
       const saved = loadChatSession();
       if (saved) {
@@ -161,8 +163,8 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
         setOpen(false);
       }
       setHydrated(true);
-    }, 0);
-    return () => window.clearTimeout(timer);
+    });
+    return () => { active = false; };
   // Hydrate once. Locale changes may update an untouched greeting below, but
   // must never discard a conversation after the visitor has sent a message.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -215,7 +217,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
 
   async function ask(question: string) {
     const trimmed = question.trim();
-    if ((!trimmed && !attachment) || sending || !hydrated) return;
+    if ((!trimmed && !attachment) || sending) return;
     const imageForTurn = attachment || recentImageRef.current;
     if (attachment) recentImageRef.current = attachment;
     else recentImageRef.current = null;
@@ -330,7 +332,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
   } as CSSProperties;
 
   return <div className={`samche-chat-root${keyboardOpen ? ' samche-keyboard-open' : ''}`} style={viewportStyle}>
-    {open && <section className={`samche-chat-panel${keyboardOpen ? ' samche-keyboard-open' : ''}`} role="dialog" aria-label={config.assistant_display_name} aria-modal="false">
+    <section className={`samche-chat-panel${open ? ' is-open' : ''}${keyboardOpen ? ' samche-keyboard-open' : ''}`} aria-hidden={!open} role="dialog" aria-label={config.assistant_display_name} aria-modal="false">
       <header className="samche-chat-header"><Orb small header avatarUrl={config.avatar_url || config.logo_url} /><div className="samche-chat-title"><strong>{config.assistant_display_name}</strong><span><i /> {config.assistant_status_label}</span><small>{config.subtitle}</small></div><div className="samche-chat-menu-wrap"><button className="samche-icon-button samche-menu" type="button" aria-label={config.more_options_label} aria-expanded={menuOpen} title={config.more_options_label} onClick={() => setMenuOpen((value) => !value)}>···</button>{menuOpen && <div className="samche-chat-menu"><button type="button" onClick={() => { setMenuOpen(false); setConfirmReset(true); }}>Clear conversation</button></div>}</div><button className="samche-icon-button" type="button" aria-label="Close chat" onClick={() => setOpen(false)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button></header>
       {confirmReset && <div className="samche-reset-backdrop"><section className="samche-reset-dialog" role="alertdialog" aria-modal="true" aria-labelledby="samche-reset-title" aria-describedby="samche-reset-copy"><h2 id="samche-reset-title">Clear conversation?</h2><p id="samche-reset-copy">Clear this conversation and start again?</p><div><button type="button" onClick={() => setConfirmReset(false)}>CANCEL</button><button type="button" onClick={resetConversation}>CLEAR CONVERSATION</button></div></section></div>}
       <div className="samche-chat-messages" ref={listRef} aria-live="polite">
@@ -349,14 +351,14 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
       </div>
       <div className={`samche-chat-composer${attachment ? ' has-attachment' : ''}`}>
       {summaryReady && <section className="samche-lead-card" aria-label="Your requirements"><div className="samche-lead-heading"><strong>YOUR REQUIREMENTS</strong><button type="button" onClick={() => setEditing((value) => !value)}>{editing ? 'Done' : 'Edit details'}</button></div>{editing ? <div className="samche-lead-edit">{leadEditFields.map(([key,label]) => <label key={key}>{label}<input value={leadInputValue(salesState.lead, key)} onChange={(event) => updateLead(key, event.target.value)} /></label>)}</div> : <dl>{leadSummaryFields(salesState.lead).map(([label,value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>}{salesActions.length > 0 && <div className="samche-lead-actions">{salesActions.map((action) => action.type === 'demo' ? <button type="button" key={action.label} onClick={openDemoRequest}>{action.label}</button> : <a key={action.label} href={buildWhatsAppSalesUrl(salesState.lead, locale)} target="_blank" rel="noreferrer">{action.label}</a>)}</div>}</section>}
-      {contextualQuickActions.length > 0 && <div className="samche-chat-actions" aria-label="Product shortcuts">{contextualQuickActions.map((action, index) => <button className={index === 0 ? 'selected' : ''} type="button" key={action} onClick={() => void ask(action)} disabled={sending || !hydrated}>{action}</button>)}</div>}
+      {contextualQuickActions.length > 0 && <div className="samche-chat-actions" aria-label="Product shortcuts">{contextualQuickActions.map((action, index) => <button className={index === 0 ? 'selected' : ''} type="button" key={action} onClick={() => void ask(action)} disabled={sending}>{action}</button>)}</div>}
       {actions.some((action) => action.type === 'link') && <div className="samche-sales-actions" aria-label="Product demos">{actions.filter((action) => action.type === 'link').map((action) => <a key={action.label} href={action.href} target="_blank" rel="noreferrer">{action.label}</a>)}</div>}
       {!summaryReady && salesActions.length > 0 && <div className="samche-sales-actions" aria-label="Sales next steps">{salesActions.map((action) => action.type === 'demo' ? <button type="button" key={action.label} onClick={openDemoRequest}>{action.label}</button> : <a key={action.label} href={buildWhatsAppSalesUrl(salesState.lead, locale)} target="_blank" rel="noreferrer">{action.label}</a>)}</div>}
       {attachment && <div className="samche-attachment-preview"><img src={attachment.preview} alt={attachment.name} /><span>{attachment.name}</span><button type="button" onClick={() => setAttachment(null)} aria-label={translateText('Remove attachment', locale)}>×</button></div>}
-      <form className="samche-chat-form" onSubmit={handleSubmit}><label className="sr-only" htmlFor="samche-chat-input">{translateText('Ask SamChe AI Assistant', locale)}</label><label className="samche-clip" title={translateText('Attach screenshot', locale)}><input className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => void selectAttachment(event.target.files?.[0])} /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 12.5 6.8-6.8a3.2 3.2 0 0 1 4.5 4.5l-8.5 8.5a5 5 0 0 1-7.1-7.1l8-8" /></svg></label><input ref={inputRef} id="samche-chat-input" value={input} onPaste={handlePaste} onChange={(event) => setInput(event.target.value)} placeholder={translateText(config.input_placeholder, locale)} autoComplete="off" disabled={!hydrated} /><button className="samche-send" type="submit" aria-label={translateText('Send message', locale)} disabled={!hydrated || sending || (!input.trim() && !attachment)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 4 17 8-17 8 3-8-3-8Zm3 8h14" /></svg></button></form>
+      <form className="samche-chat-form" onSubmit={handleSubmit}><label className="sr-only" htmlFor="samche-chat-input">{translateText('Ask SamChe AI Assistant', locale)}</label><label className="samche-clip" title={translateText('Attach screenshot', locale)}><input className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => void selectAttachment(event.target.files?.[0])} /><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 12.5 6.8-6.8a3.2 3.2 0 0 1 4.5 4.5l-8.5 8.5a5 5 0 0 1-7.1-7.1l8-8" /></svg></label><input ref={inputRef} id="samche-chat-input" value={input} onPaste={handlePaste} onChange={(event) => setInput(event.target.value)} placeholder={translateText(config.input_placeholder, locale)} autoComplete="off" /><button className="samche-send" type="submit" aria-label={translateText('Send message', locale)} disabled={sending || (!input.trim() && !attachment)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 4 17 8-17 8 3-8-3-8Zm3 8h14" /></svg></button></form>
       <p className="samche-chat-disclaimer">{translateText(config.scope_disclaimer, locale)}</p>
       </div>
-    </section>}
+    </section>
     <button id="samche-chat-launcher" className={`samche-chat-launcher${open ? ' is-open' : ''}`} type="button" aria-label={open ? `Close ${config.assistant_display_name} chat` : config.launcher_label} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{open ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg> : <Orb avatarUrl={config.avatar_url || config.logo_url} />}</button>
   </div>;
 }
