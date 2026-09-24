@@ -5,6 +5,7 @@ import {
   validateHelpCenterRegistry,
   getHelpCoverageMatrix,
 } from '../lib/help-center/troubleshooting-schema.mjs';
+import { getPublishedArticles, getArticleBySlug } from '../lib/help-center/index.mjs';
 
 const localized = (value) => ({ en: value, tr: `${value} TR`, ar: `${value} AR` });
 const localizedList = (value) => ({ en: [value], tr: [`${value} TR`], ar: [`${value} AR`] });
@@ -61,4 +62,28 @@ test('coverage matrix includes every mandatory category and allowed status', () 
     'Team / Permissions', 'Plans / Entitlements', 'Support / Service', 'Billing / Usage', 'Security / Privacy', 'Troubleshooting / Cross-product issues',
   ]);
   for (const row of matrix) assert.match(row.auditStatus, /^(VERIFIED CUSTOMER-ACCESSIBLE|IMPLEMENTATION-MANAGED|ADMIN-ONLY|ROADMAP|UNVERIFIED|NO VERIFIED CONTENT)$/);
+});
+
+test('publishes a substantially expanded verified troubleshooting inventory', () => {
+  const articles = getPublishedArticles('en');
+  assert.ok(articles.length >= 45, `expected at least 45 published articles, got ${articles.length}`);
+  for (const slug of [
+    'account-workspace-access', 'dashboard-data-missing', 'web-chatbot-not-responding', 'whatsapp-ai-not-replying',
+    'ai-guide-not-available', 'knowledge-pdf-old-price', 'conversation-missing-from-inbox', 'lead-not-visible',
+    'integration-requires-samche', 'ai-visual-not-available', 'ai-voice-not-connecting', 'team-member-permission-denied',
+    'feature-not-visible-by-plan', 'submit-support-evidence', 'ai-usage-limits-explained',
+  ]) assert.ok(getArticleBySlug(slug, 'en'), `${slug} should be published`);
+});
+
+test('major troubleshooting families expose localized decision trees and boundaries', () => {
+  for (const category of ['Web Chatbot', 'WhatsApp AI', 'Knowledge Intelligence', 'Conversations / Shared Inbox', 'CRM / Contacts / Leads / Pipeline', 'Integrations', 'AI Visual', 'AI Voice', 'Plans / Entitlements', 'Support / Service']) {
+    const articles = getPublishedArticles('en');
+    const family = articles.filter((article) => article.coverageAreas?.includes(category));
+    assert.ok(family.length > 0, `${category} needs published coverage`);
+    assert.ok(family.some((article) => article.decisionTree?.length), `${category} needs a decision tree`);
+    for (const locale of ['en', 'tr', 'ar']) {
+      const localizedFamily = getPublishedArticles(locale).filter((article) => article.coverageAreas?.includes(category));
+      for (const article of localizedFamily) assert.ok(article.title && article.summary && article.locale === locale);
+    }
+  }
 });
