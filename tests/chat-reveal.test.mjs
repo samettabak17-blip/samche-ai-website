@@ -24,7 +24,7 @@ test('long replies use larger word chunks and stay within three seconds', () => 
   const longText = Array.from({ length: 180 }, (_, index) => `word${index}`).join(' ');
   const profile = getRevealProfile(longText);
   assert.ok(profile.chunkSize > short.chunkSize);
-  assert.ok(profile.durationMs > 1_800 && profile.durationMs <= 3_500);
+  assert.ok(profile.durationMs > 1_800 && profile.durationMs <= 3_000);
   assert.ok(getRevealedText(longText, 1_000).split(/\s+/).length > 40);
   assert.equal(getRevealedText(longText, profile.durationMs), longText);
 });

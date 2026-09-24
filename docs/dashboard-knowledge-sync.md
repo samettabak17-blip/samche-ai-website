@@ -26,6 +26,10 @@ Mode: report-only (no automatic publication)
 | Account Settings | VERIFIED CUSTOMER-ACCESSIBLE | 2 |
 | Support Portal | VERIFIED CUSTOMER-ACCESSIBLE | 2 |
 
+## Impact Analysis
+
+Every verified Dashboard change is scoped to its affected Help Center articles, chatbot retrieval, search keywords, EN/TR/AR translations, regression tests, and live registry counts.
+
 ## Excluded from publication
 
 - CRM Contacts: UNVERIFIED (Needs Review)
