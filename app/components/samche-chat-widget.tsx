@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, type ClipboardEvent, type CSSProperties, useEffect, useRef, useState } from 'react';
+import { FormEvent, type ClipboardEvent, type CSSProperties, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { resolveSamcheChatConfig } from '../../lib/samche-chat-config.mjs';
 import { buildWhatsAppSalesUrl, createInitialSalesState, editLeadField, filterSalesActionsForLead, generateSalesTurn, getSalesInputLanguage, getSalesProcessingStatus, hasRequiredDemoContact, isDemoQualificationReady, isLeadSummaryReady, toContactHandoff } from '../../lib/samche-sales-assistant.mjs';
 import { clearChatSession, LEAD_HANDOFF_KEY, loadChatSession, saveChatSession } from '../../lib/samche-chat-persistence.mjs';
@@ -129,6 +129,18 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
   const conversationLanguageRef = useRef<ChatLanguage>(locale);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useLayoutEffect(() => {
+    if (!open || !performance.getEntriesByName('samche-chat-open-click').length) return;
+    performance.mark('samche-chat-panel-visible');
+    const panelMeasure = performance.measure('samche-chat-click-to-panel', 'samche-chat-open-click', 'samche-chat-panel-visible');
+    document.documentElement.dataset.samcheChatPanelMs = panelMeasure.duration.toFixed(2);
+    if (inputRef.current && !inputRef.current.disabled) {
+      performance.mark('samche-chat-composer-ready');
+      const composerMeasure = performance.measure('samche-chat-click-to-composer', 'samche-chat-open-click', 'samche-chat-composer-ready');
+      document.documentElement.dataset.samcheChatComposerMs = composerMeasure.duration.toFixed(2);
+    }
+  }, [open]);
 
   useEffect(() => {
     const timers = revealTimersRef.current;
@@ -379,7 +391,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
     <section className={`samche-chat-panel${open ? ' is-open' : ''}${keyboardOpen ? ' samche-keyboard-open' : ''}`} aria-hidden={!open} role="dialog" aria-label={config.assistant_display_name} aria-modal="false">
       <header className="samche-chat-header"><Orb small header avatarUrl={config.avatar_url || config.logo_url} /><div className="samche-chat-title"><strong>{config.assistant_display_name}</strong><span><i /> {config.assistant_status_label}</span><small>{config.subtitle}</small></div><div className="samche-chat-menu-wrap"><button className="samche-icon-button samche-menu" type="button" aria-label={config.more_options_label} aria-expanded={menuOpen} title={config.more_options_label} onClick={() => setMenuOpen((value) => !value)}>···</button>{menuOpen && <div className="samche-chat-menu"><button type="button" onClick={() => { setMenuOpen(false); setConfirmReset(true); }}>{locale === 'tr' ? 'Yeni Sohbet' : locale === 'ar' ? 'محادثة جديدة' : 'New Chat'}</button></div>}</div><button className="samche-icon-button" type="button" aria-label="Close chat" onClick={() => setOpen(false)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button></header>
       {confirmReset && <div className="samche-reset-backdrop"><section className="samche-reset-dialog" role="alertdialog" aria-modal="true" aria-labelledby="samche-reset-title" aria-describedby="samche-reset-copy"><h2 id="samche-reset-title">Clear conversation?</h2><p id="samche-reset-copy">Clear this conversation and start again?</p><div><button type="button" onClick={() => setConfirmReset(false)}>CANCEL</button><button type="button" onClick={resetConversation}>CLEAR CONVERSATION</button></div></section></div>}
-      <div className="samche-chat-messages" ref={listRef} aria-live="polite">
+      <div className="samche-chat-messages" ref={listRef} aria-live="polite" data-no-translate>
         {displayedMessages.map((message, index) => {
           const messageKey = `${index}-${message.time}`;
           const assistantText = message.articleRefs?.length ? stripHelpArticleLinks(message.text) : message.text;
@@ -405,6 +417,6 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
       <p className="samche-chat-disclaimer">{translateText(config.scope_disclaimer, locale)}</p>
       </div>
     </section>
-    <button id="samche-chat-launcher" className={`samche-chat-launcher${open ? ' is-open' : ''}`} type="button" aria-label={open ? `Close ${config.assistant_display_name} chat` : config.launcher_label} aria-expanded={open} onClick={() => setOpen((value) => !value)}>{open ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg> : <Orb avatarUrl={config.avatar_url || config.logo_url} />}</button>
+    <button id="samche-chat-launcher" className={`samche-chat-launcher${open ? ' is-open' : ''}`} type="button" aria-label={open ? `Close ${config.assistant_display_name} chat` : config.launcher_label} aria-expanded={open} onClick={() => { if (!open) { performance.clearMarks('samche-chat-open-click'); performance.clearMeasures('samche-chat-click-to-panel'); performance.clearMeasures('samche-chat-click-to-composer'); performance.mark('samche-chat-open-click'); } setOpen((value) => !value); }}>{open ? <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg> : <Orb avatarUrl={config.avatar_url || config.logo_url} />}</button>
   </div>;
 }

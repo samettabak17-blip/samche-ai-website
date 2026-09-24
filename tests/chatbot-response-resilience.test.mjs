@@ -118,6 +118,7 @@ test('widget contract uses localized status, progressive reveal, and canonical a
   assert.match(source, /stripHelpArticleLinks/);
   assert.match(source, /token\.type === 'link'/);
   assert.match(source, /InternalLink[\s\S]{0,220}article\.url/);
+  assert.match(source, /className="samche-chat-messages"[^>]*data-no-translate/);
   assert.doesNotMatch(source, /articleUrls\.get\(slug\)/);
 });
 
@@ -168,4 +169,28 @@ test('screenshot recovery separates visible evidence verified knowledge and rema
   assert.match(recovery.reply, /Verified|documentation/i);
   assert.match(recovery.reply, /investigat|still need|remaining/i);
   assert.match(recovery.reply, /WhatsApp|Channels|Status/i);
+});
+
+test('Arabic grounded recovery localizes navigation prose while preserving verified control names', () => {
+  const recovery = buildGroundedSupportRecovery({ language: 'ar', input: 'واتساب لا يجيب والمقالة لا تفتح', messages: [] });
+  assert.match(recovery.reply, /المسار|افتحوا|القناة/u);
+  assert.doesNotMatch(recovery.reply, /\b(?:Open|select|choose|check)\b/i);
+  assert.doesNotMatch(recovery.reply, /\b(?:requires|included|status is|assistant is)\b/i);
+});
+
+test('latest support message module wins over stale screenshot and conversation modules', () => {
+  const recovery = buildGroundedSupportRecovery({
+    language: 'en', input: 'The article is not enough. Give me detailed WhatsApp troubleshooting steps',
+    messages: [{ role: 'assistant', text: 'AI Visual is implementation-managed', imageSummary: 'AI Visual generation error', imageModule: 'AI Visual', articleRefs: ['ai-visual-not-available'] }],
+    state: { context: { imageModule: 'AI Visual', imageSummary: 'AI Visual generation error' } },
+  });
+  assert.match(recovery.reply, /WhatsApp|Channels/);
+  assert.doesNotMatch(recovery.reply, /no verified customer-facing setting.*Visual/is);
+  assert.ok(!recovery.articleRefs.includes('ai-visual-not-available'));
+});
+
+test('Turkish grounded recovery does not leak generic English implementation prose', () => {
+  const recovery = buildGroundedSupportRecovery({ language: 'tr', input: 'WhatsApp makalesi açılmıyor', messages: [] });
+  assert.match(recovery.reply, /Doğrulanmış|çalışma alanı|devreye alma/u);
+  assert.doesNotMatch(recovery.reply, /public chatbot|tenantı|provisioning/i);
 });
