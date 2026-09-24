@@ -1,6 +1,6 @@
 {
   "generatedOn": "2026-09-24",
-  "dashboardRoot": "C:\\Users\\smttb\\Documents\\samche-api-service\\dashboard",
+  "dashboardRoot": "..\\samche-api-service\\dashboard",
   "candidates": [
     {
       "id": "dashboard-overview",
@@ -450,7 +450,7 @@
       "adminOnlyAreas": [],
       "roadmapAreas": [],
       "unverifiedAreas": [],
-      "publishedArticleCount": 0,
+      "publishedArticleCount": 2,
       "draftOrNeedsReviewCount": 0,
       "sourceEvidence": [
         "dashboard/src/features/assistants/assistants-page.tsx",
@@ -469,7 +469,7 @@
       "adminOnlyAreas": [],
       "roadmapAreas": [],
       "unverifiedAreas": [],
-      "publishedArticleCount": 0,
+      "publishedArticleCount": 3,
       "draftOrNeedsReviewCount": 0,
       "sourceEvidence": [
         "dashboard/src/app/router.tsx",
@@ -488,7 +488,7 @@
       "adminOnlyAreas": [],
       "roadmapAreas": [],
       "unverifiedAreas": [],
-      "publishedArticleCount": 2,
+      "publishedArticleCount": 6,
       "draftOrNeedsReviewCount": 0,
       "sourceEvidence": [
         "dashboard/src/features/channels/web-chat-management.tsx",
@@ -506,7 +506,7 @@
       "adminOnlyAreas": [],
       "roadmapAreas": [],
       "unverifiedAreas": [],
-      "publishedArticleCount": 2,
+      "publishedArticleCount": 9,
       "draftOrNeedsReviewCount": 0,
       "sourceEvidence": [
         "dashboard/src/features/channels/channels-page.tsx",
@@ -525,7 +525,7 @@
       "adminOnlyAreas": [],
       "roadmapAreas": [],
       "unverifiedAreas": [],
-      "publishedArticleCount": 1,
+      "publishedArticleCount": 4,
       "draftOrNeedsReviewCount": 0,
       "sourceEvidence": [
         "dashboard/src/features/guide-experience/guide-experience-page.tsx",
@@ -543,7 +543,7 @@
       "adminOnlyAreas": [],
       "roadmapAreas": [],
       "unverifiedAreas": [],
-      "publishedArticleCount": 1,
+      "publishedArticleCount": 7,
       "draftOrNeedsReviewCount": 0,
       "sourceEvidence": [
         "dashboard/src/features/knowledge-base/knowledge-base-page.tsx",
@@ -562,7 +562,7 @@
       "adminOnlyAreas": [],
       "roadmapAreas": [],
       "unverifiedAreas": [],
-      "publishedArticleCount": 1,
+      "publishedArticleCount": 4,
       "draftOrNeedsReviewCount": 0,
       "sourceEvidence": [
         "dashboard/src/features/conversations/conversations-page.tsx",
@@ -581,7 +581,7 @@
       "adminOnlyAreas": [],
       "roadmapAreas": [],
       "unverifiedAreas": [],
-      "publishedArticleCount": 0,
+      "publishedArticleCount": 4,
       "draftOrNeedsReviewCount": 0,
       "sourceEvidence": [
         "dashboard/src/app/router.tsx",
@@ -602,7 +602,7 @@
       "adminOnlyAreas": [],
       "roadmapAreas": [],
       "unverifiedAreas": [],
-      "publishedArticleCount": 0,
+      "publishedArticleCount": 3,
       "draftOrNeedsReviewCount": 0,
       "sourceEvidence": [
         "dashboard/src/app/router.tsx",
@@ -621,7 +621,7 @@
       "adminOnlyAreas": [],
       "roadmapAreas": [],
       "unverifiedAreas": [],
-      "publishedArticleCount": 0,
+      "publishedArticleCount": 4,
       "draftOrNeedsReviewCount": 0,
       "sourceEvidence": [
         "dashboard/src/app/router.tsx",
@@ -640,7 +640,7 @@
       "adminOnlyAreas": [],
       "roadmapAreas": [],
       "unverifiedAreas": [],
-      "publishedArticleCount": 0,
+      "publishedArticleCount": 4,
       "draftOrNeedsReviewCount": 0,
       "sourceEvidence": [
         "dashboard/src/app/router.tsx",
@@ -659,7 +659,7 @@
       "adminOnlyAreas": [],
       "roadmapAreas": [],
       "unverifiedAreas": [],
-      "publishedArticleCount": 0,
+      "publishedArticleCount": 1,
       "draftOrNeedsReviewCount": 0,
       "sourceEvidence": [],
       "remainingDocumentationGaps": []
@@ -674,7 +674,7 @@
       "adminOnlyAreas": [],
       "roadmapAreas": [],
       "unverifiedAreas": [],
-      "publishedArticleCount": 0,
+      "publishedArticleCount": 2,
       "draftOrNeedsReviewCount": 0,
       "sourceEvidence": [],
       "remainingDocumentationGaps": []
@@ -689,7 +689,7 @@
       "adminOnlyAreas": [],
       "roadmapAreas": [],
       "unverifiedAreas": [],
-      "publishedArticleCount": 0,
+      "publishedArticleCount": 2,
       "draftOrNeedsReviewCount": 0,
       "sourceEvidence": [
         "dashboard/src/app/router.tsx",
@@ -708,7 +708,7 @@
       "adminOnlyAreas": [],
       "roadmapAreas": [],
       "unverifiedAreas": [],
-      "publishedArticleCount": 0,
+      "publishedArticleCount": 2,
       "draftOrNeedsReviewCount": 0,
       "sourceEvidence": [],
       "remainingDocumentationGaps": []

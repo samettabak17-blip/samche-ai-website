@@ -55,7 +55,7 @@ test('chatbot sources are bounded, localized, and contain canonical article URLs
   const sources = getHelpArticleSources('Web Chatbot görünmüyor', 'tr', 3);
   assert.ok(sources.length > 0 && sources.length <= 3);
   for (const source of sources) {
-    assert.match(source.url, /^\/help\/article\/[a-z0-9-]+$/);
+    assert.match(source.url, /^\/help\/article\/[a-z0-9-]+(?:\?locale=(?:en|tr|ar))?$/);
     assert.ok(source.title && source.excerpt && source.navigation);
     assert.equal(source.status, 'Published');
   }

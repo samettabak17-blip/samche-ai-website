@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { getPublishedArticles } from '../lib/help-center/index.mjs';
 
 const repositoryRoot = fileURLToPath(new URL('..', import.meta.url));
 const documentRoutes = [
@@ -97,6 +98,17 @@ test('built production server serves documents, assets, RSC, and same-origin API
     assert.match(response.headers.get('content-type') || '', /^text\/html\b/i);
     assert.match(body, /<html(?:\s|>)/i);
     assert.match(body, /<body(?:\s|>)/i);
+  });
+
+  await t.test('published Help Center articles resolve and invalid article refs 404', async () => {
+    const articles = getPublishedArticles('en');
+    for (const article of articles) {
+      const response = await fetch(`${baseUrl}/help/article/${article.slug}`, { headers: { accept: 'text/html' } });
+      assert.equal(response.status, 200, article.slug);
+      assert.match(await response.text(), /<html(?:\s|>)/i);
+    }
+    const invalid = await fetch(`${baseUrl}/help/article/missing-or-unpublished`, { headers: { accept: 'text/html' } });
+    assert.equal(invalid.status, 404);
   });
 
   await t.test('RSC request remains healthy', async () => {

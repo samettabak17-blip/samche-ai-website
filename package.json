@@ -8,13 +8,14 @@
   "scripts": {
     "install:ci": "node scripts/install-ci.mjs",
     "dev": "node scripts/run-framework.mjs dev",
-    "test": "node --test tests/samche-sales-assistant.test.mjs tests/samche-chat-persistence.test.mjs tests/samche-localization.test.mjs tests/site-contract.test.mjs tests/sales-chat-bounded-fix.test.mjs tests/website-sales-chat-service.test.mjs tests/samche-support-and-implementation.test.mjs tests/support-delivery.test.mjs tests/demo-delivery.test.mjs tests/form-ux.test.mjs tests/vision-support-regression.test.mjs tests/help-center-registry.test.mjs tests/help-center-routes.test.mjs tests/help-center-support-integration.test.mjs tests/help-center-chat-retrieval.test.mjs tests/restricted-markdown.test.mjs tests/chatbot-response-resilience.test.mjs tests/chat-reveal.test.mjs tests/chat-panel-responsiveness.test.mjs tests/internal-navigation.test.mjs",
+    "test": "node --test tests/samche-sales-assistant.test.mjs tests/samche-chat-persistence.test.mjs tests/samche-localization.test.mjs tests/site-contract.test.mjs tests/sales-chat-bounded-fix.test.mjs tests/website-sales-chat-service.test.mjs tests/samche-support-and-implementation.test.mjs tests/support-delivery.test.mjs tests/demo-delivery.test.mjs tests/form-ux.test.mjs tests/vision-support-regression.test.mjs tests/help-center-registry.test.mjs tests/help-center-routes.test.mjs tests/help-center-support-integration.test.mjs tests/help-center-chat-retrieval.test.mjs tests/help-center-troubleshooting.test.mjs tests/help-center-inventory.test.mjs tests/help-center-sitemap.test.mjs tests/dashboard-knowledge-sync.test.mjs tests/restricted-markdown.test.mjs tests/chatbot-response-resilience.test.mjs tests/chat-reveal.test.mjs tests/chat-panel-responsiveness.test.mjs tests/internal-navigation.test.mjs",
     "typecheck": "tsc --noEmit",
     "test:production-http": "node --test tests/production-http-smoke.test.mjs",
     "build": "node scripts/run-framework.mjs build",
     "start": "node server/server.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "knowledge:audit": "node scripts/dashboard-knowledge-audit.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

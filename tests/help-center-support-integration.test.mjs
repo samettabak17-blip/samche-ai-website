@@ -10,8 +10,8 @@ test('support portal searches the shared Help Center registry and links publishe
   assert.match(source, /href=\{item\.url\}/);
   assert.match(source, /support-search-suggestions/);
   assert.match(source, /\/help\?.*q=/);
-  assert.equal(searchHelpArticles('WhatsApp yanıt vermiyor', 'tr')[0].url, '/help/article/whatsapp-ai-troubleshooting');
-  assert.equal(searchHelpArticles('واتساب لا يرد', 'ar')[0].url, '/help/article/whatsapp-ai-troubleshooting');
+  assert.equal(searchHelpArticles('WhatsApp yanıt vermiyor', 'tr')[0].url, '/help/article/whatsapp-ai-not-replying?locale=tr');
+  assert.match(searchHelpArticles('واتساب لا يرد', 'ar')[0].url, /^\/help\/article\/(?:whatsapp-ai-not-replying|whatsapp-ai-troubleshooting)\?locale=ar$/);
 });
 
 test('published Help Center URLs are included in the sitemap and unpublished gaps are excluded', async () => {

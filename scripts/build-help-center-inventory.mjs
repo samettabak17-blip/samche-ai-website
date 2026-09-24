@@ -1,15 +1,10 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dashboardSupportMap } from '../lib/support-dashboard-map.mjs';
 import { getPublishedArticles } from '../lib/help-center/index.mjs';
 import { getHelpCoverageMatrix } from '../lib/help-center/troubleshooting-schema.mjs';
 
-const categories = [
-  'Account / Access', 'Dashboard / Overview', 'Web Chatbot', 'WhatsApp AI', 'AI Guide', 'Knowledge Intelligence',
-  'Conversations / Shared Inbox', 'CRM / Contacts / Leads / Pipeline', 'Integrations', 'AI Visual', 'AI Voice',
-  'Team / Permissions', 'Plans / Entitlements', 'Support / Service', 'Billing / Usage', 'Security / Privacy', 'Troubleshooting / Cross-product issues',
-];
 const implementationAreas = new Set(['Integrations', 'AI Visual generation', 'AI Voice']);
 const categoryForArea = new Map([
   ['Dashboard Overview', 'Dashboard / Overview'], ['Analytics', 'Dashboard / Overview'], ['AI Assistants', 'Account / Access'], ['Channels', 'WhatsApp AI'],
