@@ -79,7 +79,7 @@ test('conversation language uses the latest detectable message and retains prior
   assert.equal(resolveConversationLanguage('Web Chatbot', 'tr', 'en'), 'tr');
   assert.equal(resolveConversationLanguage('AI Guide', 'tr', 'en'), 'tr');
   assert.equal(resolveConversationLanguage('https://samche.ai/help', 'tr', 'en'), 'tr');
-  for (const input of ['destek', 'yardim', 'calismiyor']) assert.equal(resolveConversationLanguage(input, 'en', 'en'), 'tr');
+  for (const input of ['destek', 'yardim', 'calismiyor', 'gorsel uretmiyor', 'kac resim', 'sayi']) assert.equal(resolveConversationLanguage(input, 'en', 'en'), 'tr');
 });
 
 test('ASCII Turkish support wording keeps network recovery in Turkish', async () => {

@@ -593,7 +593,7 @@ test('server retains authoritative conversation language for a neutral latest su
 });
 
 test('server uses the shared conversation language resolver for neutral product names URLs and ASCII Turkish', async () => {
-  for (const userMessage of ['Web Chatbot', 'AI Guide', 'https://samche.ai/help', 'baglanti', 'acilmadi']) {
+  for (const userMessage of ['Web Chatbot', 'AI Guide', 'https://samche.ai/help', 'baglanti', 'acilmadi', 'gorsel uretmiyor', 'kac resim', 'sayi']) {
     const service = createSalesChatService({
       openaiClient: providerWith(JSON.stringify({
         reply: 'Doğrulanmış destek adımlarıyla Türkçe devam edelim.', intent: 'support', extractedFields: {}, requestedNextField: null,
