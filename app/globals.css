@@ -1533,6 +1533,10 @@ body { background:radial-gradient(ellipse at 50% -22%,rgba(143,10,30,.23),transp
 @media (max-width: 960px) { .help-article-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .help-category-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .help-article-layout { grid-template-columns: 1fr; gap: 20px; } .help-article-sidebar { position: static; } }
 @media (max-width: 600px) { .help-home { width: min(100% - 32px,1160px); padding-block: 28px 70px; } .help-hero { padding: 24px 18px; } .help-search-form { flex-direction: column; } .help-search-form .button { width: 100%; } .help-category-grid, .help-article-grid, .help-fact-grid, .help-related-grid { grid-template-columns: 1fr; } .help-contact { align-items: stretch; flex-direction: column; margin-top: 44px; } .help-contact .button { width: 100%; } }
 
- .samche-chat-article-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
- .samche-chat-article-links a { color: #8fc7ff; font-size: 12px; text-decoration: underline; text-underline-offset:2px; }
- .samche-chat-article-links a:hover { color:#c4e2ff; }
+ .samche-chat-article-links { display: grid; gap: 6px; margin-top: 8px; }
+ .samche-chat-article-link { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid rgba(143,199,255,.28); border-radius: 10px; color: #c4e2ff; font-size: 12px; text-decoration: none; }
+ .samche-chat-article-link:hover { border-color: #8fc7ff; background: rgba(143,199,255,.08); }
+ .samche-chat-article-link span { min-width: 0; display: grid; gap: 3px; }
+ .samche-chat-article-link strong { color: #e9f5ff; font-size: 12px; }
+ .samche-chat-article-link small { color: #a9c2d8; line-height: 1.35; }
+ .samche-chat-article-link b { flex: none; font-size: 16px; }

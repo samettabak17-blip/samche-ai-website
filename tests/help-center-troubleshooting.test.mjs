@@ -6,6 +6,7 @@ import {
   getHelpCoverageMatrix,
 } from '../lib/help-center/troubleshooting-schema.mjs';
 import { getPublishedArticles, getArticleBySlug } from '../lib/help-center/index.mjs';
+import { getPublishedArticlePresentation } from '../lib/help-center/index.mjs';
 
 const localized = (value) => ({ en: value, tr: `${value} TR`, ar: `${value} AR` });
 const localizedList = (value) => ({ en: [value], tr: [`${value} TR`], ar: [`${value} AR`] });
@@ -86,4 +87,11 @@ test('major troubleshooting families expose localized decision trees and boundar
       for (const article of localizedFamily) assert.ok(article.title && article.summary && article.locale === locale);
     }
   }
+});
+
+test('canonical registry exposes the same published article identity for Help Center and chatbot links', () => {
+  const presentation = getPublishedArticlePresentation('whatsapp-ai-not-replying', 'tr');
+  assert.equal(presentation?.slug, 'whatsapp-ai-not-replying');
+  assert.equal(presentation?.url, '/help/article/whatsapp-ai-not-replying?locale=tr');
+  assert.equal(getPublishedArticlePresentation('missing-or-unpublished', 'tr'), null);
 });

@@ -55,7 +55,8 @@ test('Turkish broken-article follow-up recovers the previous article and continu
     locale: 'en', input: 'makale açılmıyor',
     messages: [{ role: 'assistant', text: 'WhatsApp kanalını kontrol edin.', articleRefs: ['whatsapp-ai-troubleshooting'] }],
   });
-  assert.match(reply, /\[İlgili doğrulanmış makale\]\(\/help\/article\/whatsapp-ai-troubleshooting\?locale=tr\)/);
+  assert.doesNotMatch(reply, /\]\(\/help\/article\//);
+  assert.match(reply, /bağlantı|açılmadı|adım|devam/i);
   assert.match(reply, /WhatsApp|Channels|Status|Save changes/i);
   assert.match(reply, /bağlantı|açılmadı|adım|devam/i);
 });
@@ -93,7 +94,7 @@ test('initial provider failure still exposes a published article ref for a suppo
     state, stateCandidate, messages: [], userMessage, locale: 'tr', time: '10:01', apiBaseUrl: '',
     fetchImpl: async () => { throw new Error('offline'); },
   });
-  assert.deepEqual(resolved.messages.at(-1).articleRefs, ['whatsapp-ai-troubleshooting']);
+  assert.deepEqual(resolved.messages.at(-1).articleRefs, ['whatsapp-ai-not-replying']);
   assert.match(resolved.messages.at(-1).text, /WhatsApp|Channels|Status/i);
 });
 
@@ -112,7 +113,8 @@ test('widget contract uses localized status, progressive reveal, and canonical a
   assert.match(source, /getSalesProcessingStatus\(trimmed, salesStateRef\.current, locale\)/);
   assert.match(source, /setMessages\(\(current\) => \[\.\.\.current, userMessage\]\)/);
   assert.match(source, /requestAnimationFrame|setInterval|setTimeout/);
-  assert.match(source, /articleUrls/);
+  assert.match(source, /getPublishedArticlePresentation/);
   assert.match(source, /token\.type === 'link'/);
-  assert.match(source, /InternalLink[\s\S]{0,120}articleUrls\.get\(slug\)/);
+  assert.match(source, /InternalLink[\s\S]{0,220}article\.url/);
+  assert.doesNotMatch(source, /articleUrls\.get\(slug\)/);
 });
