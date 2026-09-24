@@ -16,28 +16,40 @@ test('Help Center routes use the shared registry and provide permanent article U
   assert.match(article, /getArticleBySlug/);
   assert.match(article, /generateMetadata/);
   assert.match(article, /notFound/);
-  assert.match(component, /searchHelpArticles/);
+  assert.match(component, /searchHelpArticleResults/);
   assert.match(component, /help-search-suggestions/);
   assert.match(component, /URLSearchParams/);
   assert.match(component, /related/);
   assert.match(component, /Was this article helpful|Makale faydalı oldu mu|هل كانت هذه المقالة مفيدة/);
   assert.match(component, /dir=\{locale === 'ar' \? 'rtl' : 'ltr'\}/);
-  assert.match(component, /getHelpArticleStatistics/);
+  assert.match(component, /getHelpCenterStats/);
   assert.match(component, /totalPublished/);
   assert.match(component, /totalTroubleshooting/);
+  assert.match(component, /totalCategories/);
+  assert.match(component, /resultsFor/);
+  assert.match(component, /resultRange/);
+  assert.match(component, /help-article-row/);
+  assert.match(component, /getCategoryArticleGroups/);
+  assert.match(component, /askAi/);
   assert.match(component, /category\.articleCount/);
   assert.match(component, /category\.articles\.length/);
+  assert.doesNotMatch(component, />\{article\.category\}</);
 });
 
 test('article reading structure includes navigation, contents, verification, and support links', async () => {
   const source = await readFile(files.component, 'utf8');
-  for (const marker of ['Table of contents', 'Prerequisites', 'Expected result', 'Troubleshooting', 'Related articles', 'Contact Support', 'last verified']) assert.match(source, new RegExp(marker, 'i'), marker);
-  assert.match(source, /href=\{`\/help\/article\/\$\{relatedArticle\.slug\}`\}/);
+  for (const marker of ['Table of contents', 'Prerequisites', 'Expected result', 'Troubleshooting', 'Related articles', 'Contact Support', 'Ask SamChe AI', 'last verified']) assert.match(source, new RegExp(marker, 'i'), marker);
+  assert.match(source, /section\.note/);
+  assert.match(source, /section\.warning/);
+  assert.match(source, /localizedArticleUrl\(relatedArticle\.slug, locale\)/);
 });
 
 test('Help Center CSS declares responsive no-overflow layouts', async () => {
   const css = await readFile('app/globals.css', 'utf8');
   assert.match(css, /\.help-center/);
   assert.match(css, /help-article/);
+  assert.match(css, /help-article-row/);
+  assert.match(css, /help-metric-grid/);
+  assert.match(css, /\[dir=['"]rtl['"]\]/);
   assert.match(css, /@media/);
 });

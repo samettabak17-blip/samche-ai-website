@@ -6,6 +6,9 @@ import { getAllPublishedArticleUrls, getPublishedArticles, searchHelpArticles } 
 test('support portal searches the shared Help Center registry and links published articles', async () => {
   const source = await readFile('app/components/support-portal.tsx', 'utf8');
   assert.match(source, /searchHelpArticles/);
+  assert.match(source, /getHelpCenterStats/);
+  assert.match(source, /totalPublished/);
+  assert.match(source, /verifiedArticleCount/);
   assert.match(source, /getPublishedArticles/);
   assert.match(source, /href=\{item\.url\}/);
   assert.match(source, /support-search-suggestions/);

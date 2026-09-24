@@ -6,7 +6,7 @@ import { formatScreenshotSize, validateScreenshot } from '../../lib/form-ux.mjs'
 import { SectionEyebrow } from './site-shell';
 import Link from './internal-link';
 import { useSiteLocale } from './site-localization';
-import { getPublishedArticles, getPublishedCategories, searchHelpArticles } from '../../lib/help-center/index.mjs';
+import { getHelpCenterStats, getPublishedArticles, getPublishedCategories, searchHelpArticles } from '../../lib/help-center/index.mjs';
 
 type SupportStatusCode = '' | 'attachmentType' | 'attachmentSize' | 'required' | 'email' | 'success' | 'delivery';
 function supportStatusText(code: SupportStatusCode, locale: 'en' | 'tr' | 'ar') {
@@ -56,6 +56,12 @@ export function SupportPortal() {
 
   const publishedArticles = getPublishedArticles(locale);
   const publishedCategories = getPublishedCategories(locale);
+  const helpCenterStats = getHelpCenterStats(locale);
+  const verifiedArticleCount = locale === 'tr'
+    ? `${helpCenterStats.totalPublished} doğrulanmış Yardım Merkezi makalesi kullanılabilir`
+    : locale === 'ar'
+      ? `${helpCenterStats.totalPublished} مقالة معتمدة متاحة في مركز المساعدة`
+      : `${helpCenterStats.totalPublished} verified Help Center articles available`;
   const readArticleLabel = locale === 'tr' ? 'Doğrulanmış makaleyi oku' : locale === 'ar' ? 'اقرأ المقالة المعتمدة' : 'Read verified article';
   const searchSuggestions = search.trim() ? searchHelpArticles(search, locale, { limit: 5 }) : [];
   function submitKnowledgeSearch(event: FormEvent) {
@@ -130,6 +136,7 @@ export function SupportPortal() {
       <section className="support-search-hero" aria-labelledby="support-search-heading">
         <SectionEyebrow>Search knowledge &amp; verified guides</SectionEyebrow>
         <h2 id="support-search-heading">How can we help your team today?</h2>
+        <p className="support-help-count">{verifiedArticleCount}</p>
         <form className="support-search-bar" onSubmit={submitKnowledgeSearch} role="search">
           <label htmlFor={searchId} className="sr-only">Search support topics</label>
           <input
