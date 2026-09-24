@@ -50,7 +50,7 @@ function PortalArticleSection({ id, title, articles, locale, text }: { id: strin
   return <section className="help-section" aria-labelledby={id}><div className="help-section-heading"><h2 id={id}>{title}</h2><span>{articles.length}</span></div><div className="help-article-list">{articles.map((article) => <ArticleRow key={article.slug} article={article} href={localizedArticleUrl(article.slug, locale)} text={text} />)}</div></section>;
 }
 
-function HelpActions({ text }: { text: HelpCopy }) { return <div className="help-actions"><section className="help-ask-ai"><div><h2>{text.askAi}</h2><p>{text.askAiText}</p></div><a className="button button-primary" href="#samche-chat-launcher">{text.askAi} <span aria-hidden="true">↗</span></a></section><HelpContact text={text} /></div>; }
+function HelpActions({ text }: { text: HelpCopy }) { return <div className="help-actions"><section className="help-ask-ai"><div><h2>{text.askAi}</h2><p>{text.askAiText}</p></div><button className="button button-primary" type="button" onClick={() => window.dispatchEvent(new Event('samche:open-chat'))}>{text.askAi} <span aria-hidden="true">↗</span></button></section><HelpContact text={text} /></div>; }
 function HelpContact({ text }: { text: HelpCopy }) { return <section className="help-contact"><div><h2>{text.support}</h2><p>{text.supportText}</p></div><Link className="button button-outline" href="/support#submit-ticket">{text.support} <span aria-hidden="true">↗</span></Link></section>; }
 
 export function HelpCenterHome({ initialQuery = '' }: { initialQuery?: string }) {

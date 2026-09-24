@@ -14,7 +14,8 @@ test('Help Center routes use the shared registry and provide permanent article U
   assert.match(home, /HelpCenterHome/);
   assert.match(home, /searchParams/);
   assert.match(home, /await searchParams/);
-  assert.match(home, /initialQuery=\{params\.q/);
+  assert.match(home, /Array\.isArray\(params\.q\)/);
+  assert.match(home, /initialQuery=\{initialQuery\}/);
   assert.match(category, /getCategoryBySlug/);
   assert.match(article, /getArticleBySlug/);
   assert.match(article, /generateMetadata/);
@@ -36,6 +37,7 @@ test('Help Center routes use the shared registry and provide permanent article U
   assert.match(component, /help-article-row/);
   assert.match(component, /getCategoryArticleGroups/);
   assert.match(component, /askAi/);
+  assert.match(component, /samche:open-chat/);
   assert.match(component, /category\.articleCount/);
   assert.match(component, /category\.articles\.length/);
   assert.doesNotMatch(component, />\{article\.category\}</);

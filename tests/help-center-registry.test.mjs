@@ -123,9 +123,18 @@ test('canonical help center stats expose exact verified totals category counts a
   assert.equal(turkishArticle.articleTypeLabel, 'Sorun Giderme');
 });
 
+test('published filtering excludes verified records without complete localized display content', () => {
+  const malformed = { slug: 'incomplete', category: 'support', articleType: 'guide', verification: { status: 'Published', verifiedOn: '2026-09-25', sourceFiles: ['source'], reviewTriggers: ['change'] } };
+  assert.deepEqual(filterPublishedHelpArticles([malformed]), []);
+  assert.equal(getHelpCenterStats('en', [malformed]).totalPublished, 0);
+});
+
 test('publication filter excludes draft retired unverified roadmap and unpublished records', () => {
   const record = (status) => ({
     slug: status.toLowerCase().replaceAll(' ', '-'),
+    title: { en: 'Title', tr: 'Başlık', ar: 'عنوان' },
+    summary: { en: 'Summary', tr: 'Özet', ar: 'ملخص' },
+    sections: [{ heading: { en: 'Steps', tr: 'Adımlar', ar: 'الخطوات' } }],
     verification: { status, verifiedOn: '2026-09-25', sourceFiles: ['verified.tsx'], reviewTriggers: ['source changes'] },
   });
   const incompletePublished = { slug: 'incomplete-published', verification: { status: 'Published', verifiedOn: '', sourceFiles: [], reviewTriggers: [] } };

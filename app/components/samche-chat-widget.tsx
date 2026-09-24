@@ -130,6 +130,12 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    const openChat = () => setOpen(true);
+    window.addEventListener('samche:open-chat', openChat);
+    return () => window.removeEventListener('samche:open-chat', openChat);
+  }, []);
+
   useLayoutEffect(() => {
     if (!open || !performance.getEntriesByName('samche-chat-open-click').length) return;
     performance.mark('samche-chat-panel-visible');

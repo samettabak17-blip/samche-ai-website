@@ -79,6 +79,13 @@ test('built production server serves documents, assets, RSC, and same-origin API
 
   await waitForHealth(baseUrl, child, output);
 
+  await t.test('repeated Help Center search parameters are normalized without an SSR failure', async () => {
+    const response = await fetch(`${baseUrl}/help?q=WhatsApp&q=AI`, { headers: { accept: 'text/html' } });
+    const body = await response.text();
+    assert.equal(response.status, 200, body.slice(0, 500));
+    assert.match(body, /WhatsApp/);
+  });
+
   let rootHtml = '';
   for (const [route, marker] of documentRoutes) {
     await t.test(`GET ${route} is a complete HTML document`, async () => {

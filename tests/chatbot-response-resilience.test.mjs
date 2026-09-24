@@ -76,6 +76,19 @@ test('conversation language uses the latest detectable message and retains prior
   assert.equal(resolveConversationLanguage('المقالة لا تفتح', 'en', 'en'), 'ar');
   assert.equal(resolveConversationLanguage('...', 'tr', 'en'), 'tr');
   assert.equal(resolveConversationLanguage('123', 'ar', 'en'), 'ar');
+  assert.equal(resolveConversationLanguage('Web Chatbot', 'tr', 'en'), 'tr');
+  assert.equal(resolveConversationLanguage('AI Guide', 'tr', 'en'), 'tr');
+  assert.equal(resolveConversationLanguage('https://samche.ai/help', 'tr', 'en'), 'tr');
+  for (const input of ['destek', 'yardim', 'calismiyor']) assert.equal(resolveConversationLanguage(input, 'en', 'en'), 'tr');
+});
+
+test('ASCII Turkish support wording keeps network recovery in Turkish', async () => {
+  const state = createInitialSalesState();
+  const userMessage = { role: 'user', text: 'destek', time: '10:00' };
+  const stateCandidate = generateSalesTurn(state, userMessage.text, [], 'tr');
+  const resolved = await resolveSalesChatTurn({ state, stateCandidate, messages: [], userMessage, locale: 'en', conversationLanguage: 'tr', time: '10:01', apiBaseUrl: '', fetchImpl: async () => { throw new Error('offline'); } });
+  assert.equal(resolved.messages.at(-1).language, 'tr');
+  assert.match(resolved.messages.at(-1).text, /Doğrulanmış|inceleme|destek|sorun/u);
 });
 
 test('network HTTP malformed JSON and timeout recoveries retain the prior language for a neutral latest message', async () => {
@@ -154,6 +167,7 @@ test('widget contract uses localized status, progressive reveal, and canonical a
   assert.match(source, /İlgili yardım makaleleri/);
   assert.match(source, /\.\.\.new Set\(message\.articleRefs \|\| \[\]\)/);
   assert.match(source, /className="samche-chat-messages"[^>]*data-no-translate/);
+  assert.match(source, /samche:open-chat/);
   assert.doesNotMatch(source, /articleUrls\.get\(slug\)/);
 });
 
