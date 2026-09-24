@@ -1596,6 +1596,7 @@ body { background:radial-gradient(ellipse at 50% -22%,rgba(143,10,30,.23),transp
 }
 
  .samche-chat-article-links { display: grid; gap: 6px; margin-top: 8px; }
+ .samche-chat-article-heading { color: #e9f5ff; font-size: 11px; letter-spacing: .04em; }
  .samche-chat-article-link { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid rgba(143,199,255,.28); border-radius: 10px; color: #c4e2ff; font-size: 12px; text-decoration: none; }
  .samche-chat-article-link:hover { border-color: #8fc7ff; background: rgba(143,199,255,.08); }
  .samche-chat-article-link span { min-width: 0; display: grid; gap: 3px; }

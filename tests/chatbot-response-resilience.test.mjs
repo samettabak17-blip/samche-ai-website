@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseRestrictedMarkdown } from '../lib/restricted-markdown.mjs';
 import { createInitialSalesState, generateSalesTurn, getSalesProcessingStatus } from '../lib/samche-sales-assistant.mjs';
-import { buildGroundedSupportRecovery, buildSalesFallbackReply, resolveSalesChatTurn } from '../lib/samche-sales-chat-client.mjs';
+import { buildGroundedSupportRecovery, buildSalesFallbackReply, resolveConversationLanguage, resolveSalesChatTurn } from '../lib/samche-sales-chat-client.mjs';
 import { getPublishedArticleUrl } from '../lib/help-center/index.mjs';
 import { readFile } from 'node:fs/promises';
 
@@ -69,6 +69,37 @@ test('latest follow-up language wins over the stored locale for English and Arab
   assert.match(arabic, /الرابط|المقالة|واتساب/u);
 });
 
+test('conversation language uses the latest detectable message and retains prior language only for neutral input', () => {
+  assert.equal(resolveConversationLanguage('makale açılmıyor', 'en', 'en'), 'tr');
+  assert.equal(resolveConversationLanguage('makale acilmiyor', 'en', 'en'), 'tr');
+  assert.equal(resolveConversationLanguage('the article is not enough', 'tr', 'tr'), 'en');
+  assert.equal(resolveConversationLanguage('المقالة لا تفتح', 'en', 'en'), 'ar');
+  assert.equal(resolveConversationLanguage('...', 'tr', 'en'), 'tr');
+  assert.equal(resolveConversationLanguage('123', 'ar', 'en'), 'ar');
+});
+
+test('network HTTP malformed JSON and timeout recoveries retain the prior language for a neutral latest message', async () => {
+  const failures = [
+    async () => { throw new Error('offline'); },
+    async () => ({ ok: false, status: 504 }),
+    async () => ({ ok: true, json: async () => { throw new SyntaxError('bad json'); } }),
+    async () => { const error = new Error('timeout'); error.name = 'AbortError'; throw error; },
+  ];
+  for (const fetchImpl of failures) {
+    const state = createInitialSalesState();
+    const userMessage = { role: 'user', text: '...', time: '10:00' };
+    const stateCandidate = generateSalesTurn(state, userMessage.text, [], 'tr');
+    const resolved = await resolveSalesChatTurn({
+      state, stateCandidate, messages: [{ role: 'assistant', text: 'WhatsApp kanalını inceleyelim.', articleRefs: ['whatsapp-ai-not-replying'], language: 'tr' }],
+      userMessage, locale: 'en', conversationLanguage: 'tr', time: '10:01', apiBaseUrl: '', fetchImpl,
+    });
+    const assistant = resolved.messages.at(-1);
+    assert.equal(assistant.language, 'tr');
+    assert.match(assistant.text, /Doğrulanmış|incelemeyi|çalışma alanı|makale/u);
+    assert.deepEqual(assistant.articleRefs, ['whatsapp-ai-not-replying']);
+  }
+});
+
 test('provider failure appends a localized usable fallback instead of an error-only response', async () => {
   const state = createInitialSalesState();
   const userMessage = { role: 'user', text: 'WhatsApp yanıt vermiyor', time: '10:00', imageContext: true };
@@ -112,12 +143,16 @@ test('widget contract uses localized status, progressive reveal, and canonical a
   const source = await readFile(new URL('../app/components/samche-chat-widget.tsx', import.meta.url), 'utf8');
   assert.match(source, /getSalesProcessingStatus\(userText, salesStateRef\.current, turnLanguage\)/);
   assert.match(source, /siteLocale: locale, conversationLanguage/);
+  assert.match(source, /resolveConversationLanguage\(userText, previousConversationLanguage, locale\)/);
+  assert.match(source, /conversationLanguage: turnLanguage/);
   assert.match(source, /setMessages\(\(current\) => \[\.\.\.current, userMessage\]\)/);
   assert.match(source, /requestAnimationFrame|setInterval|setTimeout/);
   assert.match(source, /getPublishedArticlePresentation/);
   assert.match(source, /stripHelpArticleLinks/);
   assert.match(source, /token\.type === 'link'/);
   assert.match(source, /InternalLink[\s\S]{0,220}article\.url/);
+  assert.match(source, /İlgili yardım makaleleri/);
+  assert.match(source, /\.\.\.new Set\(message\.articleRefs \|\| \[\]\)/);
   assert.match(source, /className="samche-chat-messages"[^>]*data-no-translate/);
   assert.doesNotMatch(source, /articleUrls\.get\(slug\)/);
 });

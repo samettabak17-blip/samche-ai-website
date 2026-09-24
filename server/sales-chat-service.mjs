@@ -160,8 +160,22 @@ function enforceBareGreetingResponse(candidate, context) {
 function detectInputLanguage(input) {
   const value = String(input || '').toLowerCase();
   if (/[؀-ۿ]/u.test(value)) return 'ar';
-  if (/[çğıöşü]/i.test(value) || /\b(?:merhaba|urun|ürün|hemen|teslim|ediyor|musunuz|müsünüz|danışmanlık|danismanlik|fiyat|paket|istiyorum|için|icin|nasıl|nasil|şirket|sirket|görsel|gorsel|sayı|sayi|kaç|kac|resim|çalışmıyor|calismiyor|üretmiyor|uretmiyor|destek|yardım|yardim|sorun|hata|burda|burada|nerden|nereden|yapicam|yapacağım)\b/i.test(value)) return 'tr';
+  if (/[çğıöşü]/i.test(value) || /\b(?:merhaba|urun|ürün|hemen|teslim|ediyor|musunuz|müsünüz|danışmanlık|danismanlik|fiyat|paket|istiyorum|için|icin|nasıl|nasil|şirket|sirket|görsel|gorsel|sayı|sayi|kaç|kac|resim|çalışmıyor|calismiyor|üretmiyor|uretmiyor|destek|yardım|yardim|sorun|hata|burda|burada|nerden|nereden|yapicam|yapacağım|makale|acilmiyor|yanit|yetersiz|cozmedi)\b/i.test(value)) return 'tr';
   return 'en';
+}
+
+const CHAT_LANGUAGES = new Set(['en', 'tr', 'ar']);
+const LANGUAGE_NEUTRAL_TERMS = new Set(['ai', 'samche', 'whatsapp', 'crm', 'pdf', 'api', 'url', 'id']);
+function hasMeaningfulEnglishInput(input) {
+  const terms = String(input || '').toLowerCase().match(/[a-z]+/g) || [];
+  return terms.some((term) => term.length > 1 && !LANGUAGE_NEUTRAL_TERMS.has(term));
+}
+function resolveInputLanguage(input, requestedLanguage, siteLocale) {
+  const detected = detectInputLanguage(input);
+  if (detected === 'tr' || detected === 'ar') return detected;
+  if (detected === 'en' && hasMeaningfulEnglishInput(input)) return 'en';
+  if (CHAT_LANGUAGES.has(requestedLanguage)) return requestedLanguage;
+  return CHAT_LANGUAGES.has(siteLocale) ? siteLocale : 'en';
 }
 
 function unavailableSalesClaims(reply, capabilities) {
@@ -238,9 +252,10 @@ function buildContext(body, commercialFacts) {
     if (Array.isArray(value)) leadState[key] = value.filter((item) => typeof item === 'string').slice(0, 20);
     else if (typeof value === 'string' || typeof value === 'boolean') leadState[key] = value;
   }
+  const inputLanguage = resolveInputLanguage(body.userMessage, body.inputLanguage, body.locale);
   return {
-    locale: body.locale === 'ar' ? 'ar' : 'en',
-    inputLanguage: detectInputLanguage(body.userMessage),
+    locale: CHAT_LANGUAGES.has(body.locale) ? body.locale : 'en',
+    inputLanguage,
     hasImage: Boolean(body.attachment),
     conversationHistory: body.conversationHistory.slice(-MAX_HISTORY).map((message) => ({
       role: message?.role === 'assistant' ? 'assistant' : 'user',
@@ -260,7 +275,7 @@ function buildContext(body, commercialFacts) {
     approvedPlanFacts: commercialFacts.plans.map((plan) => ({ ...plan })),
     approvedProductFacts: commercialFacts.products.map((product) => ({ ...product })),
     verifiedDashboardMap: dashboardSupportMap,
-    helpArticles: getHelpArticleSources(text(body.userMessage, MAX_MESSAGE_LENGTH), detectInputLanguage(body.userMessage), 3),
+    helpArticles: getHelpArticleSources(text(body.userMessage, MAX_MESSAGE_LENGTH), inputLanguage, 3),
     capabilities: SALES_CHAT_CAPABILITIES,
     allowedActions: [...ALLOWED_ACTIONS],
     userMessage: text(body.userMessage, MAX_MESSAGE_LENGTH),

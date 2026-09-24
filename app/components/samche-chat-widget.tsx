@@ -4,7 +4,7 @@ import { FormEvent, type ClipboardEvent, type CSSProperties, useEffect, useLayou
 import { resolveSamcheChatConfig } from '../../lib/samche-chat-config.mjs';
 import { buildWhatsAppSalesUrl, createInitialSalesState, editLeadField, filterSalesActionsForLead, generateSalesTurn, getSalesInputLanguage, getSalesProcessingStatus, hasRequiredDemoContact, isDemoQualificationReady, isLeadSummaryReady, toContactHandoff } from '../../lib/samche-sales-assistant.mjs';
 import { clearChatSession, LEAD_HANDOFF_KEY, loadChatSession, saveChatSession } from '../../lib/samche-chat-persistence.mjs';
-import { resolveSalesChatTurn } from '../../lib/samche-sales-chat-client.mjs';
+import { resolveConversationLanguage, resolveSalesChatTurn } from '../../lib/samche-sales-chat-client.mjs';
 import { translateText } from '../../lib/samche-localization.mjs';
 import { extractClipboardImage, readImageFile } from '../../lib/chat-attachment.mjs';
 import { parseRestrictedMarkdown, stripHelpArticleLinks } from '../../lib/restricted-markdown.mjs';
@@ -272,8 +272,10 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
     else recentImageRef.current = null;
     setInput('');
     setErrorMessage('');
-    const userText = trimmed || (locale === 'tr' ? 'Bu SamChe AI ekran görüntüsüne bakabilir misiniz?' : locale === 'ar' ? 'هل يمكنكم مراجعة لقطة شاشة SamChe AI هذه؟' : 'Can you review this SamChe AI screenshot?');
-    const turnLanguage = getSalesInputLanguage(userText) as ChatLanguage;
+    const previousConversationLanguage = conversationLanguageRef.current;
+    const screenshotLanguage = previousConversationLanguage || locale;
+    const userText = trimmed || (screenshotLanguage === 'tr' ? 'Bu SamChe AI ekran görüntüsüne bakabilir misiniz?' : screenshotLanguage === 'ar' ? 'هل يمكنكم مراجعة لقطة شاشة SamChe AI هذه؟' : 'Can you review this SamChe AI screenshot?');
+    const turnLanguage = resolveConversationLanguage(userText, previousConversationLanguage, locale) as ChatLanguage;
     conversationLanguageRef.current = turnLanguage;
     setConversationLanguage(turnLanguage);
     const userMessage = { role: 'user' as const, text: userText, time: timestamp(turnLanguage), language: turnLanguage, imageContext: Boolean(imageForTurn) };
@@ -281,7 +283,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
     setSending(true);
     setMessages((current) => [...current, userMessage]);
     const stateCandidate = generateSalesTurn(salesStateRef.current, userText, messages, turnLanguage);
-    const resolved = await resolveSalesChatTurn({ state: salesStateRef.current, stateCandidate, messages, userMessage, locale: turnLanguage, attachment: imageForTurn ? { mimeType: imageForTurn.mimeType, data: imageForTurn.data } : undefined, time: timestamp(turnLanguage), apiBaseUrl: salesChatApiBaseUrl });
+    const resolved = await resolveSalesChatTurn({ state: salesStateRef.current, stateCandidate, messages, userMessage, locale, conversationLanguage: turnLanguage, attachment: imageForTurn ? { mimeType: imageForTurn.mimeType, data: imageForTurn.data } : undefined, time: timestamp(turnLanguage), apiBaseUrl: salesChatApiBaseUrl });
     salesStateRef.current = resolved.state;
     setMessages(resolved.messages as Message[]);
     setSalesState(resolved.state);
@@ -400,7 +402,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
           const visibleArticleRecommendations = [...new Set(message.articleRefs || [])].map((slug) => getPublishedArticlePresentation(slug, messageLanguage)).filter((article): article is NonNullable<typeof article> => Boolean(article)).slice(0, 3);
           return <div className={`samche-message-row ${message.role}`} key={messageKey}>
           {message.role === 'assistant' && <Orb small avatarUrl={config.avatar_url || config.logo_url} />}
-          <div className="samche-message-content">{message.title && <strong className="samche-welcome-title">{index === 0 ? config.welcome_title : message.title}</strong>}<div className="samche-message-bubble">{index === 0 && message.title ? renderAssistantText(config.welcome_message) : message.role === 'assistant' ? renderAssistantText(visibleText) : message.text}</div>{message.role === 'assistant' && visibleArticleRecommendations.length ? <nav className="samche-chat-article-links" aria-label={messageLanguage === 'tr' ? 'İlgili yardım makaleleri' : messageLanguage === 'ar' ? 'مقالات المساعدة ذات الصلة' : 'Related help articles'}>{visibleArticleRecommendations.map((article) => <InternalLink className="samche-chat-article-link" key={article.slug} href={article.url}><span><strong>{article.title}</strong><small>{article.summary}</small></span><b aria-hidden="true">→</b></InternalLink>)}</nav> : null}<time>{message.time === 'Now' ? (locale === 'tr' ? 'Şimdi' : locale === 'ar' ? 'الآن' : 'Now') : message.time}</time></div>
+          <div className="samche-message-content">{message.title && <strong className="samche-welcome-title">{index === 0 ? config.welcome_title : message.title}</strong>}<div className="samche-message-bubble">{index === 0 && message.title ? renderAssistantText(config.welcome_message) : message.role === 'assistant' ? renderAssistantText(visibleText) : message.text}</div>{message.role === 'assistant' && visibleArticleRecommendations.length ? <nav className="samche-chat-article-links" aria-label={messageLanguage === 'tr' ? 'İlgili yardım makaleleri' : messageLanguage === 'ar' ? 'مقالات المساعدة ذات الصلة' : 'Related help articles'}><strong className="samche-chat-article-heading">{messageLanguage === 'tr' ? 'İlgili Yardım Makaleleri' : messageLanguage === 'ar' ? 'مقالات المساعدة ذات الصلة' : 'Related Help Articles'}</strong>{visibleArticleRecommendations.map((article) => <InternalLink className="samche-chat-article-link" key={article.slug} href={article.url}><span><strong>{article.title}</strong><small>{article.summary}</small></span><b aria-hidden="true">→</b></InternalLink>)}</nav> : null}<time>{message.time === 'Now' ? (locale === 'tr' ? 'Şimdi' : locale === 'ar' ? 'الآن' : 'Now') : message.time}</time></div>
           {message.role === 'user' && <span className="samche-user-avatar" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5" /><path d="M5 20c.4-4 2.8-6 7-6s6.6 2 7 6" /></svg></span>}
         </div>;
         })}

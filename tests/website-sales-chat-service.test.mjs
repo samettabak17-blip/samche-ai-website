@@ -576,6 +576,22 @@ test('latest user language overrides UI locale for Turkish product questions', a
   assert.doesNotMatch(result.body.reply, /^What type of business/i);
 });
 
+test('server retains authoritative conversation language for a neutral latest support message', async () => {
+  const service = createSalesChatService({
+    openaiClient: providerWith(JSON.stringify({
+      reply: 'I cannot help with that.', intent: 'support', extractedFields: {}, requestedNextField: null,
+      actionIntent: [], responseMode: 'support', resumePendingQuestion: false, articleRefs: [],
+    })), commercialFacts,
+  });
+  const result = await service.handle({ body: requestBody({
+    locale: 'en', inputLanguage: 'tr', userMessage: '...', responseMode: 'support', detectedIntent: 'support',
+    conversationHistory: [{ role: 'user', text: 'WhatsApp yanıt vermiyor' }, { role: 'assistant', text: 'Kanalı inceleyelim.', articleRefs: ['whatsapp-ai-not-replying'] }],
+  }) });
+  assert.equal(result.status, 200);
+  assert.equal(result.context.inputLanguage, 'tr');
+  assert.match(result.body.reply, /Doğrulanmış|incelemeyi|etkilenen|çalışma alanı/u);
+});
+
 test('provider replies in the latest language for English and Arabic questions', async () => {
   for (const [locale, userMessage, reply, expected] of [
     ['en', 'What products are available?', 'SamChe AI offers Web Chatbot, WhatsApp AI, and AI Guide.', /Web Chatbot/],
