@@ -16,6 +16,7 @@ type Message = { role: 'assistant' | 'user'; text: string; title?: string; time:
 type SalesState = ReturnType<typeof createInitialSalesState>;
 type SalesAction = { label: string; type: 'link' | 'demo' | 'whatsapp'; href?: string };
 type ChatAttachment = { name: string; mimeType: string; data: string; preview: string };
+type ChatContext = { mode: 'sales' | 'support'; product: string; plan: string; supportIssue: string; articleRefs: string[]; imageSummary: string; imageModule: string };
 type ViewportMetrics = { height: number; offsetTop: number; offsetLeft: number };
 const salesChatApiBaseUrl = '';
 function welcomeMessage(config: ReturnType<typeof resolveSamcheChatConfig>): Message {
@@ -59,6 +60,22 @@ function leadSummaryFields(lead: SalesState['lead']): Array<[string, string]> {
     ['Timeline',lead.timeline],['Contact preference',lead.contactPreference],
   ];
   return rows.filter(([, value]) => value);
+}
+
+function deriveChatContext(state: SalesState, messages: Message[]): ChatContext {
+  const support = messages.some((message) => /support|issue|error|problem|troubleshoot|sorun|hata|destek|مشكلة|خطأ|دعم/u.test(message.text));
+  const articleRefs = [...new Set(messages.flatMap((message) => message.articleRefs || []))].slice(0, 6);
+  const imageIndex = messages.map((message, index) => ({ message, index })).reverse().find(({ message }) => message.imageContext)?.index;
+  const imageReply = imageIndex === undefined ? '' : messages.slice(imageIndex + 1).find((message) => message.role === 'assistant')?.text || '';
+  return {
+    mode: support ? 'support' : 'sales',
+    product: state.lead.products[0] || state.lead.channels[0] || '',
+    plan: state.lead.recommendedPlan || state.lead.likelyPlan || state.lead.preferredPlan || '',
+    supportIssue: support ? (messages.filter((message) => message.role === 'user').at(-1)?.text || '').slice(0, 500) : '',
+    articleRefs,
+    imageSummary: imageReply.slice(0, 600),
+    imageModule: imageIndex === undefined ? '' : state.lead.products[0] || 'SamChe AI',
+  };
 }
 
 type RestrictedInlineToken = { type: 'text' | 'bold' | 'code' | 'break' | 'link'; value?: string; href?: string };
@@ -105,6 +122,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
   const [visualViewport, setVisualViewport] = useState<ViewportMetrics>({ height: 0, offsetTop: 0, offsetLeft: 0 });
   const salesStateRef = useRef<SalesState>(createInitialSalesState());
   const sessionIdRef = useRef('');
+  const chatContextRef = useRef<ChatContext>(deriveChatContext(createInitialSalesState(), []));
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -152,6 +170,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
         salesStateRef.current = saved.state as SalesState;
         setSalesState(saved.state as SalesState);
         setActions(saved.actions as SalesAction[]);
+        chatContextRef.current = (saved.context as ChatContext) || deriveChatContext(saved.state as SalesState, saved.messages as Message[]);
         setOpen(saved.open);
         if (saved.sessionId) sessionIdRef.current = saved.sessionId;
       } else {
@@ -160,6 +179,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
         setSalesState(initial);
         setMessages([welcomeMessage(config)]);
         setActions([]);
+        chatContextRef.current = deriveChatContext(initial, []);
         setOpen(false);
       }
       setHydrated(true);
@@ -172,14 +192,22 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
 
   useEffect(() => {
     if (!hydrated) return;
-    saveChatSession(undefined, { messages, state: salesState, actions, open, locale, sessionId: sessionIdRef.current });
+    saveChatSession(undefined, { messages, state: salesState, actions, open, locale, sessionId: sessionIdRef.current, context: chatContextRef.current });
   }, [messages, salesState, actions, open, hydrated, locale]);
 
   useEffect(() => {
     if (!open) return;
-    inputRef.current?.focus();
+    const frame = window.requestAnimationFrame(() => {
+      if (window.matchMedia?.('(pointer: fine)').matches) inputRef.current?.focus({ preventScroll: true });
+      listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'auto' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || !messages.length) return;
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
-  }, [open, messages, sending]);
+  }, [messages, sending, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -233,7 +261,8 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
     setMessages(resolved.messages as Message[]);
     setSalesState(resolved.state);
     setActions(resolved.actions as SalesAction[]);
-    saveChatSession(undefined, { messages: resolved.messages, state: resolved.state, actions: resolved.actions, open: true, locale, sessionId: sessionIdRef.current });
+    chatContextRef.current = deriveChatContext(resolved.state as SalesState, resolved.messages as Message[]);
+    saveChatSession(undefined, { messages: resolved.messages, state: resolved.state, actions: resolved.actions, open: true, locale, sessionId: sessionIdRef.current, context: chatContextRef.current });
     if (import.meta.env.DEV && resolved.diagnostic) console.debug('[sales-chat] error', { source: resolved.diagnostic.source, httpStatus: 'httpStatus' in resolved.diagnostic ? resolved.diagnostic.httpStatus : undefined, contractReason: 'contractReason' in resolved.diagnostic ? resolved.diagnostic.contractReason : undefined, inputLanguage: getSalesInputLanguage(trimmed) });
     setErrorMessage(resolved.retryMessage);
     setProcessingStatus(resolved.retryMessage || getSalesProcessingStatus(trimmed, resolved.state));
@@ -292,7 +321,8 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
     setSalesState(updated);
     const nextActions = filterSalesActionsForLead(updated.lead, actions);
     setActions(nextActions);
-    saveChatSession(undefined, { messages, state: updated, actions: nextActions, open, locale, sessionId: sessionIdRef.current });
+    chatContextRef.current = deriveChatContext(updated, messages);
+    saveChatSession(undefined, { messages, state: updated, actions: nextActions, open, locale, sessionId: sessionIdRef.current, context: chatContextRef.current });
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -312,8 +342,9 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
     setEditing(false);
     setMenuOpen(false);
     setConfirmReset(false);
+    chatContextRef.current = deriveChatContext(initial, freshMessages);
     clearChatSession();
-    saveChatSession(undefined, { messages: freshMessages, state: initial, actions: [], open: true, locale, sessionId: sessionIdRef.current });
+    saveChatSession(undefined, { messages: freshMessages, state: initial, actions: [], open: true, locale, sessionId: sessionIdRef.current, context: chatContextRef.current });
   }
 
   const summaryReady = isLeadSummaryReady(salesState.lead, salesState.intent);
@@ -333,7 +364,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
 
   return <div className={`samche-chat-root${keyboardOpen ? ' samche-keyboard-open' : ''}`} style={viewportStyle}>
     <section className={`samche-chat-panel${open ? ' is-open' : ''}${keyboardOpen ? ' samche-keyboard-open' : ''}`} aria-hidden={!open} role="dialog" aria-label={config.assistant_display_name} aria-modal="false">
-      <header className="samche-chat-header"><Orb small header avatarUrl={config.avatar_url || config.logo_url} /><div className="samche-chat-title"><strong>{config.assistant_display_name}</strong><span><i /> {config.assistant_status_label}</span><small>{config.subtitle}</small></div><div className="samche-chat-menu-wrap"><button className="samche-icon-button samche-menu" type="button" aria-label={config.more_options_label} aria-expanded={menuOpen} title={config.more_options_label} onClick={() => setMenuOpen((value) => !value)}>···</button>{menuOpen && <div className="samche-chat-menu"><button type="button" onClick={() => { setMenuOpen(false); setConfirmReset(true); }}>Clear conversation</button></div>}</div><button className="samche-icon-button" type="button" aria-label="Close chat" onClick={() => setOpen(false)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button></header>
+      <header className="samche-chat-header"><Orb small header avatarUrl={config.avatar_url || config.logo_url} /><div className="samche-chat-title"><strong>{config.assistant_display_name}</strong><span><i /> {config.assistant_status_label}</span><small>{config.subtitle}</small></div><div className="samche-chat-menu-wrap"><button className="samche-icon-button samche-menu" type="button" aria-label={config.more_options_label} aria-expanded={menuOpen} title={config.more_options_label} onClick={() => setMenuOpen((value) => !value)}>···</button>{menuOpen && <div className="samche-chat-menu"><button type="button" onClick={() => { setMenuOpen(false); setConfirmReset(true); }}>{locale === 'tr' ? 'Yeni Sohbet' : locale === 'ar' ? 'محادثة جديدة' : 'New Chat'}</button></div>}</div><button className="samche-icon-button" type="button" aria-label="Close chat" onClick={() => setOpen(false)}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button></header>
       {confirmReset && <div className="samche-reset-backdrop"><section className="samche-reset-dialog" role="alertdialog" aria-modal="true" aria-labelledby="samche-reset-title" aria-describedby="samche-reset-copy"><h2 id="samche-reset-title">Clear conversation?</h2><p id="samche-reset-copy">Clear this conversation and start again?</p><div><button type="button" onClick={() => setConfirmReset(false)}>CANCEL</button><button type="button" onClick={resetConversation}>CLEAR CONVERSATION</button></div></section></div>}
       <div className="samche-chat-messages" ref={listRef} aria-live="polite">
         {displayedMessages.map((message, index) => {

@@ -7,8 +7,16 @@ test('short replies begin quickly and complete as a fast reveal', () => {
   const profile = getRevealProfile(text);
   assert.ok(profile.firstChunkDelayMs >= 80 && profile.firstChunkDelayMs <= 150);
   assert.ok(getRevealedText(text, 120).length > 0);
-  assert.ok(profile.durationMs <= 350);
+  assert.ok(profile.durationMs >= 250 && profile.durationMs <= 550);
   assert.equal(getRevealedText(text, profile.durationMs), text);
+});
+
+test('medium replies flow for roughly one second without typewriter pacing', () => {
+  const text = 'A useful response with several words and a clear next step for the customer.'.repeat(2);
+  const profile = getRevealProfile(text);
+  assert.ok(profile.durationMs >= 800 && profile.durationMs <= 1_800);
+  assert.ok(profile.chunkSize >= 3);
+  assert.ok(getRevealedText(text, profile.durationMs / 2).length > 0);
 });
 
 test('long replies use larger word chunks and stay within three seconds', () => {
@@ -16,7 +24,7 @@ test('long replies use larger word chunks and stay within three seconds', () => 
   const longText = Array.from({ length: 180 }, (_, index) => `word${index}`).join(' ');
   const profile = getRevealProfile(longText);
   assert.ok(profile.chunkSize > short.chunkSize);
-  assert.ok(profile.durationMs > 1_500 && profile.durationMs <= 3_000);
+  assert.ok(profile.durationMs > 1_800 && profile.durationMs <= 3_500);
   assert.ok(getRevealedText(longText, 1_000).split(/\s+/).length > 40);
   assert.equal(getRevealedText(longText, profile.durationMs), longText);
 });

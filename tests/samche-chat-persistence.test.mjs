@@ -7,8 +7,9 @@ for (const boundary of ['validate', 'load', 'save']) {
     const { CHAT_STORAGE_KEY, validateChatSession, loadChatSession, saveChatSession } = await loadPersistenceModule();
     const storage = new MemoryStorage();
     const canonical = {
-      version: 1, messages: [{ role: 'user', text: 'Tomorrow is preferred.', time: '10:00' }],
-      state: createInitialSalesState(), actions: [], open: true,
+      version: 2, messages: [{ role: 'user', text: 'Tomorrow is preferred.', time: '10:00' }],
+      state: createInitialSalesState(), actions: [], open: true, locale: 'en', lastActiveAt: '2026-09-24T00:00:00.000Z',
+      context: { mode: 'sales', product: '', plan: '', supportIssue: '', articleRefs: [], imageSummary: '', imageModule: '' },
     };
     const contaminated = {
       ...canonical, meetingConfirmed: true, arbitrarySession: 'unsupported',
@@ -35,7 +36,7 @@ for (const claim of ['No problem, your demo is confirmed.', 'No problem — we h
     const storage = new MemoryStorage();
     const safe = { role: 'assistant', text: 'No appointment has been confirmed.', time: '10:00' };
     const user = { role: 'user', text: claim, time: '10:00' };
-    const session = { version: 1, messages: [safe, user, { ...safe, text: claim }], state: createInitialSalesState(), actions: [], open: true };
+    const session = { version: 2, messages: [safe, user, { ...safe, text: claim }], state: createInitialSalesState(), actions: [], open: true, locale: 'en', lastActiveAt: '2026-09-24T00:00:00.000Z', context: { mode: 'sales', product: '', plan: '', supportIssue: '', articleRefs: [], imageSummary: '', imageModule: '' } };
     storage.setItem(CHAT_STORAGE_KEY, JSON.stringify(session));
     assert.deepEqual(loadChatSession(storage).messages, [safe, user]);
     assert.equal(saveChatSession(storage, session), true);
@@ -69,8 +70,8 @@ test('versioned persistence restores chat, lead, stage, actions and open state a
   };
   saveChatSession(storage, session);
   const restored = loadChatSession(storage);
-  assert.equal(CHAT_STORAGE_KEY, 'samche_ai_chat_v1');
-  assert.deepEqual(restored, { ...session, version: 1 });
+  assert.equal(CHAT_STORAGE_KEY, 'samche_ai_chat_v2');
+  assert.deepEqual({ ...restored, lastActiveAt: 'stable' }, { ...session, version: 2, locale: 'en', lastActiveAt: 'stable', context: { mode: 'sales', product: '', plan: '', supportIssue: '', articleRefs: [], imageSummary: '', imageModule: '' } });
 });
 
 test('invalid or incompatible persisted state fails safely without throwing', async () => {
@@ -112,10 +113,11 @@ test('full lead state and qualification metadata survive a refresh round trip', 
         externalIntegrations: 'one', aiLeadScoring: 'Not required', likelyPlan: 'growth',
       },
     },
-    actions: [], open: true, locale: 'en', sessionId: 'session-test-1',
+    actions: [], open: true, locale: 'tr', sessionId: 'session-test-1', lastActiveAt: '2026-09-24T00:00:00.000Z',
+    context: { mode: 'sales', product: 'WhatsApp AI', plan: 'growth', supportIssue: 'WhatsApp replies are failing', articleRefs: ['whatsapp-ai-troubleshooting'], imageSummary: 'Visible inactive channel warning', imageModule: 'WhatsApp channel' },
   };
   assert.equal(saveChatSession(storage, session), true);
-  assert.deepEqual(loadChatSession(storage), { ...session, version: 1 });
+  assert.deepEqual(loadChatSession(storage), { ...session, version: 2 });
 });
 
 test('hybrid conversation metadata survives refresh round trip', async () => {
@@ -124,11 +126,36 @@ test('hybrid conversation metadata survives refresh round trip', async () => {
   const session = {
     messages: [],
     state: { ...base, pendingQualificationField: 'teamUsers', lastPendingQuestion: 'How many people would use the shared inbox?', offTopicTurns: 2 },
-    actions: [], open: true, locale: 'en', sessionId: 'hybrid-session',
+    actions: [], open: true, locale: 'ar', sessionId: 'hybrid-session', lastActiveAt: '2026-09-24T00:00:00.000Z', context: { mode: 'support', product: 'WhatsApp AI', plan: '', supportIssue: 'Inactive channel', articleRefs: [], imageSummary: '', imageModule: '' },
   };
   const storage = new MemoryStorage();
   assert.equal(saveChatSession(storage, session), true);
-  assert.deepEqual(loadChatSession(storage), { ...session, version: 1 });
+  assert.deepEqual(loadChatSession(storage), { ...session, version: 2 });
+});
+
+test('v1 sessions migrate with safe defaults and never retain raw image payloads', async () => {
+  const { CHAT_STORAGE_KEY, loadChatSession } = await loadPersistenceModule();
+  const storage = new MemoryStorage();
+  const base = createInitialSalesState();
+  storage.setItem(CHAT_STORAGE_KEY, JSON.stringify({
+    version: 1,
+    messages: [{ role: 'assistant', text: 'Check WhatsApp.', time: '10:00', imageContext: true, data: 'data:image/png;base64,secret', preview: 'blob:secret', articleRefs: ['whatsapp-ai-troubleshooting'] }],
+    state: base, actions: [], open: true, locale: 'en',
+  }));
+  const restored = loadChatSession(storage);
+  assert.equal(restored.version, 2);
+  assert.equal(restored.messages[0].data, undefined);
+  assert.equal(restored.messages[0].preview, undefined);
+  assert.deepEqual(restored.context.articleRefs, ['whatsapp-ai-troubleshooting']);
+  assert.equal(restored.context.imageSummary, '');
+});
+
+test('expired sessions fail safely without restoring stale conversation context', async () => {
+  const { CHAT_STORAGE_KEY, loadChatSession } = await loadPersistenceModule();
+  const storage = new MemoryStorage();
+  const base = createInitialSalesState();
+  storage.setItem(CHAT_STORAGE_KEY, JSON.stringify({ version: 2, messages: [], state: base, actions: [], open: true, locale: 'en', lastActiveAt: '2020-01-01T00:00:00.000Z', context: { mode: 'sales', product: '', plan: '', supportIssue: '', articleRefs: [], imageSummary: '', imageModule: '' } }));
+  assert.equal(loadChatSession(storage), null);
 });
 
 test('legacy booking fields and unsafe assistant claims are sanitized at load and save boundaries', async () => {

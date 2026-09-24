@@ -9,6 +9,20 @@ test('chat panel stays mounted with an immediate open state and ready composer',
   assert.doesNotMatch(source, /disabled=\{!hydrated\}/);
   assert.doesNotMatch(source, /sending \|\| !hydrated/);
   assert.doesNotMatch(source, /setTimeout\(\(\) => \{[\s\S]*loadChatSession/);
+  assert.match(source, /saveChatSession\([^;]+context:/s);
+  assert.match(source, /New Chat/);
+  assert.match(source, /Yeni Sohbet/);
+  assert.match(source, /محادثة جديدة/);
+});
+
+test('chat restoration is independent from the launcher click path', async () => {
+  const source = await readFile(new URL('../app/components/samche-chat-widget.tsx', import.meta.url), 'utf8');
+  const launcher = source.match(/<button id="samche-chat-launcher"[\s\S]*?onClick=\{\(\) => setOpen\(\(value\) => !value\)\}/)?.[0] || '';
+  assert.match(launcher, /setOpen/);
+  assert.doesNotMatch(launcher, /loadChatSession|JSON\.parse|scrollTo|focus/);
+  assert.match(source, /clearChatSession\(\);[\s\S]*?saveChatSession/);
+  assert.match(source, /pointer:\s*fine/);
+  assert.match(source, /requestAnimationFrame/);
 });
 
 test('chat panel uses a short transform transition and removes motion for reduced-motion users', async () => {
