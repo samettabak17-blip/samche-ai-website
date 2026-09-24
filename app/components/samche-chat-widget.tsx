@@ -8,6 +8,7 @@ import { resolveSalesChatTurn } from '../../lib/samche-sales-chat-client.mjs';
 import { translateText } from '../../lib/samche-localization.mjs';
 import { extractClipboardImage, readImageFile } from '../../lib/chat-attachment.mjs';
 import { parseRestrictedMarkdown } from '../../lib/restricted-markdown.mjs';
+import { getRevealedText } from '../../lib/chat-reveal.mjs';
 import { getPublishedArticles } from '../../lib/help-center/index.mjs';
 import { useSiteLocale } from './site-localization';
 
@@ -115,34 +116,30 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
     const key = `${index}-${message.time}`;
     if (revealedMessagesRef.current[key] === message.text) return;
     const previousTimer = timers.get(key);
-    if (previousTimer) window.clearInterval(previousTimer);
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    if (previousTimer) window.cancelAnimationFrame(previousTimer);
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (reducedMotion) {
       revealedMessagesRef.current[key] = message.text;
       return;
     }
-    let position = 0;
+    const startedAt = performance.now();
     revealedMessagesRef.current[key] = '';
-    let interval: number | undefined;
-    const kickoff = window.setTimeout(() => {
-      setRevealedMessages((current) => ({ ...current, [key]: '' }));
-      interval = window.setInterval(() => {
-        position = Math.min(message.text.length, position + (message.text.length > 600 ? 3 : 2));
-        const visible = message.text.slice(0, position);
-        revealedMessagesRef.current[key] = visible;
-        setRevealedMessages((current) => ({ ...current, [key]: visible }));
-        if (position >= message.text.length) {
-          if (interval) window.clearInterval(interval);
-          timers.delete(key);
-        }
-      }, 14);
-      timers.set(key, interval);
-    }, 0);
-    timers.set(key, kickoff);
+    const revealFrame = (now: number) => {
+      const visible = getRevealedText(message.text, now - startedAt);
+      revealedMessagesRef.current[key] = visible;
+      setRevealedMessages((current) => ({ ...current, [key]: visible }));
+      if (visible === message.text) {
+        timers.delete(key);
+        return;
+      }
+      timers.set(key, window.requestAnimationFrame(revealFrame));
+    };
+    timers.set(key, window.requestAnimationFrame(revealFrame));
   }, [messages]);
 
   useEffect(() => {
     const timers = revealTimersRef.current;
-    return () => timers.forEach((timer) => window.clearInterval(timer));
+    return () => timers.forEach((timer) => window.cancelAnimationFrame(timer));
   }, []);
   useEffect(() => {
     const timer = window.setTimeout(() => {
