@@ -6,7 +6,11 @@ import {
   searchHelpArticles,
   getHelpArticleSources,
   getHelpCoverageInventory,
+  getHelpArticleStatistics,
+  filterPublishedHelpArticles,
+  getPublishedCategories,
 } from '../lib/help-center/index.mjs';
+import { troubleshootingArticles } from '../lib/help-center/troubleshooting-registry.mjs';
 
 test('published help inventory covers every verified customer-accessible map entry', () => {
   const inventory = getHelpCoverageInventory();
@@ -59,4 +63,27 @@ test('chatbot sources are bounded, localized, and contain canonical article URLs
     assert.ok(source.title && source.excerpt && source.navigation);
     assert.equal(source.status, 'Published');
   }
+});
+
+test('article statistics equal the canonical published registry after publication filters', () => {
+  const published = getPublishedArticles('en');
+  const statistics = getHelpArticleStatistics('en');
+  assert.equal(statistics.totalPublished, published.length);
+  assert.equal(statistics.totalTroubleshooting, troubleshootingArticles.filter((article) => article.verification.status === 'Published').length);
+  assert.equal(statistics.categories.reduce((sum, category) => sum + category.count, 0), statistics.totalPublished);
+  assert.deepEqual(
+    statistics.categories.map(({ slug, count }) => ({ slug, count })),
+    getPublishedCategories('en').map(({ slug, articleCount }) => ({ slug, count: articleCount })),
+  );
+});
+
+test('publication filter excludes draft retired unverified roadmap and unpublished records', () => {
+  const record = (status) => ({ slug: status.toLowerCase().replaceAll(' ', '-'), verification: { status } });
+  assert.deepEqual(
+    filterPublishedHelpArticles([
+      record('Published'), record('Draft'), record('Needs Review'), record('Retired'),
+      record('Unverified'), record('Roadmap'), record('Unpublished'),
+    ]).map(({ verification }) => verification.status),
+    ['Published'],
+  );
 });

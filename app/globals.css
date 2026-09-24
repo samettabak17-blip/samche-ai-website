@@ -1471,6 +1471,9 @@ body { background:radial-gradient(ellipse at 50% -22%,rgba(143,10,30,.23),transp
 .help-hero { padding: clamp(30px,5vw,72px); border: 1px solid rgba(232,189,104,.24); border-radius: 18px; background: radial-gradient(circle at 8% 0%,rgba(177,20,48,.25),transparent 45%),linear-gradient(135deg,rgba(35,17,24,.96),rgba(13,9,13,.96)); }
 .help-hero h1 { max-width: 760px; margin: 0; font-size: clamp(38px,6vw,72px); font-weight: 500; letter-spacing: -.065em; line-height: 1.04; }
 .help-hero > p:not(.eyebrow) { max-width: 660px; margin: 18px 0 0; color: var(--muted); font-size: 17px; }
+.help-counts { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
+.help-counts > span, .help-category-count { display:inline-flex; align-items:baseline; gap:6px; width:max-content; margin:0; padding:7px 10px; border:1px solid rgba(232,189,104,.2); border-radius:999px; color:var(--muted); font-size:12px; }
+.help-counts strong, .help-category-count strong { color:var(--cream); font-size:15px; }
 .help-hero-compact { padding-block: 36px; }
 .help-search { max-width: 900px; margin-top: 30px; }
 .help-search-form { display: flex; gap: 10px; }

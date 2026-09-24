@@ -22,6 +22,11 @@ test('Help Center routes use the shared registry and provide permanent article U
   assert.match(component, /related/);
   assert.match(component, /Was this article helpful|Makale faydalı oldu mu|هل كانت هذه المقالة مفيدة/);
   assert.match(component, /dir=\{locale === 'ar' \? 'rtl' : 'ltr'\}/);
+  assert.match(component, /getHelpArticleStatistics/);
+  assert.match(component, /totalPublished/);
+  assert.match(component, /totalTroubleshooting/);
+  assert.match(component, /category\.articleCount/);
+  assert.match(component, /category\.articles\.length/);
 });
 
 test('article reading structure includes navigation, contents, verification, and support links', async () => {
