@@ -115,6 +115,7 @@ test('widget contract uses localized status, progressive reveal, and canonical a
   assert.match(source, /setMessages\(\(current\) => \[\.\.\.current, userMessage\]\)/);
   assert.match(source, /requestAnimationFrame|setInterval|setTimeout/);
   assert.match(source, /getPublishedArticlePresentation/);
+  assert.match(source, /stripHelpArticleLinks/);
   assert.match(source, /token\.type === 'link'/);
   assert.match(source, /InternalLink[\s\S]{0,220}article\.url/);
   assert.doesNotMatch(source, /articleUrls\.get\(slug\)/);

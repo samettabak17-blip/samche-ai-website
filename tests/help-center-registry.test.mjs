@@ -87,3 +87,8 @@ test('publication filter excludes draft retired unverified roadmap and unpublish
     ['Published'],
   );
 });
+
+test('canonical published registry exposes each article slug exactly once', () => {
+  const slugs = getPublishedArticles('en').map((article) => article.slug);
+  assert.equal(new Set(slugs).size, slugs.length);
+});

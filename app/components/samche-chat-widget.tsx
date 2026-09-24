@@ -7,7 +7,7 @@ import { clearChatSession, LEAD_HANDOFF_KEY, loadChatSession, saveChatSession } 
 import { resolveSalesChatTurn } from '../../lib/samche-sales-chat-client.mjs';
 import { translateText } from '../../lib/samche-localization.mjs';
 import { extractClipboardImage, readImageFile } from '../../lib/chat-attachment.mjs';
-import { parseRestrictedMarkdown } from '../../lib/restricted-markdown.mjs';
+import { parseRestrictedMarkdown, stripHelpArticleLinks } from '../../lib/restricted-markdown.mjs';
 import { getRevealedText } from '../../lib/chat-reveal.mjs';
 import { getPublishedArticlePresentation } from '../../lib/help-center/index.mjs';
 import InternalLink from './internal-link';
@@ -136,21 +136,22 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
     if (!latestAssistant) return;
     const { message, index } = latestAssistant;
     const key = `${index}-${message.time}`;
-    if (revealedMessagesRef.current[key] === message.text) return;
+    const revealText = message.articleRefs?.length ? stripHelpArticleLinks(message.text) : message.text;
+    if (revealedMessagesRef.current[key] === revealText) return;
     const previousTimer = timers.get(key);
     if (previousTimer) window.cancelAnimationFrame(previousTimer);
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (reducedMotion) {
-      revealedMessagesRef.current[key] = message.text;
+      revealedMessagesRef.current[key] = revealText;
       return;
     }
     const startedAt = performance.now();
     revealedMessagesRef.current[key] = '';
     const revealFrame = (now: number) => {
-      const visible = getRevealedText(message.text, now - startedAt);
+      const visible = getRevealedText(revealText, now - startedAt);
       revealedMessagesRef.current[key] = visible;
       setRevealedMessages((current) => ({ ...current, [key]: visible }));
-      if (visible === message.text) {
+      if (visible === revealText) {
         timers.delete(key);
         return;
       }
@@ -381,7 +382,8 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
       <div className="samche-chat-messages" ref={listRef} aria-live="polite">
         {displayedMessages.map((message, index) => {
           const messageKey = `${index}-${message.time}`;
-          const visibleText = message.role === 'assistant' && !message.title ? (revealedMessages[messageKey] ?? message.text) : message.text;
+          const assistantText = message.articleRefs?.length ? stripHelpArticleLinks(message.text) : message.text;
+          const visibleText = message.role === 'assistant' && !message.title ? (revealedMessages[messageKey] ?? assistantText) : assistantText;
           const messageLanguage = message.language || conversationLanguage;
           const visibleArticleRecommendations = [...new Set(message.articleRefs || [])].map((slug) => getPublishedArticlePresentation(slug, messageLanguage)).filter((article): article is NonNullable<typeof article> => Boolean(article)).slice(0, 3);
           return <div className={`samche-message-row ${message.role}`} key={messageKey}>

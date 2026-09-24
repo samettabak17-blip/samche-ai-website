@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseRestrictedMarkdown } from '../lib/restricted-markdown.mjs';
+import { parseRestrictedMarkdown, stripHelpArticleLinks } from '../lib/restricted-markdown.mjs';
 
 function textValues(tokens) {
   return tokens.flatMap((token) => token.children || [token]).map((token) => token.type === 'break' ? '\n' : token.value || '').join('');
@@ -35,4 +35,10 @@ test('keeps raw HTML and scripts inert as plain text', () => {
 test('preserves unsupported punctuation and empty input safely', () => {
   assert.deepEqual(parseRestrictedMarkdown(''), []);
   assert.equal(textValues(parseRestrictedMarkdown('5 > 3 and https://example.test/?x=1')), '5 > 3 and https://example.test/?x=1');
+});
+
+test('removes Help Center markdown and raw URLs when structured article cards are present', () => {
+  const body = 'Use these steps.\n\n[Open the article](/help/article/whatsapp-ai-not-replying?locale=en)\nhttps://samche.ai/help/article/whatsapp-ai-not-replying';
+  assert.equal(stripHelpArticleLinks(body), 'Use these steps.');
+  assert.equal(stripHelpArticleLinks('Keep this plain explanation.'), 'Keep this plain explanation.');
 });
