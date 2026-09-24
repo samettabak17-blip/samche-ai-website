@@ -4,6 +4,8 @@ import {
   getPublishedArticles,
   getArticleBySlug,
   searchHelpArticles,
+  searchHelpArticleResults,
+  getCategoryArticleGroups,
   getHelpArticleSources,
   getHelpCoverageInventory,
   getHelpArticleStatistics,
@@ -54,6 +56,30 @@ test('search ranks exact titles and known dashboard errors above body matches in
   ]) {
     assert.ok(searchHelpArticles(query, locale).slice(0, 3).some((result) => result.slug === 'whatsapp-ai-not-replying' || result.slug === 'whatsapp-ai-troubleshooting'), `${locale} ranking`);
   }
+});
+
+test('search summaries report the complete localized result count before pagination', () => {
+  const results = searchHelpArticleResults('WhatsApp', 'tr', { offset: 0, limit: 2 });
+  assert.ok(results.total > results.items.length);
+  assert.deepEqual([results.start, results.end], [1, 2]);
+  assert.equal(results.query, 'WhatsApp');
+  assert.equal(new Set(results.items.map((item) => item.slug)).size, results.items.length);
+  for (const item of results.items) {
+    assert.equal(item.categoryLabel, 'WhatsApp AI');
+    assert.ok(['Rehber', 'Sorun Giderme'].includes(item.articleTypeLabel));
+    assert.ok(item.excerpt);
+  }
+  assert.deepEqual(searchHelpArticleResults('zzzz-no-match', 'ar', { limit: 20 }), { query: 'zzzz-no-match', total: 0, start: 0, end: 0, items: [] });
+});
+
+test('category groups localize headings and include each published article exactly once', () => {
+  const groups = getCategoryArticleGroups('whatsapp-ai', 'tr');
+  const slugs = groups.flatMap((group) => group.articles.map((article) => article.slug));
+  assert.equal(slugs.length, 9);
+  assert.equal(new Set(slugs).size, 9);
+  assert.ok(groups.every((group) => group.label && group.articles.length > 0));
+  assert.ok(groups.some((group) => group.key === 'troubleshooting' && group.label === 'Sorun Giderme'));
+  assert.ok(groups.flatMap((group) => group.articles).every((article) => article.categoryLabel === 'WhatsApp AI'));
 });
 
 test('chatbot sources are bounded, localized, and contain canonical article URLs', () => {
