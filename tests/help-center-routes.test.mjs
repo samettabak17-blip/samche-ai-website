@@ -12,11 +12,16 @@ const files = {
 test('Help Center routes use the shared registry and provide permanent article URLs', async () => {
   const [home, category, article, component] = await Promise.all(Object.values(files).map((file) => readFile(file, 'utf8')));
   assert.match(home, /HelpCenterHome/);
+  assert.match(home, /searchParams/);
+  assert.match(home, /await searchParams/);
+  assert.match(home, /initialQuery=\{params\.q/);
   assert.match(category, /getCategoryBySlug/);
   assert.match(article, /getArticleBySlug/);
   assert.match(article, /generateMetadata/);
   assert.match(article, /notFound/);
   assert.match(component, /searchHelpArticleResults/);
+  assert.match(component, /HelpCenterHome\(\{ initialQuery/);
+  assert.match(component, /<SearchForm initial=\{initialQuery\}/);
   assert.match(component, /help-search-suggestions/);
   assert.match(component, /URLSearchParams/);
   assert.match(component, /related/);
