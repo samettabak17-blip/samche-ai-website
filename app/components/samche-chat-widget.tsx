@@ -13,7 +13,8 @@ import { getPublishedArticlePresentation } from '../../lib/help-center/index.mjs
 import InternalLink from './internal-link';
 import { useSiteLocale } from './site-localization';
 
-type Message = { role: 'assistant' | 'user'; text: string; title?: string; time: string; imageContext?: boolean; articleRefs?: string[] };
+type ChatLanguage = 'en' | 'tr' | 'ar';
+type Message = { role: 'assistant' | 'user'; text: string; title?: string; time: string; language?: ChatLanguage; imageContext?: boolean; articleRefs?: string[] };
 type SalesState = ReturnType<typeof createInitialSalesState>;
 type SalesAction = { label: string; type: 'link' | 'demo' | 'whatsapp'; href?: string };
 type ChatAttachment = { name: string; mimeType: string; data: string; preview: string };
@@ -116,6 +117,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
   const [attachment, setAttachment] = useState<ChatAttachment | null>(null);
   const recentImageRef = useRef<ChatAttachment | null>(null);
   const [processingStatus, setProcessingStatus] = useState('Reviewing your request…');
+  const [conversationLanguage, setConversationLanguage] = useState<ChatLanguage>(locale);
   const [revealedMessages, setRevealedMessages] = useState<Record<string, string>>({});
   const revealedMessagesRef = useRef<Record<string, string>>({});
   const revealTimersRef = useRef<Map<string, number>>(new Map());
@@ -124,6 +126,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
   const salesStateRef = useRef<SalesState>(createInitialSalesState());
   const sessionIdRef = useRef('');
   const chatContextRef = useRef<ChatContext>(deriveChatContext(createInitialSalesState(), []));
+  const conversationLanguageRef = useRef<ChatLanguage>(locale);
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -171,6 +174,8 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
         salesStateRef.current = saved.state as SalesState;
         setSalesState(saved.state as SalesState);
         setActions(saved.actions as SalesAction[]);
+        conversationLanguageRef.current = saved.conversationLanguage as ChatLanguage;
+        setConversationLanguage(saved.conversationLanguage as ChatLanguage);
         chatContextRef.current = (saved.context as ChatContext) || deriveChatContext(saved.state as SalesState, saved.messages as Message[]);
         setOpen(saved.open);
         if (saved.sessionId) sessionIdRef.current = saved.sessionId;
@@ -180,6 +185,8 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
         setSalesState(initial);
         setMessages([welcomeMessage(config)]);
         setActions([]);
+        conversationLanguageRef.current = locale;
+        setConversationLanguage(locale);
         chatContextRef.current = deriveChatContext(initial, []);
         setOpen(false);
       }
@@ -193,8 +200,8 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
 
   useEffect(() => {
     if (!hydrated) return;
-    saveChatSession(undefined, { messages, state: salesState, actions, open, locale, sessionId: sessionIdRef.current, context: chatContextRef.current });
-  }, [messages, salesState, actions, open, hydrated, locale]);
+    saveChatSession(undefined, { messages, state: salesState, actions, open, siteLocale: locale, conversationLanguage, sessionId: sessionIdRef.current, context: chatContextRef.current });
+  }, [messages, salesState, actions, open, hydrated, locale, conversationLanguage]);
 
   useEffect(() => {
     if (!open) return;
@@ -252,21 +259,25 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
     else recentImageRef.current = null;
     setInput('');
     setErrorMessage('');
-    const userMessage = { role: 'user' as const, text: trimmed || (locale === 'tr' ? 'Bu SamChe AI ekran görüntüsüne bakabilir misiniz?' : locale === 'ar' ? 'هل يمكنكم مراجعة لقطة شاشة SamChe AI هذه؟' : 'Can you review this SamChe AI screenshot?'), time: timestamp(locale), imageContext: Boolean(imageForTurn) };
-    setProcessingStatus(getSalesProcessingStatus(trimmed, salesStateRef.current, locale));
+    const userText = trimmed || (locale === 'tr' ? 'Bu SamChe AI ekran görüntüsüne bakabilir misiniz?' : locale === 'ar' ? 'هل يمكنكم مراجعة لقطة شاشة SamChe AI هذه؟' : 'Can you review this SamChe AI screenshot?');
+    const turnLanguage = getSalesInputLanguage(userText) as ChatLanguage;
+    conversationLanguageRef.current = turnLanguage;
+    setConversationLanguage(turnLanguage);
+    const userMessage = { role: 'user' as const, text: userText, time: timestamp(turnLanguage), language: turnLanguage, imageContext: Boolean(imageForTurn) };
+    setProcessingStatus(getSalesProcessingStatus(userText, salesStateRef.current, turnLanguage));
     setSending(true);
     setMessages((current) => [...current, userMessage]);
-    const stateCandidate = generateSalesTurn(salesStateRef.current, trimmed, messages, locale);
-    const resolved = await resolveSalesChatTurn({ state: salesStateRef.current, stateCandidate, messages, userMessage, locale, attachment: imageForTurn ? { mimeType: imageForTurn.mimeType, data: imageForTurn.data } : undefined, time: timestamp(locale), apiBaseUrl: salesChatApiBaseUrl });
+    const stateCandidate = generateSalesTurn(salesStateRef.current, userText, messages, turnLanguage);
+    const resolved = await resolveSalesChatTurn({ state: salesStateRef.current, stateCandidate, messages, userMessage, locale: turnLanguage, attachment: imageForTurn ? { mimeType: imageForTurn.mimeType, data: imageForTurn.data } : undefined, time: timestamp(turnLanguage), apiBaseUrl: salesChatApiBaseUrl });
     salesStateRef.current = resolved.state;
     setMessages(resolved.messages as Message[]);
     setSalesState(resolved.state);
     setActions(resolved.actions as SalesAction[]);
     chatContextRef.current = deriveChatContext(resolved.state as SalesState, resolved.messages as Message[]);
-    saveChatSession(undefined, { messages: resolved.messages, state: resolved.state, actions: resolved.actions, open: true, locale, sessionId: sessionIdRef.current, context: chatContextRef.current });
+    saveChatSession(undefined, { messages: resolved.messages, state: resolved.state, actions: resolved.actions, open: true, siteLocale: locale, conversationLanguage: turnLanguage, sessionId: sessionIdRef.current, context: chatContextRef.current });
     if (import.meta.env.DEV && resolved.diagnostic) console.debug('[sales-chat] error', { source: resolved.diagnostic.source, httpStatus: 'httpStatus' in resolved.diagnostic ? resolved.diagnostic.httpStatus : undefined, contractReason: 'contractReason' in resolved.diagnostic ? resolved.diagnostic.contractReason : undefined, inputLanguage: getSalesInputLanguage(trimmed) });
     setErrorMessage(resolved.retryMessage);
-    setProcessingStatus(resolved.retryMessage || getSalesProcessingStatus(trimmed, resolved.state));
+    setProcessingStatus(resolved.retryMessage || getSalesProcessingStatus(userText, resolved.state, turnLanguage));
     setSending(false);
     setAttachment(null);
   }
@@ -323,7 +334,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
     const nextActions = filterSalesActionsForLead(updated.lead, actions);
     setActions(nextActions);
     chatContextRef.current = deriveChatContext(updated, messages);
-    saveChatSession(undefined, { messages, state: updated, actions: nextActions, open, locale, sessionId: sessionIdRef.current, context: chatContextRef.current });
+    saveChatSession(undefined, { messages, state: updated, actions: nextActions, open, siteLocale: locale, conversationLanguage: conversationLanguageRef.current, sessionId: sessionIdRef.current, context: chatContextRef.current });
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -343,9 +354,11 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
     setEditing(false);
     setMenuOpen(false);
     setConfirmReset(false);
+    conversationLanguageRef.current = locale;
+    setConversationLanguage(locale);
     chatContextRef.current = deriveChatContext(initial, freshMessages);
     clearChatSession();
-    saveChatSession(undefined, { messages: freshMessages, state: initial, actions: [], open: true, locale, sessionId: sessionIdRef.current, context: chatContextRef.current });
+    saveChatSession(undefined, { messages: freshMessages, state: initial, actions: [], open: true, siteLocale: locale, conversationLanguage: locale, sessionId: sessionIdRef.current, context: chatContextRef.current });
   }
 
   const summaryReady = isLeadSummaryReady(salesState.lead, salesState.intent);
@@ -369,10 +382,11 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
         {displayedMessages.map((message, index) => {
           const messageKey = `${index}-${message.time}`;
           const visibleText = message.role === 'assistant' && !message.title ? (revealedMessages[messageKey] ?? message.text) : message.text;
-          const visibleArticleRecommendations = [...new Set(message.articleRefs || [])].map((slug) => getPublishedArticlePresentation(slug, locale)).filter((article): article is NonNullable<typeof article> => Boolean(article)).slice(0, 3);
+          const messageLanguage = message.language || conversationLanguage;
+          const visibleArticleRecommendations = [...new Set(message.articleRefs || [])].map((slug) => getPublishedArticlePresentation(slug, messageLanguage)).filter((article): article is NonNullable<typeof article> => Boolean(article)).slice(0, 3);
           return <div className={`samche-message-row ${message.role}`} key={messageKey}>
           {message.role === 'assistant' && <Orb small avatarUrl={config.avatar_url || config.logo_url} />}
-          <div className="samche-message-content">{message.title && <strong className="samche-welcome-title">{index === 0 ? config.welcome_title : message.title}</strong>}<div className="samche-message-bubble">{index === 0 && message.title ? renderAssistantText(config.welcome_message) : message.role === 'assistant' ? renderAssistantText(visibleText) : message.text}</div>{message.role === 'assistant' && visibleArticleRecommendations.length ? <nav className="samche-chat-article-links" aria-label={locale === 'tr' ? 'İlgili yardım makaleleri' : locale === 'ar' ? 'مقالات المساعدة ذات الصلة' : 'Related help articles'}>{visibleArticleRecommendations.map((article) => <InternalLink className="samche-chat-article-link" key={article.slug} href={article.url}><span><strong>{article.title}</strong><small>{article.summary}</small></span><b aria-hidden="true">→</b></InternalLink>)}</nav> : null}<time>{message.time === 'Now' ? (locale === 'tr' ? 'Şimdi' : locale === 'ar' ? 'الآن' : 'Now') : message.time}</time></div>
+          <div className="samche-message-content">{message.title && <strong className="samche-welcome-title">{index === 0 ? config.welcome_title : message.title}</strong>}<div className="samche-message-bubble">{index === 0 && message.title ? renderAssistantText(config.welcome_message) : message.role === 'assistant' ? renderAssistantText(visibleText) : message.text}</div>{message.role === 'assistant' && visibleArticleRecommendations.length ? <nav className="samche-chat-article-links" aria-label={messageLanguage === 'tr' ? 'İlgili yardım makaleleri' : messageLanguage === 'ar' ? 'مقالات المساعدة ذات الصلة' : 'Related help articles'}>{visibleArticleRecommendations.map((article) => <InternalLink className="samche-chat-article-link" key={article.slug} href={article.url}><span><strong>{article.title}</strong><small>{article.summary}</small></span><b aria-hidden="true">→</b></InternalLink>)}</nav> : null}<time>{message.time === 'Now' ? (locale === 'tr' ? 'Şimdi' : locale === 'ar' ? 'الآن' : 'Now') : message.time}</time></div>
           {message.role === 'user' && <span className="samche-user-avatar" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5" /><path d="M5 20c.4-4 2.8-6 7-6s6.6 2 7 6" /></svg></span>}
         </div>;
         })}

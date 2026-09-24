@@ -110,7 +110,8 @@ test('Arabic support fallback remains actionable and localized', () => {
 
 test('widget contract uses localized status, progressive reveal, and canonical article anchors', async () => {
   const source = await readFile(new URL('../app/components/samche-chat-widget.tsx', import.meta.url), 'utf8');
-  assert.match(source, /getSalesProcessingStatus\(trimmed, salesStateRef\.current, locale\)/);
+  assert.match(source, /getSalesProcessingStatus\(userText, salesStateRef\.current, turnLanguage\)/);
+  assert.match(source, /siteLocale: locale, conversationLanguage/);
   assert.match(source, /setMessages\(\(current\) => \[\.\.\.current, userMessage\]\)/);
   assert.match(source, /requestAnimationFrame|setInterval|setTimeout/);
   assert.match(source, /getPublishedArticlePresentation/);

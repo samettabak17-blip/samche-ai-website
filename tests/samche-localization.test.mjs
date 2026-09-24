@@ -140,7 +140,7 @@ test('support chat and footer labels stay localized in Turkish and Arabic', asyn
   assert.match(widget, /translateText\('Ask SamChe AI Assistant', locale\)/);
   assert.match(widget, /message\.time === 'Now' \? \(locale === 'tr' \? 'Şimdi'/);
   assert.match(widget, /renderAssistantText\(visibleText\)/);
-  assert.match(widget, /timestamp\(locale\)/);
+  assert.match(widget, /timestamp\(turnLanguage\)/);
   assert.match(widget, /locale === 'tr' \? 'tr-TR'/);
 });
 
@@ -353,7 +353,8 @@ test('clear-chat implementation leaves the independent locale preference untouch
   const persistence = await readFile(new URL('../lib/samche-chat-persistence.mjs', import.meta.url), 'utf8');
   assert.match(widget, /clearChatSession\(\)/);
   assert.doesNotMatch(persistence, /samche_ai_locale_v1/);
-  assert.match(widget, /generateSalesTurn\(salesStateRef\.current, trimmed, messages, locale\)/);
+  assert.match(widget, /generateSalesTurn\(salesStateRef\.current, userText, messages, turnLanguage\)/);
+  assert.match(widget, /siteLocale: locale, conversationLanguage/);
 });
 
 test('the restored locale is written only after preference hydration', async () => {
