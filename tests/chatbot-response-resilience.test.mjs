@@ -3,17 +3,25 @@ import assert from 'node:assert/strict';
 import { parseRestrictedMarkdown } from '../lib/restricted-markdown.mjs';
 import { createInitialSalesState, generateSalesTurn, getSalesProcessingStatus } from '../lib/samche-sales-assistant.mjs';
 import { buildSalesFallbackReply, resolveSalesChatTurn } from '../lib/samche-sales-chat-client.mjs';
+import { getPublishedArticleUrl } from '../lib/help-center/index.mjs';
 import { readFile } from 'node:fs/promises';
 
 test('renders a canonical Help Center markdown link only when the slug is supplied', () => {
-  const blocks = parseRestrictedMarkdown('[İlgili doğrulanmış makale](/help/article/whatsapp-ai-troubleshooting)', {
-    articleUrls: new Map([['whatsapp-ai-troubleshooting', '/help/article/whatsapp-ai-troubleshooting']]),
+  const articleUrl = getPublishedArticleUrl('whatsapp-ai-troubleshooting', 'tr');
+  const blocks = parseRestrictedMarkdown(`[İlgili doğrulanmış makale](${articleUrl})`, {
+    articleUrls: new Map([['whatsapp-ai-troubleshooting', articleUrl]]),
   });
   assert.deepEqual(blocks[0].children, [{
-    type: 'link', value: 'İlgili doğrulanmış makale', href: '/help/article/whatsapp-ai-troubleshooting',
+    type: 'link', value: 'İlgili doğrulanmış makale', href: articleUrl,
   }]);
   const unsafe = parseRestrictedMarkdown('[fake](https://example.com/)');
   assert.deepEqual(unsafe[0].children, [{ type: 'text', value: '[fake](https://example.com/)' }]);
+});
+
+test('published article URLs preserve locale and unpublished refs have no URL', () => {
+  assert.equal(getPublishedArticleUrl('whatsapp-ai-troubleshooting', 'tr'), '/help/article/whatsapp-ai-troubleshooting?locale=tr');
+  assert.equal(getPublishedArticleUrl('whatsapp-ai-troubleshooting', 'ar'), '/help/article/whatsapp-ai-troubleshooting?locale=ar');
+  assert.equal(getPublishedArticleUrl('invented-slug', 'tr'), null);
 });
 
 test('preserves readable paragraphs and visible numbered and bulleted steps', () => {
@@ -42,6 +50,24 @@ test('builds a useful Turkish WhatsApp follow-up fallback from prior article con
   assert.doesNotMatch(reply, /tekrar deneyin/i);
 });
 
+test('Turkish broken-article follow-up recovers the previous article and continues troubleshooting', () => {
+  const reply = buildSalesFallbackReply({
+    locale: 'en', input: 'makale açılmıyor',
+    messages: [{ role: 'assistant', text: 'WhatsApp kanalını kontrol edin.', articleRefs: ['whatsapp-ai-troubleshooting'] }],
+  });
+  assert.match(reply, /\[İlgili doğrulanmış makale\]\(\/help\/article\/whatsapp-ai-troubleshooting\?locale=tr\)/);
+  assert.match(reply, /WhatsApp|Channels|Status|Save changes/i);
+  assert.match(reply, /bağlantı|açılmadı|adım|devam/i);
+});
+
+test('latest follow-up language wins over the stored locale for English and Arabic', () => {
+  const english = buildSalesFallbackReply({ locale: 'tr', input: 'the article link is not working', messages: [{ role: 'assistant', articleRefs: ['whatsapp-ai-troubleshooting'] }] });
+  const arabic = buildSalesFallbackReply({ locale: 'en', input: 'الرابط لا يعمل', messages: [{ role: 'assistant', articleRefs: ['whatsapp-ai-troubleshooting'] }] });
+  assert.match(english, /article|link|WhatsApp/i);
+  assert.doesNotMatch(english, /bağlantı|makale açılmadı/iu);
+  assert.match(arabic, /الرابط|المقالة|واتساب/u);
+});
+
 test('provider failure appends a localized usable fallback instead of an error-only response', async () => {
   const state = createInitialSalesState();
   const userMessage = { role: 'user', text: 'WhatsApp yanıt vermiyor', time: '10:00', imageContext: true };
@@ -57,6 +83,18 @@ test('provider failure appends a localized usable fallback instead of an error-o
   assert.equal(assistant.role, 'assistant');
   assert.match(assistant.text, /WhatsApp|Kanallar|Durum/i);
   assert.equal(resolved.retryMessage, '');
+});
+
+test('initial provider failure still exposes a published article ref for a support question', async () => {
+  const state = createInitialSalesState();
+  const userMessage = { role: 'user', text: 'WhatsApp yanıt vermiyor', time: '10:00' };
+  const stateCandidate = generateSalesTurn(state, userMessage.text, [], 'tr');
+  const resolved = await resolveSalesChatTurn({
+    state, stateCandidate, messages: [], userMessage, locale: 'tr', time: '10:01', apiBaseUrl: '',
+    fetchImpl: async () => { throw new Error('offline'); },
+  });
+  assert.deepEqual(resolved.messages.at(-1).articleRefs, ['whatsapp-ai-troubleshooting']);
+  assert.match(resolved.messages.at(-1).text, /WhatsApp|Channels|Status/i);
 });
 
 test('Arabic support fallback remains actionable and localized', () => {
@@ -76,5 +114,5 @@ test('widget contract uses localized status, progressive reveal, and canonical a
   assert.match(source, /requestAnimationFrame|setInterval|setTimeout/);
   assert.match(source, /articleUrls/);
   assert.match(source, /token\.type === 'link'/);
-  assert.match(source, /href=\{articleUrls\.get\(slug\)\}/);
+  assert.match(source, /InternalLink[\s\S]{0,120}articleUrls\.get\(slug\)/);
 });

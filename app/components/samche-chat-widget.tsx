@@ -9,7 +9,8 @@ import { translateText } from '../../lib/samche-localization.mjs';
 import { extractClipboardImage, readImageFile } from '../../lib/chat-attachment.mjs';
 import { parseRestrictedMarkdown } from '../../lib/restricted-markdown.mjs';
 import { getRevealedText } from '../../lib/chat-reveal.mjs';
-import { getPublishedArticles } from '../../lib/help-center/index.mjs';
+import { getPublishedArticles, getPublishedArticleUrl } from '../../lib/help-center/index.mjs';
+import InternalLink from './internal-link';
 import { useSiteLocale } from './site-localization';
 
 type Message = { role: 'assistant' | 'user'; text: string; title?: string; time: string; imageContext?: boolean; articleRefs?: string[] };
@@ -85,7 +86,7 @@ function renderAssistantText(text: string, articleUrls: Map<string, string>) {
   const renderToken = (token: RestrictedInlineToken, tokenIndex: number) => token.type === 'bold'
     ? <strong key={tokenIndex}>{token.value}</strong>
     : token.type === 'code' ? <code key={tokenIndex}>{token.value}</code>
-      : token.type === 'link' ? <a key={tokenIndex} href={token.href}>{token.value}</a>
+      : token.type === 'link' ? <InternalLink key={tokenIndex} href={token.href || '#'}>{token.value}</InternalLink>
         : token.type === 'break' ? <br key={tokenIndex} />
           : <span key={tokenIndex}>{token.value}</span>;
   return (parseRestrictedMarkdown(text, { articleUrls }) as RestrictedMarkdownBlock[]).map((block, blockIndex) => {
@@ -354,7 +355,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
   const contextualQuickActions = salesState.intent === 'HOT' || summaryReady
     ? config.quick_actions
     : salesState.turns >= 2 ? config.quick_actions.filter((action) => action !== 'Pricing') : [];
-  const articleUrls = new Map(getPublishedArticles(locale).map((article) => [article.slug, `/help/article/${article.slug}`]));
+  const articleUrls = new Map(getPublishedArticles(locale).map((article) => [article.slug, getPublishedArticleUrl(article.slug, locale)]).filter((entry): entry is [string, string] => Boolean(entry[1])));
 
   const viewportStyle = {
     '--samche-visual-viewport-height': `${visualViewport.height}px`,
@@ -373,7 +374,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
           const visibleArticleRefs = (message.articleRefs || []).filter((slug) => articleUrls.has(slug));
           return <div className={`samche-message-row ${message.role}`} key={messageKey}>
           {message.role === 'assistant' && <Orb small avatarUrl={config.avatar_url || config.logo_url} />}
-          <div className="samche-message-content">{message.title && <strong className="samche-welcome-title">{index === 0 ? config.welcome_title : message.title}</strong>}<div className="samche-message-bubble">{index === 0 && message.title ? renderAssistantText(config.welcome_message, articleUrls) : message.role === 'assistant' ? renderAssistantText(visibleText, articleUrls) : message.text}</div>{message.role === 'assistant' && visibleArticleRefs.length ? <nav className="samche-chat-article-links" aria-label={locale === 'tr' ? 'İlgili yardım makaleleri' : locale === 'ar' ? 'مقالات المساعدة ذات الصلة' : 'Related help articles'}>{visibleArticleRefs.map((slug) => <a key={slug} href={articleUrls.get(slug)}>{locale === 'tr' ? 'İlgili doğrulanmış makale' : locale === 'ar' ? 'مقالة مساعدة معتمدة' : 'Read verified help article'}</a>)}</nav> : null}<time>{message.time === 'Now' ? (locale === 'tr' ? 'Şimdi' : locale === 'ar' ? 'الآن' : 'Now') : message.time}</time></div>
+          <div className="samche-message-content">{message.title && <strong className="samche-welcome-title">{index === 0 ? config.welcome_title : message.title}</strong>}<div className="samche-message-bubble">{index === 0 && message.title ? renderAssistantText(config.welcome_message, articleUrls) : message.role === 'assistant' ? renderAssistantText(visibleText, articleUrls) : message.text}</div>{message.role === 'assistant' && visibleArticleRefs.length ? <nav className="samche-chat-article-links" aria-label={locale === 'tr' ? 'İlgili yardım makaleleri' : locale === 'ar' ? 'مقالات المساعدة ذات الصلة' : 'Related help articles'}>{visibleArticleRefs.map((slug) => <InternalLink key={slug} href={articleUrls.get(slug) || '#'}>{locale === 'tr' ? 'İlgili doğrulanmış makale' : locale === 'ar' ? 'مقالة مساعدة معتمدة' : 'Read verified help article'}</InternalLink>)}</nav> : null}<time>{message.time === 'Now' ? (locale === 'tr' ? 'Şimdi' : locale === 'ar' ? 'الآن' : 'Now') : message.time}</time></div>
           {message.role === 'user' && <span className="samche-user-avatar" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5" /><path d="M5 20c.4-4 2.8-6 7-6s6.6 2 7 6" /></svg></span>}
         </div>;
         })}
