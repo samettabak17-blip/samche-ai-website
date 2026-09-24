@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseRestrictedMarkdown } from '../lib/restricted-markdown.mjs';
 import { createInitialSalesState, generateSalesTurn, getSalesProcessingStatus } from '../lib/samche-sales-assistant.mjs';
-import { buildSalesFallbackReply, resolveSalesChatTurn } from '../lib/samche-sales-chat-client.mjs';
+import { buildGroundedSupportRecovery, buildSalesFallbackReply, resolveSalesChatTurn } from '../lib/samche-sales-chat-client.mjs';
 import { getPublishedArticleUrl } from '../lib/help-center/index.mjs';
 import { readFile } from 'node:fs/promises';
 
@@ -117,4 +117,53 @@ test('widget contract uses localized status, progressive reveal, and canonical a
   assert.match(source, /token\.type === 'link'/);
   assert.match(source, /InternalLink[\s\S]{0,220}article\.url/);
   assert.doesNotMatch(source, /articleUrls\.get\(slug\)/);
+});
+
+test('grounded recovery covers verified dashboard modules with canonical routes or controls', () => {
+  const cases = [
+    ['Web Chatbot is not appearing', /Web Chat Experience|Channels/],
+    ['Knowledge Intelligence source is stuck processing', /Knowledge Intelligence|processing|indexing/i],
+    ['I cannot approve a knowledge candidate', /Knowledge Intelligence|candidate|approv/i],
+    ['Shared Inbox conversation is missing', /Conversations|Shared Inbox|channel/i],
+    ['CRM lead is missing', /Leads|lead/i],
+    ['Pipeline deal will not move', /Pipeline|stage/i],
+    ['Team member cannot change the channel', /Team|permission|role/i],
+    ['Billing usage looks wrong', /Settings|billing|usage|Support/i],
+  ];
+  for (const [input, expected] of cases) {
+    const recovery = buildGroundedSupportRecovery({ language: 'en', input, messages: [] });
+    assert.match(recovery.reply, expected, input);
+    assert.ok(recovery.reply.length > 80, input);
+    assert.ok(recovery.articleRefs.every((slug) => getPublishedArticleUrl(slug, 'en')), input);
+    assert.doesNotMatch(recovery.reply, /please try again|check your channel connection and workspace configuration/i, input);
+  }
+});
+
+test('grounded recovery states implementation-managed and unverified boundaries without fake controls', () => {
+  for (const input of ['Where is the Integrations settings menu?', 'Where is the AI Visual enable toggle?', 'Where is the AI Voice provider status?']) {
+    const recovery = buildGroundedSupportRecovery({ language: 'en', input, messages: [] });
+    assert.match(recovery.reply, /implementation|Support|not verified|no verified customer-facing/i, input);
+    assert.doesNotMatch(recovery.reply, /open (?:the )?(?:Integrations|AI Visual|AI Voice) (?:settings|menu)|enable toggle|provider status is connected/i, input);
+  }
+});
+
+test('insufficient article recovery expands the prior article and related verified guidance', () => {
+  const recovery = buildGroundedSupportRecovery({
+    language: 'en', input: 'The article is not enough, explain in more detail',
+    messages: [{ role: 'assistant', text: 'Use the guide.', articleRefs: ['knowledge-document-upload-failed'] }],
+  });
+  assert.ok(recovery.articleRefs.includes('knowledge-document-upload-failed'));
+  assert.match(recovery.reply, /1\.|2\.|processing|indexing/i);
+  assert.doesNotMatch(recovery.reply, /\]\(\/help\/article\//);
+});
+
+test('screenshot recovery separates visible evidence verified knowledge and remaining investigation', () => {
+  const recovery = buildGroundedSupportRecovery({
+    language: 'en', input: 'What should I do here?', attachment: true,
+    messages: [{ role: 'user', text: 'WhatsApp is inactive', imageContext: true, imageSummary: 'Visible inactive channel warning', imageModule: 'WhatsApp AI' }],
+  });
+  assert.match(recovery.reply, /Visible|screenshot/i);
+  assert.match(recovery.reply, /Verified|documentation/i);
+  assert.match(recovery.reply, /investigat|still need|remaining/i);
+  assert.match(recovery.reply, /WhatsApp|Channels|Status/i);
 });

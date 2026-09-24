@@ -89,7 +89,7 @@ test('support intent takes priority for existing customers without restarting sa
   assert.equal(result.body.intent, 'support');
   assert.equal(result.body.responseMode, 'support');
   assert.match(result.body.reply, /WhatsApp AI|replying|connection|configuration/i);
-  assert.doesNotMatch(result.body.reply, /industry|business|leads per month/i);
+  assert.doesNotMatch(result.body.reply, /tell me your industry|what type of business|leads per month/i);
 });
 
 test('validates transient screenshot bytes and routes only image turns to the vision model', async () => {
@@ -104,6 +104,21 @@ test('validates transient screenshot bytes and routes only image turns to the vi
   assert.equal(result.status, 200);
   assert.equal(request.model, 'gpt-4o');
   assert.equal(request.messages[1].content[1].type, 'image_url');
+});
+
+test('server support recovery uses verified module guidance instead of a generic channel fallback', async () => {
+  const service = createSalesChatService({ openaiClient: providerWith(JSON.stringify({
+    reply: 'Please check your channel connection and workspace configuration.', intent: 'qualification', responseMode: 'qualification_answer',
+    resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [],
+  })), commercialFacts });
+  const result = await service.handle({ body: requestBody({
+    userMessage: 'My Knowledge Intelligence source is stuck processing.',
+    pendingQualificationField: null, lastPendingQuestion: '',
+  }) });
+  assert.equal(result.status, 200);
+  assert.match(result.body.reply, /Knowledge Intelligence|processing|indexing/i);
+  assert.doesNotMatch(result.body.reply, /check your channel connection and workspace configuration/i);
+  assert.ok(result.body.articleRefs.every((slug) => typeof slug === 'string' && slug.length > 0));
 });
 
 test('bare multilingual greetings rewrite multiple provider questions to one general Sales & Support question', async () => {

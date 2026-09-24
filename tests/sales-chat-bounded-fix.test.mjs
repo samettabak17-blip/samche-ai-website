@@ -239,7 +239,8 @@ test('client preserves state and adds a useful conversational fallback for provi
     assert.deepEqual(resolved.actions, [], name);
     assert.equal(resolved.messages.at(-1).role, 'assistant', name);
     assert.equal(resolved.retryMessage, '', name);
-    assert.match(resolved.messages.at(-1).text, /received|help|feature/i, name);
+    assert.match(resolved.messages.at(-1).text, /verified|help|feature|Web Chatbot|Channels/i, name);
+    assert.doesNotMatch(resolved.messages.at(-1).text, /please try again|check your channel connection and workspace configuration/i, name);
   }
 });
 

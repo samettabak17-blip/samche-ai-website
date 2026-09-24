@@ -1,5 +1,6 @@
 import { dashboardSupportMap } from '../lib/support-dashboard-map.mjs';
 import { getHelpArticleSources, getPublishedArticles } from '../lib/help-center/index.mjs';
+import { buildGroundedSupportRecovery } from '../lib/samche-sales-chat-client.mjs';
 const MODEL = 'gpt-4o-mini';
 const VISION_MODEL = 'gpt-4o';
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
@@ -90,7 +91,7 @@ function sanitizeArticleRefs(value) {
 
 function supportIntentFor(message) {
   const text = String(message || '').toLowerCase();
-  return /\b(?:already (?:a |an )?(?:customer|use|using)|existing customer|not (?:loading|working|replying|generating|producing)|stopped replying|error|broken|troubleshoot|support|configuration|connection|bug|issue|fail|failing)\b/i.test(text)
+  return /\b(?:already (?:a |an )?(?:customer|use|using)|existing customer|not (?:loading|working|replying|generating|producing)|stopped replying|stuck|missing|cannot|can't|error|broken|troubleshoot|support|configuration|connection|bug|issue|fail|failing)\b/i.test(text)
     || /(?:mevcut müşteri|zaten kullan|yanıt vermiyor|çalışmıyor|yüklenmiyor|destek|hata|sorun|bağlanmıyor|görsel üretmiyor|görseli üretmiyor|gorsel uretmiyor|ürün görseli üretmiyor|urun görseli üretmiyor|çalışmıyor ne yapmalıyım)/iu.test(text)
     || /(?:عميل حالي|لا يعمل|لا يرد|دعم|مشكلة|خطأ|لا ينشئ|لا يولد|عطل)/u.test(text);
 }
@@ -108,30 +109,14 @@ export function validateChatAttachment(attachment) {
   return { ok: true, mimeType };
 }
 
-function safeSupportReply(context) {
-  const recentIssue = context.conversationHistory.slice(-4).map((message) => message.text).join(' ');
-  if (/görsel|gorsel|visual|image generation/i.test(recentIssue) && /burada|burda|nereden|nerden|where|how/i.test(context.userMessage)) {
-    if (context.inputLanguage === 'tr') return 'AI Visual üretimi için doğrulanmış bir müşteri ayar ekranı yok. Önce paketinizin Enterprise olduğunu ve etkilenen WhatsApp akışındaki ürün veya katalog bağlamını kontrol edin. Hangi ürün ve örnek istem etkilendi?';
-    if (context.inputLanguage === 'ar') return 'لا توجد شاشة إعداد مؤكدة للعملاء لإنشاء صور AI Visual. تحققوا من خطة Enterprise وسياق المنتج أو الكتالوج في مسار واتساب المتأثر. ما المنتج والطلب المتأثران؟';
-    return 'There is no verified customer-facing AI Visual generation setting. Check the Enterprise entitlement and product or catalog context in the affected WhatsApp flow. Which product and example prompt are affected?';
-  }
-  const product = /whatsapp/i.test(context.userMessage) ? 'WhatsApp AI' : /web chatbot|chatbot|web chat/i.test(context.userMessage) ? 'Web Chatbot' : /ai guide|guide/i.test(context.userMessage) ? 'AI Guide' : 'SamChe AI';
-  if (context.inputLanguage === 'tr') {
-    if (/görsel|gorsel|visual/i.test(context.userMessage)) {
-      return 'AI Visual Generation şu anda yalnızca Enterprise planında desteklenen bir özelliktir. Hangi SamChe AI paketini kullanıyorsunuz?';
-    }
-    return `${product} ile ilgili yaşadığınız sorunu inceleyebilmem için öncelikle kanal bağlantısını ve ayarlarını kontrol edebilir misiniz? Varsa aldığınız hata mesajını paylaşın.`;
-  }
-  if (context.inputLanguage === 'ar') {
-    if (/بصري|صورة|visual/i.test(context.userMessage)) {
-      return 'خاصية إنشاء الصور بالذكاء الاصطناعي (AI Visual Generation) متاحة حالياً ضمن باقة المؤسسات (Enterprise) فقط. ما باقة SamChe AI التي تستخدمونها؟';
-    }
-    return `لمساعدتكم في حل مشكلة ${product}، هل يمكنكم التحقق من حالة اتصال القناة ومشاركتنا أي رسالة خطأ تظهر لديكم؟`;
-  }
-  if (/visual|image generation/i.test(context.userMessage)) {
-    return 'AI Visual Generation is currently an Enterprise plan feature. Which SamChe AI plan is your account using?';
-  }
-  return `To help troubleshoot your ${product} issue, please check your channel connection and workspace configuration, and share any visible error message.`;
+function safeSupportRecovery(context) {
+  return buildGroundedSupportRecovery({
+    language: context.inputLanguage,
+    input: context.userMessage,
+    messages: context.conversationHistory,
+    state: { context: { plan: context.recommendedPlan || '' } },
+    attachment: context.hasImage,
+  });
 }
 
 function replyMatchesInputLanguage(reply, language) {
@@ -499,8 +484,9 @@ function enforceSupportResponse(candidate, context) {
   const isUsable = candidate && replyMatchesInputLanguage(candidate.reply, context.inputLanguage)
     && !unavailableSalesClaims(candidate.reply, SALES_CHAT_CAPABILITIES)
     && (context.hasImage || candidate.responseMode === 'support' || candidate.intent === 'support');
-  const reply = isUsable ? candidate.reply : safeSupportReply(context);
-  return { reply, intent: 'support', responseMode: 'support', resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: candidate ? sanitizeArticleRefs(candidate.articleRefs) : [] };
+  const recovery = isUsable ? null : safeSupportRecovery(context);
+  const reply = isUsable ? candidate.reply : recovery.reply;
+  return { reply, intent: 'support', responseMode: 'support', resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: isUsable ? sanitizeArticleRefs(candidate.articleRefs) : recovery.articleRefs };
 }
 
 export function createSalesChatService({ openaiClient, commercialFacts, textModel = MODEL, visionModel = VISION_MODEL, timeoutMs = 20000, environment = process.env, logger = console } = {}) {
