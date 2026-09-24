@@ -1,6 +1,6 @@
 import { dashboardSupportMap } from '../lib/support-dashboard-map.mjs';
 import { getHelpArticleSources, getPublishedArticles } from '../lib/help-center/index.mjs';
-import { buildGroundedSupportRecovery } from '../lib/samche-sales-chat-client.mjs';
+import { buildGroundedSupportRecovery, resolveConversationLanguage } from '../lib/samche-sales-chat-client.mjs';
 const MODEL = 'gpt-4o-mini';
 const VISION_MODEL = 'gpt-4o';
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
@@ -157,26 +157,10 @@ function enforceBareGreetingResponse(candidate, context) {
   };
 }
 
-function detectInputLanguage(input) {
-  const value = String(input || '').toLowerCase();
-  if (/[؀-ۿ]/u.test(value)) return 'ar';
-  if (/[çğıöşü]/i.test(value) || /\b(?:merhaba|urun|ürün|hemen|teslim|ediyor|musunuz|müsünüz|danışmanlık|danismanlik|fiyat|paket|istiyorum|için|icin|nasıl|nasil|şirket|sirket|görsel|gorsel|sayı|sayi|kaç|kac|resim|çalışmıyor|calismiyor|üretmiyor|uretmiyor|destek|yardım|yardim|sorun|hata|burda|burada|nerden|nereden|yapicam|yapacağım|makale|acilmiyor|yanit|yetersiz|cozmedi)\b/i.test(value)) return 'tr';
-  return 'en';
-}
-
-const CHAT_LANGUAGES = new Set(['en', 'tr', 'ar']);
-const LANGUAGE_NEUTRAL_TERMS = new Set(['ai', 'samche', 'whatsapp', 'crm', 'pdf', 'api', 'url', 'id']);
-function hasMeaningfulEnglishInput(input) {
-  const terms = String(input || '').toLowerCase().match(/[a-z]+/g) || [];
-  return terms.some((term) => term.length > 1 && !LANGUAGE_NEUTRAL_TERMS.has(term));
-}
 function resolveInputLanguage(input, requestedLanguage, siteLocale) {
-  const detected = detectInputLanguage(input);
-  if (detected === 'tr' || detected === 'ar') return detected;
-  if (detected === 'en' && hasMeaningfulEnglishInput(input)) return 'en';
-  if (CHAT_LANGUAGES.has(requestedLanguage)) return requestedLanguage;
-  return CHAT_LANGUAGES.has(siteLocale) ? siteLocale : 'en';
+  return resolveConversationLanguage(input, requestedLanguage, siteLocale);
 }
+const CHAT_LANGUAGES = new Set(['en', 'tr', 'ar']);
 
 function unavailableSalesClaims(reply, capabilities) {
   // Remove only explicit negated predicates, never a reply-wide "no" exemption.

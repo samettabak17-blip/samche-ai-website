@@ -125,18 +125,28 @@ test('canonical help center stats expose exact verified totals category counts a
 
 test('published filtering excludes verified records without complete localized display content', () => {
   const malformed = { slug: 'incomplete', category: 'support', articleType: 'guide', verification: { status: 'Published', verifiedOn: '2026-09-25', sourceFiles: ['source'], reviewTriggers: ['change'] } };
-  assert.deepEqual(filterPublishedHelpArticles([malformed]), []);
-  assert.equal(getHelpCenterStats('en', [malformed]).totalPublished, 0);
-});
-
-test('publication filter excludes draft retired unverified roadmap and unpublished records', () => {
-  const record = (status) => ({
-    slug: status.toLowerCase().replaceAll(' ', '-'),
+  const superficiallyLocalized = {
+    ...malformed,
+    slug: 'superficially-localized',
     title: { en: 'Title', tr: 'Başlık', ar: 'عنوان' },
     summary: { en: 'Summary', tr: 'Özet', ar: 'ملخص' },
     sections: [{ heading: { en: 'Steps', tr: 'Adımlar', ar: 'الخطوات' } }],
-    verification: { status, verifiedOn: '2026-09-25', sourceFiles: ['verified.tsx'], reviewTriggers: ['source changes'] },
-  });
+  };
+  assert.deepEqual(filterPublishedHelpArticles([malformed, superficiallyLocalized]), []);
+  assert.equal(getHelpCenterStats('en', [malformed, superficiallyLocalized]).totalPublished, 0);
+});
+
+test('publication filter excludes draft retired unverified roadmap and unpublished records', () => {
+  const record = (status) => {
+    const text = { en: 'Text', tr: 'Metin', ar: 'نص' };
+    return {
+      slug: status.toLowerCase().replaceAll(' ', '-'),
+      title: text, summary: text, plan: text, permissions: text, prerequisites: text, navigation: text, expected: text, problems: text,
+      keywords: { en: ['text'], tr: ['metin'], ar: ['نص'] },
+      sections: [{ heading: text, body: text, steps: [{ en: 'Step', tr: 'Adım', ar: 'خطوة' }] }],
+      verification: { status, verifiedOn: '2026-09-25', sourceFiles: ['verified.tsx'], reviewTriggers: ['source changes'] },
+    };
+  };
   const incompletePublished = { slug: 'incomplete-published', verification: { status: 'Published', verifiedOn: '', sourceFiles: [], reviewTriggers: [] } };
   assert.deepEqual(
     filterPublishedHelpArticles([

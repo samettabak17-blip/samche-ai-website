@@ -592,6 +592,20 @@ test('server retains authoritative conversation language for a neutral latest su
   assert.match(result.body.reply, /Doğrulanmış|incelemeyi|etkilenen|çalışma alanı/u);
 });
 
+test('server uses the shared conversation language resolver for neutral product names URLs and ASCII Turkish', async () => {
+  for (const userMessage of ['Web Chatbot', 'AI Guide', 'https://samche.ai/help', 'baglanti', 'acilmadi']) {
+    const service = createSalesChatService({
+      openaiClient: providerWith(JSON.stringify({
+        reply: 'Doğrulanmış destek adımlarıyla Türkçe devam edelim.', intent: 'support', extractedFields: {}, requestedNextField: null,
+        actionIntent: [], responseMode: 'support', resumePendingQuestion: false, articleRefs: [],
+      })), commercialFacts,
+    });
+    const result = await service.handle({ body: requestBody({ locale: 'en', inputLanguage: 'tr', userMessage, responseMode: 'support', detectedIntent: 'support' }) });
+    assert.equal(result.context.inputLanguage, 'tr', userMessage);
+    assert.match(result.body.reply, /Türkçe|Doğrulanmış/u, userMessage);
+  }
+});
+
 test('provider replies in the latest language for English and Arabic questions', async () => {
   for (const [locale, userMessage, reply, expected] of [
     ['en', 'What products are available?', 'SamChe AI offers Web Chatbot, WhatsApp AI, and AI Guide.', /Web Chatbot/],
