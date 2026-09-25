@@ -94,7 +94,12 @@ const websiteApp = (await import('../dist/server/index.js')).default;
 async function serveFramework(req, res) {
   const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const request = new Request(requestUrl, { method: req.method, headers: req.headers, body: req.method === 'GET' || req.method === 'HEAD' ? undefined : Readable.toWeb(req) });
-  const response = await websiteApp.fetch(request);
+  // Vinext's Node build exports a `(Request) => Response` handler, while its
+  // Worker build exposes the historical `{ fetch() }` shape. Accept both so
+  // the same server wrapper remains compatible with explicit Worker builds.
+  const response = typeof websiteApp === 'function'
+    ? await websiteApp(request)
+    : await websiteApp.fetch(request);
   res.writeHead(response.status, Object.fromEntries(response.headers));
   if (req.method === 'HEAD' || !response.body) return res.end();
   return Readable.fromWeb(response.body).pipe(res);
