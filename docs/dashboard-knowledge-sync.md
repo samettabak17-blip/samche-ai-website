@@ -1,6 +1,6 @@
 # Dashboard Knowledge Sync
 
-Generated: 2026-09-24
+Generated: 2026-09-26
 Mode: report-only (no automatic publication)
 
 | Dashboard area | Audit status | Published articles |
@@ -8,7 +8,7 @@ Mode: report-only (no automatic publication)
 | Dashboard Overview | VERIFIED CUSTOMER-ACCESSIBLE | 3 |
 | AI Assistants | VERIFIED CUSTOMER-ACCESSIBLE | 2 |
 | Channels | VERIFIED CUSTOMER-ACCESSIBLE | 9 |
-| Web Chatbot | VERIFIED CUSTOMER-ACCESSIBLE | 6 |
+| Web Chatbot | VERIFIED CUSTOMER-ACCESSIBLE | 5 |
 | WhatsApp AI | VERIFIED CUSTOMER-ACCESSIBLE | 9 |
 | AI Guide | VERIFIED CUSTOMER-ACCESSIBLE | 4 |
 | Knowledge Base | VERIFIED CUSTOMER-ACCESSIBLE | 7 |
