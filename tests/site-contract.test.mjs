@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { plans, addons, comparisonStateLegend, comparisonUsageNotes, demoLinks, planComparisonRows, platformFeatureGroups, interactionAllowanceCards, planFromSearch, productScreenshots, yearlyPrice } from '../lib/site-data.mjs';
 import { getSamcheChatReply, sendSamcheChatMessage } from '../lib/samche-chat.mjs';
 import { defaultSamcheChatConfig } from '../lib/samche-chat-config.mjs';
@@ -16,6 +17,7 @@ test('approved platform entitlement matrix is complete and exact', () => {
     { label: 'Core Channels', rows: [
       { label: 'Web Chatbot', values: ['Included', 'Included', 'Included', 'Included'] },
       { label: 'WhatsApp AI', values: ['Not included', 'Included', 'Included', 'Included'] },
+      { label: 'Instagram DM AI', values: ['Not included', 'By scope', 'Included', 'Included + advanced/custom setup'] },
       { label: 'AI Guide', values: ['Not included', 'Not included', 'Included', 'Included'] },
       { label: 'Human Handover', values: ['Included', 'Included', 'Included', 'Included'] },
       { label: 'Shared Inbox', values: ['Not included', 'Included', 'Included', 'Included'] },
@@ -88,7 +90,35 @@ test('approved platform entitlement matrix is complete and exact', () => {
   ];
 
   assert.deepEqual(platformFeatureGroups, expected);
-  assert.equal(planComparisonRows.length, 54);
+  assert.equal(planComparisonRows.length, 55);
+});
+
+test('Instagram DM AI uses the approved commercial packaging without a new fixed price or backend entitlement', async () => {
+  const instagram = platformFeatureGroups.flatMap((group) => group.rows).find((row) => row.label === 'Instagram DM AI');
+  assert.deepEqual(instagram?.values, ['Not included', 'By scope', 'Included', 'Included + advanced/custom setup']);
+  const data = await readFile(new URL('../lib/site-data.mjs', import.meta.url), 'utf8');
+  assert.match(data, /AI-powered Instagram messaging/);
+  assert.doesNotMatch(data, /instagram[^\n]{0,80}(?:AED|monthly:\s*\d|price:\s*['"]?\d)/i);
+  assert.doesNotMatch(data, /instagram(?:Entitlement|Capability)|['"]instagram['"]\s*:/i);
+});
+
+test('Instagram DM AI productization is visible on the requested public surfaces', async () => {
+  const sources = await Promise.all([
+    '../app/layout.tsx', '../app/page.tsx', '../app/platform/page.tsx', '../app/pricing/page.tsx',
+    '../app/components/pricing-table.tsx', '../lib/samche-localization.mjs',
+  ].map((path) => readFile(new URL(path, import.meta.url), 'utf8')));
+  const copy = sources.join('\n');
+  assert.match(copy, /Instagram DM AI/);
+  assert.match(copy, /Yapay zekâ destekli Instagram DM yönetimi/);
+  assert.match(copy, /مراسلة Instagram مدعومة بالذكاء الاصطناعي/);
+  for (const control of ['Connect Instagram', 'Test Connection', 'Configure', 'assistant selection', 'AI activation policy', 'Take Over', 'Return to AI', 'Pause AI', 'Resume AI']) {
+    assert.ok(copy.includes(control), `missing verified Instagram control: ${control}`);
+  }
+  assert.match(copy, /CRM lead/i);
+  assert.match(copy, /internal WhatsApp notification/i);
+  assert.match(sources[0], /SoftwareApplication/);
+  assert.match(sources[0], /Instagram DM AI/);
+  assert.match(sources[0], /CRM lead workflows/);
 });
 
 test('Enterprise visual and voice commercial entitlements remain bounded and separate', () => {
@@ -231,7 +261,7 @@ test('Enterprise visual and voice FAQ uses the approved commercial contract', as
 test('expanded platform comparison uses cumulative explicit capability states', () => {
   assert.equal(platformFeatureGroups.length, 9);
   const rows = platformFeatureGroups.flatMap((group) => group.rows);
-  assert.equal(rows.length, 54);
+  assert.equal(rows.length, 55);
   assert.ok(rows.every((row) => row.values.length === 4));
   for (const row of rows) {
     for (let index = 1; index < row.values.length; index += 1) {

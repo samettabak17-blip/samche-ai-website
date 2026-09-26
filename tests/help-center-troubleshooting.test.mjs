@@ -56,9 +56,9 @@ test('rejects non-published statuses and invalid related slugs', () => {
 
 test('coverage matrix includes every mandatory category and allowed status', () => {
   const matrix = getHelpCoverageMatrix();
-  assert.equal(matrix.length, 17);
+  assert.equal(matrix.length, 18);
   assert.deepEqual(matrix.map((row) => row.category), [
-    'Account / Access', 'Dashboard / Overview', 'Web Chatbot', 'WhatsApp AI', 'AI Guide', 'Knowledge Intelligence',
+    'Account / Access', 'Dashboard / Overview', 'Web Chatbot', 'WhatsApp AI', 'Instagram DM AI', 'AI Guide', 'Knowledge Intelligence',
     'Conversations / Shared Inbox', 'CRM / Contacts / Leads / Pipeline', 'Integrations', 'AI Visual', 'AI Voice',
     'Team / Permissions', 'Plans / Entitlements', 'Support / Service', 'Billing / Usage', 'Security / Privacy', 'Troubleshooting / Cross-product issues',
   ]);

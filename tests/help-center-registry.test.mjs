@@ -17,9 +17,9 @@ import { troubleshootingArticles } from '../lib/help-center/troubleshooting-regi
 
 test('published help inventory covers every verified customer-accessible map entry', () => {
   const inventory = getHelpCoverageInventory();
-  assert.equal(inventory.auditedEntries, 20);
-  assert.equal(inventory.verifiedCustomerAccessibleEntries, 16);
-  assert.equal(inventory.publishedEntriesCovered, 16);
+  assert.equal(inventory.auditedEntries, 21);
+  assert.equal(inventory.verifiedCustomerAccessibleEntries, 17);
+  assert.equal(inventory.publishedEntriesCovered, 17);
   assert.ok(inventory.publishedArticleCount >= 19);
   assert.deepEqual(inventory.gaps.map((gap) => gap.area), ['CRM Contacts', 'Integrations', 'AI Visual generation', 'AI Voice']);
 });
@@ -106,14 +106,14 @@ test('article statistics equal the canonical published registry after publicatio
 
 test('canonical help center stats expose exact verified totals category counts and locale coverage', () => {
   const stats = getHelpCenterStats('tr');
-  assert.equal(stats.totalPublished, 68);
-  assert.equal(stats.totalTroubleshooting, 50);
-  assert.equal(stats.totalCategories, 11);
-  assert.deepEqual(stats.byLocale, { en: 68, tr: 68, ar: 68 });
-  assert.deepEqual(stats.byStatus, { Published: 68 });
+  assert.equal(stats.totalPublished, 71);
+  assert.equal(stats.totalTroubleshooting, 52);
+  assert.equal(stats.totalCategories, 12);
+  assert.deepEqual(stats.byLocale, { en: 71, tr: 71, ar: 71 });
+  assert.deepEqual(stats.byStatus, { Published: 71 });
   assert.deepEqual(stats.byCategory.map(({ slug, count }) => [slug, count]), [
     ['getting-started', 5], ['dashboard-account', 5], ['ai-assistants', 3],
-    ['web-chatbot', 5], ['whatsapp-ai', 9], ['ai-guide', 3], ['knowledge', 9],
+    ['web-chatbot', 5], ['whatsapp-ai', 9], ['instagram-dm-ai', 3], ['ai-guide', 3], ['knowledge', 9],
     ['conversations', 5], ['crm-operations', 6], ['team-access', 2], ['support', 16],
   ]);
 
@@ -121,6 +121,23 @@ test('canonical help center stats expose exact verified totals category counts a
   assert.equal(turkishArticle.categoryLabel, 'WhatsApp AI');
   assert.equal(turkishArticle.articleType, 'troubleshooting');
   assert.equal(turkishArticle.articleTypeLabel, 'Sorun Giderme');
+});
+
+test('Instagram DM AI help is canonical, localized, searchable, and counted from the registry', () => {
+  const stats = getHelpCenterStats('en');
+  const instagramCategory = stats.byCategory.find((category) => category.slug === 'instagram-dm-ai');
+  assert.ok(instagramCategory?.count >= 3);
+  assert.equal(stats.totalPublished, stats.byCategory.reduce((sum, category) => sum + category.count, 0));
+  assert.equal(stats.byLocale.en, stats.totalPublished);
+  assert.equal(stats.byLocale.tr, stats.totalPublished);
+  assert.equal(stats.byLocale.ar, stats.totalPublished);
+  for (const [locale, query] of [['en', 'Connect Instagram'], ['tr', 'Instagram bağla'], ['ar', 'ربط Instagram']]) {
+    const results = searchHelpArticles(query, locale);
+    assert.ok(results.some((article) => article.category === 'Instagram DM AI'), `${locale} Instagram search`);
+  }
+  const setup = getArticleBySlug('instagram-dm-ai-setup', 'en');
+  assert.equal(setup?.category, 'instagram-dm-ai');
+  for (const control of ['Connect Instagram', 'Test Connection', 'Configure']) assert.match(setup.navigation, new RegExp(control));
 });
 
 test('published filtering excludes verified records without complete localized display content', () => {

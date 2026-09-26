@@ -13,7 +13,7 @@ export default async function ContactPage({ searchParams }: { searchParams: Prom
   const params = await searchParams;
   const initialPlan = planFromSearch(`?plan=${encodeURIComponent(params.plan ?? '')}`);
   const selectedPlan = plans.find((plan) => plan.slug === initialPlan);
-  const allowedInterests = ['Web Chatbot', 'WhatsApp AI', 'AI Assistants', 'Knowledge Intelligence', 'Live Inbox', 'CRM & Pipeline', 'AI Guide', 'Automation / Agentic AI'];
+  const allowedInterests = ['Web Chatbot', 'WhatsApp AI', 'Instagram DM AI', 'AI Assistants', 'Knowledge Intelligence', 'Live Inbox', 'CRM & Pipeline', 'AI Guide', 'Automation / Agentic AI'];
   const initialInterest = allowedInterests.includes(params.interest ?? '') ? params.interest! : '';
   return <SiteShell><main id="main-content">
     <section className="page-hero"><PageIntro eyebrow="PRODUCT DEMO & SUBSCRIPTION ENQUIRIES" title="Let’s find the right SamChe AI setup for your business.">Tell us about your goals, preferred channels and requirements. Our team will help you identify the most suitable SamChe AI product and plan.</PageIntro></section>

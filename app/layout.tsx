@@ -10,13 +10,13 @@ const softwareApplication = {
   applicationSubCategory: "SaaS",
   operatingSystem: "Web",
   url: "https://samche.ai/",
-  description: "A subscription-based multi-tenant AI SaaS platform for AI Assistants, Knowledge Intelligence, Live Inbox, and CRM & Pipeline.",
+  description: "A multi-tenant AI SaaS platform for assistants, Instagram DM AI, knowledge, live conversations, and CRM lead workflows with controlled human intervention.",
 };
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://samche.ai"),
   title: { default: "SamChe AI Platform | Multi-Tenant AI SaaS", template: "%s | SamChe AI" },
-  description: "SamChe AI is a subscription-based multi-tenant SaaS platform for AI Assistants, Knowledge Intelligence, Live Inbox, and CRM & Pipeline.",
+  description: "SamChe AI is a multi-tenant SaaS platform for AI Assistants, Instagram DM AI, Knowledge Intelligence, Live Inbox, and CRM lead workflows.",
   applicationName: "SamChe AI Platform",
   category: "software",
   robots: { index: true, follow: true },

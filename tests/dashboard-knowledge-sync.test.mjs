@@ -8,6 +8,7 @@ test('weekly knowledge sync reports published troubleshooting coverage by dashbo
   assert.ok(report.generatedOn);
   assert.equal(report.publishedArticleCount, getHelpArticleStatistics('en').totalPublished);
   assert.ok(report.areas.some((area) => area.area === 'WhatsApp AI' && area.publishedArticleCount > 0));
+  assert.ok(report.areas.some((area) => area.area === 'Instagram DM AI' && area.publishedArticleCount > 0));
   assert.ok(report.areas.some((area) => area.area === 'Integrations' && area.auditStatus === 'IMPLEMENTATION-MANAGED'));
 });
 

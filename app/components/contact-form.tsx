@@ -48,7 +48,7 @@ export function ContactForm({ initialPlan = '', initialInterest = '' }: { initia
     submittingRef.current = true;
     const selection = interest.startsWith('plan:')
       ? `Plan: ${plans.find((plan) => plan.slug === interest.slice(5))?.name ?? 'Not selected'}`
-      : `Interested in: ${productModules.find((module) => module.name === interest)?.name ?? (['Web Chatbot', 'WhatsApp AI'].includes(interest) ? interest : 'Not selected')}`;
+      : `Interested in: ${productModules.find((module) => module.name === interest)?.name ?? (['Web Chatbot', 'WhatsApp AI', 'Instagram DM AI'].includes(interest) ? interest : 'Not selected')}`;
     form.set('interest', selection);
     if (interest.startsWith('plan:')) form.set('selected_plan', plans.find((plan) => plan.slug === interest.slice(5))?.name ?? '');
     setIsSubmitting(true);

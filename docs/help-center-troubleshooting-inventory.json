@@ -1,6 +1,6 @@
 {
-  "generatedOn": "2026-09-24",
-  "dashboardRoot": "..\\samche-api-service\\dashboard",
+  "generatedOn": "2026-09-26",
+  "dashboardRoot": "dashboard/",
   "candidates": [
     {
       "id": "dashboard-overview",
@@ -126,6 +126,31 @@
       "remainingDocumentationGaps": []
     },
     {
+      "id": "instagram-dm-ai",
+      "category": "Instagram DM AI",
+      "area": "Instagram DM AI",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "sourceFiles": [
+        "dashboard/src/features/channels/channels-page.tsx",
+        "dashboard/src/features/channels/instagram-connection-card.tsx",
+        "website/lib/support-dashboard-map.mjs"
+      ],
+      "sourceRoutes": [
+        "/app/:tenantId/channels"
+      ],
+      "verifiedControls": [
+        "Instagram Messaging",
+        "Instagram DM",
+        "Connect Instagram",
+        "Test Connection",
+        "Configure",
+        "assistant selection",
+        "AI activation policy"
+      ],
+      "plan": "Starter: Not included; Growth: By scope; Business: Included; Enterprise: Included + advanced/custom setup",
+      "remainingDocumentationGaps": []
+    },
+    {
       "id": "ai-guide",
       "category": "AI Guide",
       "area": "AI Guide",
@@ -234,6 +259,7 @@
       ],
       "verifiedControls": [
         "WhatsApp",
+        "Instagram DM",
         "Web Chatbot",
         "AI Guide",
         "conversation search/filter",
@@ -488,7 +514,7 @@
       "adminOnlyAreas": [],
       "roadmapAreas": [],
       "unverifiedAreas": [],
-      "publishedArticleCount": 6,
+      "publishedArticleCount": 5,
       "draftOrNeedsReviewCount": 0,
       "sourceEvidence": [
         "dashboard/src/features/channels/web-chat-management.tsx",
@@ -512,6 +538,25 @@
         "dashboard/src/features/channels/channels-page.tsx",
         "website/lib/support-dashboard-map.mjs",
         "dashboard/src/features/channels/whatsapp-embedded-signup.tsx"
+      ],
+      "remainingDocumentationGaps": []
+    },
+    {
+      "category": "Instagram DM AI",
+      "auditStatus": "VERIFIED CUSTOMER-ACCESSIBLE",
+      "verifiedCustomerAccessibleAreas": [
+        "Instagram DM AI"
+      ],
+      "implementationManagedAreas": [],
+      "adminOnlyAreas": [],
+      "roadmapAreas": [],
+      "unverifiedAreas": [],
+      "publishedArticleCount": 3,
+      "draftOrNeedsReviewCount": 0,
+      "sourceEvidence": [
+        "dashboard/src/features/channels/channels-page.tsx",
+        "dashboard/src/features/channels/instagram-connection-card.tsx",
+        "website/lib/support-dashboard-map.mjs"
       ],
       "remainingDocumentationGaps": []
     },
@@ -562,7 +607,7 @@
       "adminOnlyAreas": [],
       "roadmapAreas": [],
       "unverifiedAreas": [],
-      "publishedArticleCount": 4,
+      "publishedArticleCount": 5,
       "draftOrNeedsReviewCount": 0,
       "sourceEvidence": [
         "dashboard/src/features/conversations/conversations-page.tsx",
