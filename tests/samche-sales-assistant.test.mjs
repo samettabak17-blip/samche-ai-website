@@ -16,6 +16,20 @@ test('generic business AI opener stays in discovery without requirements card or
   assert.equal(turn.actions.some((action) => ['REQUEST DEMO', 'TALK TO SALES ON WHATSAPP'].includes(action.label)), false);
 });
 
+test('local support fallback answers a concrete WhatsApp failure with verified dashboard guidance', () => {
+  const cases = [
+    ['WhatsApp AI yanıt vermiyor', /Channels|kanal/i, /Status|durum/i, /To help troubleshoot your SamChe AI setup|hangi kanalda.*hangi özellikte sorun/i],
+    ['WhatsApp AI is not responding', /Channels|channel/i, /Status|assigned assistant/i, /To help troubleshoot your SamChe AI setup/i],
+    ['واتساب لا يرد', /Channels|القناة/u, /Status|المساعد/u, /لمساعدتكم في حل مشكلة SamChe AI/u],
+  ];
+  for (const [input, navigation, control, generic] of cases) {
+    const turn = generateSalesTurn(createInitialSalesState(), input);
+    assert.match(turn.reply, navigation, input);
+    assert.match(turn.reply, control, input);
+    assert.doesNotMatch(turn.reply, generic, input);
+  }
+});
+
 test('off-topic replies vary while preserving the pending qualification field', () => {
   const initial = createInitialSalesState();
   const state = {
