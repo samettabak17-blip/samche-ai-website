@@ -102,6 +102,32 @@ test('Instagram DM AI uses the approved commercial packaging without a new fixed
   assert.doesNotMatch(data, /instagram(?:Entitlement|Capability)|['"]instagram['"]\s*:/i);
 });
 
+test('every pricing card exposes one explicit Instagram DM AI commercial state', () => {
+  assert.deepEqual(plans.map((plan) => plan.features.filter((feature) => feature.startsWith('Instagram DM AI'))), [
+    ['Instagram DM AI — Not included'],
+    ['Instagram DM AI — By scope'],
+    ['Instagram DM AI — Included'],
+    ['Instagram DM AI — Included + advanced/custom setup'],
+  ]);
+  assert.ok(plans.find((plan) => plan.slug === 'business')?.features.includes('Web + WhatsApp AI + AI Guide Channels'));
+  assert.ok(!plans.some((plan) => plan.features.some((feature) => /Web.*Instagram DM AI.*AI Guide Channels/.test(feature))));
+});
+
+test('pricing cards and comparison table keep aligned readable responsive structure', async () => {
+  const component = await readFile(new URL('../app/components/pricing-table.tsx', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../app/globals.css', import.meta.url), 'utf8');
+  assert.match(component, /feature-unavailable/);
+  assert.match(component, /table-scroll-hint/);
+  assert.match(component, /Scroll horizontally to compare all plans/);
+  assert.match(css, /\.plan-features\s*\{[^}]*flex:\s*1 1 auto/s);
+  assert.match(css, /\.plan-support\s*\{[^}]*min-block-size:/s);
+  assert.match(css, /\.plan-feature-unavailable[^}]*color:/s);
+  assert.match(css, /\.comparison-scroll\s*\{[^}]*overflow-x:\s*auto/s);
+  assert.match(css, /\.plan-comparison th:first-child\s*\{[^}]*inset-inline-start:\s*0/s);
+  assert.match(css, /@media \(max-width:\s*760px\)[\s\S]*?\.plan-comparison\s*\{[^}]*min-width:\s*720px/s);
+  assert.doesNotMatch(css, /\.plan-comparison thead th\s*\{\s*font-size:\s*6\.5px/);
+});
+
 test('Instagram DM AI productization is visible on the requested public surfaces', async () => {
   const sources = await Promise.all([
     '../app/layout.tsx', '../app/page.tsx', '../app/platform/page.tsx', '../app/pricing/page.tsx',
@@ -238,7 +264,7 @@ test('pricing renderer exposes controlled multimodal notes and concise mobile va
     assert.ok(component.includes(compact), `missing compact label ${compact}`);
   }
   assert.match(component, /normalized\.startsWith\('upgrade'\)/);
-  assert.doesNotMatch(css, /\.comparison-scroll\s*\{[^}]*overflow-x\s*:\s*auto/s);
+  assert.match(css, /\.comparison-scroll\s*\{[^}]*overflow-x\s*:\s*auto/s);
   assert.match(css, /\.plan-comparison\s*\{[^}]*table-layout\s*:\s*fixed/s);
   assert.doesNotMatch(css, /@media[^}]+\{[\s\S]*?\.plan-comparison[^}]+display\s*:\s*none/s);
 });
@@ -544,9 +570,9 @@ test('website chat presentation defaults cover dashboard-compatible content and 
   assert.match(css, /@media\s*\(max-width:\s*350px\)[\s\S]*?\.samche-chat-panel/);
   assert.match(css, /\.samche-chat-header\s*>\s*\.samche-header-orb\s*\{[^}]*width:\s*42px[^}]*height:\s*42px/s);
   assert.doesNotMatch(css, /@media\s*\(max-width:\s*430px\)[\s\S]*?\.samche-chat-title small\s*\{\s*display:\s*none/);
-  assert.doesNotMatch(css, /\.comparison-scroll\s*\{[^}]*overflow-x\s*:\s*auto/s);
+  assert.match(css, /\.comparison-scroll\s*\{[^}]*overflow-x\s*:\s*auto/s);
   assert.match(css, /\.plan-comparison\s*\{[^}]*table-layout\s*:\s*fixed/s);
-  assert.match(css, /@media\s*\(max-width:\s*430px\)[\s\S]*?\.plan-comparison\s*\{[^}]*min-width\s*:\s*0/s);
+  assert.match(css, /@media\s*\(max-width:\s*760px\)[\s\S]*?\.plan-comparison\s*\{[^}]*min-width\s*:\s*720px/s);
   assert.match(css, /\.samche-chat-panel\s*\{[^}]*100dvh/s);
   assert.match(css, /\.samche-chat-panel[\s\S]*env\(safe-area-inset-bottom/s);
   assert.match(css, /\.samche-chat-panel\s*\{[^}]*calc\(100%\s*-\s*24px\)/s);

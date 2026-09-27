@@ -22,6 +22,10 @@ function indexForPlan(slug: string) {
   return plans.findIndex((plan) => plan.slug === slug);
 }
 
+function planFeatureClass(feature: string) {
+  return feature.endsWith('— Not included') ? 'plan-feature-unavailable' : '';
+}
+
 function comparisonStateClass(value: string) {
   const normalized = value.toLowerCase();
   if (normalized.startsWith('included')) return 'included';
@@ -36,7 +40,7 @@ function comparisonStateClass(value: string) {
 
 function comparisonMobileLabel(value: string) {
   const labels: Record<string, string> = {
-    'Not included': 'No', 'Included': 'Yes', 'Included / Custom scale': 'Yes · Custom',
+    'Not included': 'No', 'Included': 'Yes', 'Included / Custom scale': 'Yes · Custom', 'Included + advanced/custom setup': 'Yes · Custom',
     '1 CRM or Booking integration': '1 CRM/Booking', 'Up to 3 external integrations': 'Up to 3',
     '100,000+': '100K+', '50,000': '50K', '20,000': '20K', '5,000': '5K',
     'Core access': 'Core', 'Enterprise scale': 'Enterprise', 'Custom scale': 'Custom',
@@ -75,7 +79,7 @@ export function PricingTable() {
           <span className="implementation-note">{plan.implementationNote}</span>
         </div>
         <div className="interaction-box"><strong>{plan.interactions}</strong><small>AI Interactions / Month</small></div>
-        <ul className="plan-features">{plan.features.filter((feature) => feature !== plan.supportLevel).map((feature) => <li key={feature}>{feature}</li>)}</ul>
+        <ul className="plan-features">{plan.features.filter((feature) => feature !== plan.supportLevel).map((feature) => <li className={planFeatureClass(feature)} key={feature}>{feature}</li>)}</ul>
         <div className="plan-support"><strong>SUPPORT</strong><ul>{plan.supportEntitlements.filter((item) => !/Support Portal/.test(item)).map((item) => <li key={item}>{item}</li>)}</ul></div>
         <Link className="button plan-cta" href={`/contact?plan=${plan.slug}`}>{planCta(plan)} <span aria-hidden="true">↗</span></Link>
       </article>)}
@@ -85,6 +89,7 @@ export function PricingTable() {
     </div>
     <section className="comparison-section" aria-labelledby="compare-plans-heading">
       <div className="comparison-heading"><SectionEyebrow>Platform capabilities</SectionEyebrow><h2 id="compare-plans-heading">Platform Feature Comparison</h2><p>Compare the channels, intelligence, CRM, integration and operational capabilities included at each SamChe AI plan level.</p></div>
+      <p className="table-scroll-hint">Scroll horizontally to compare all plans.</p>
       <div className="comparison-scroll" role="region" aria-label="SamChe AI plan comparison" tabIndex={0}>
         <table className="plan-comparison">
           <thead><tr><th scope="col">FEATURE</th>{plans.map((plan) => <th scope="col" data-plan={plan.slug} key={plan.slug}>{plan.name}</th>)}</tr></thead>
