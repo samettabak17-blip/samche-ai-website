@@ -1,6 +1,7 @@
 import { dashboardSupportMap } from '../lib/support-dashboard-map.mjs';
 import { getHelpArticleSources, getPublishedArticles } from '../lib/help-center/index.mjs';
 import { buildGroundedSupportRecovery, resolveConversationLanguage } from '../lib/samche-sales-chat-client.mjs';
+import { buildSupportRetrievalQuery, containsInternalSupportLeak, findUnconfirmedChannelSubject, toCustomerGroundingPayload } from '../lib/customer-support-grounding.mjs';
 const MODEL = 'gpt-4o-mini';
 const VISION_MODEL = 'gpt-4o';
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
@@ -19,6 +20,13 @@ export const SALES_CHAT_CAPABILITIES = Object.freeze({
   canSendEmail: false,
 });
 const SYSTEM_PROMPT = `You are the SamChe AI sales and support conversation layer. Return only the requested JSON. CURRENT USER MESSAGE HAS PRIORITY. Reply in the language of the latest user message.
+
+CUSTOMER ANSWER CONTRACT:
+- supportGrounding is an internal evidence payload, not customer copy. Use it to decide what is supported, then write a natural customer-support answer from scratch.
+- Never mention or reproduce internal grounding schemas, article IDs, classifications, source metadata, diagnostic labels, implementation terminology, entitlement/capability keys, placeholders, or developer routes. Never print a path beginning with /app/ or any value containing tenantId.
+- Never use headings or phrases such as "verified documentation", "verified route", "boundary", "still needs investigation", "registry", or localized equivalents. Refer only to Dashboard labels that a customer can see.
+- When the supplied guidance is insufficient, do not invent a feature or fix. Acknowledge the specific subject and ask for the exact visible error or a screenshot.
+- The latest user-message language is authoritative even when retrieved material or earlier turns use another language.
 
 SUPPORT RULES:
 - Support takes priority over sales qualification. If the user reports an issue, error, troubleshooting question, or is an existing customer, use intent "support" and responseMode "support". Never restart sales qualification, ask sales lead fields, or push plans during support turns.
@@ -42,8 +50,8 @@ SALES RULES:
 - Preserve known lead fields, never repeat an already known field, ask at most one useful question, never invent commercial facts, and never claim physical delivery or guaranteed outcomes. For a bare greeting, write a short welcome that identifies you as the SamChe AI sales and support assistant and ask at most one general help question.
 
 HELP CENTER RULES:
-- The context may include verified helpArticles. Use only their supplied content and navigation when grounding support guidance.
-- Return articleRefs containing only the supplied article slugs that directly support the reply. Return [] when no article applies. Never invent a slug or URL.`;
+- The context may include customer-safe supportGrounding articles. Use only their supplied guidance and visible navigation labels.
+- Return articleRefs containing only supplied articleId values that directly support the reply. Return [] when no article applies. Never invent an ID or URL, and never recommend an article for a different product or channel.`;
 const EXTRACTED_ARRAY_FIELDS = new Set(['channels', 'products']);
 const EXTRACTED_FIELD_ALIASES = Object.freeze({
   team_users: 'teamUsers', lead_qualification: 'leadQualification', ai_guide_need: 'aiGuideNeed',
@@ -237,15 +245,19 @@ function buildContext(body, commercialFacts) {
     else if (typeof value === 'string' || typeof value === 'boolean') leadState[key] = value;
   }
   const inputLanguage = resolveInputLanguage(body.userMessage, body.inputLanguage, body.locale);
+  const conversationHistory = body.conversationHistory.slice(-MAX_HISTORY).map((message) => ({
+    role: message?.role === 'assistant' ? 'assistant' : 'user',
+    text: text(message?.text ?? message?.content, MAX_HISTORY_MESSAGE_LENGTH),
+    imageContext: message?.imageContext === true,
+  })).filter((message) => message.text);
+  const supportRetrievalQuery = buildSupportRetrievalQuery({ userMessage: body.userMessage, conversationHistory });
+  const unconfirmedSubject = findUnconfirmedChannelSubject(supportRetrievalQuery, inputLanguage);
+  const helpArticles = unconfirmedSubject ? [] : getHelpArticleSources(supportRetrievalQuery, inputLanguage, 3);
   return {
     locale: CHAT_LANGUAGES.has(body.locale) ? body.locale : 'en',
     inputLanguage,
     hasImage: Boolean(body.attachment),
-    conversationHistory: body.conversationHistory.slice(-MAX_HISTORY).map((message) => ({
-      role: message?.role === 'assistant' ? 'assistant' : 'user',
-      text: text(message?.text ?? message?.content, MAX_HISTORY_MESSAGE_LENGTH),
-      imageContext: message?.imageContext === true,
-    })).filter((message) => message.text),
+    conversationHistory,
     leadState,
     knownFields: Object.keys(leadState).filter((key) => hasUsableLeadValue(leadState[key])),
     lastQuestion: text(body.lastQuestion, 500),
@@ -254,12 +266,12 @@ function buildContext(body, commercialFacts) {
     pendingField: ALLOWED_NEXT_FIELDS.has(body.pendingQualificationField ?? body.pendingField) ? (body.pendingQualificationField ?? body.pendingField) : null,
     lastPendingQuestion: text(body.lastPendingQuestion, 500),
     recommendedPlan: text(body.recommendedPlan, 40),
-    responseMode: body.attachment || supportIntentFor(body.userMessage) || (body.conversationHistory.slice(-4).some((message) => message?.imageContext === true || supportIntentFor(message?.text))) ? 'support' : ALLOWED_RESPONSE_MODES.has(body.responseMode) ? body.responseMode : 'qualification_answer',
+    responseMode: body.attachment || unconfirmedSubject || supportIntentFor(body.userMessage) || (body.conversationHistory.slice(-4).some((message) => message?.imageContext === true || supportIntentFor(message?.text))) ? 'support' : ALLOWED_RESPONSE_MODES.has(body.responseMode) ? body.responseMode : 'qualification_answer',
     detectedIntent: text(body.detectedIntent, 40),
     approvedPlanFacts: commercialFacts.plans.map((plan) => ({ ...plan })),
     approvedProductFacts: commercialFacts.products.map((product) => ({ ...product })),
-    verifiedDashboardMap: dashboardSupportMap,
-    helpArticles: getHelpArticleSources(text(body.userMessage, MAX_MESSAGE_LENGTH), inputLanguage, 3),
+    supportRetrievalQuery,
+    supportGrounding: toCustomerGroundingPayload({ dashboardEntries: dashboardSupportMap, helpArticles }),
     capabilities: SALES_CHAT_CAPABILITIES,
     allowedActions: [...ALLOWED_ACTIONS],
     userMessage: text(body.userMessage, MAX_MESSAGE_LENGTH),
@@ -480,7 +492,9 @@ function enforceInterruptResponse(candidate, context, commercialFacts) {
 }
 
 function enforceSupportResponse(candidate, context) {
-  const isUsable = candidate && replyMatchesInputLanguage(candidate.reply, context.inputLanguage)
+  const unconfirmedSubject = findUnconfirmedChannelSubject(context.supportRetrievalQuery, context.inputLanguage);
+  const isUsable = !unconfirmedSubject && candidate && replyMatchesInputLanguage(candidate.reply, context.inputLanguage)
+    && !containsInternalSupportLeak(candidate.reply)
     && !unavailableSalesClaims(candidate.reply, SALES_CHAT_CAPABILITIES)
     && (context.hasImage || candidate.responseMode === 'support' || candidate.intent === 'support');
   const recovery = isUsable ? null : safeSupportRecovery(context);

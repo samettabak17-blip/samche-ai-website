@@ -83,5 +83,7 @@ test('a follow-up to an AI Visual support issue stays in support and never inven
   assert.equal(result.status, 200);
   assert.equal(result.body.responseMode, 'support');
   assert.doesNotMatch(result.body.reply, /Görsel Ayarları/);
-  assert.match(result.body.reply, /doğrulanmış bir müşteri ayar ekranı yok/);
+  assert.match(result.body.reply, /Dashboard'da kullanabileceğiniz bir ayar bulunmuyor/);
+  assert.match(result.body.reply, /hata metnini|ekran görüntüsünü/);
+  assert.doesNotMatch(result.body.reply, /verified|registry|boundary|tenantId|\/app\/|doğrulanmış|implementation/iu);
 });

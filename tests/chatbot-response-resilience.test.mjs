@@ -6,6 +6,66 @@ import { buildGroundedSupportRecovery, buildSalesFallbackReply, resolveConversat
 import { getPublishedArticleUrl } from '../lib/help-center/index.mjs';
 import { readFile } from 'node:fs/promises';
 
+const INTERNAL_SUPPORT_LEAK = /verified|registry|boundary|tenant(?:Id|ı|i|a|e|ler)?|\/app\/|still needs investigation|implementation(?:-managed)?|roadmap classification|entitlement\/capability key|doğrulanmış (?:bilgi|rota|paket)|hâlâ incelenmesi gereken|\*\*sınır:|المسار المعتمد|المعلومات المعتمدة|ما يزال يحتاج إلى تحقيق|\*\*الحدود:/iu;
+
+const instagramRegressions = [
+  {
+    language: 'tr',
+    first: 'Instagram mesajlarımı SamChe Dashboard üzerinden yönetebilir miyim?',
+    second: 'bağlanılamadı uyarısı alıyorum',
+    context: /Instagram/iu,
+    problem: /bağlan|bağlantı/iu,
+    evidence: /hata metni|ekran görüntüsü/iu,
+    generic: /Account Settings|Overview|Ayarlar bölümü/iu,
+  },
+  {
+    language: 'en',
+    first: 'Can I manage my Instagram messages through the SamChe Dashboard?',
+    second: 'I get a could not connect warning',
+    context: /Instagram/iu,
+    problem: /connect|connection/iu,
+    evidence: /exact error|screenshot/iu,
+    generic: /Account Settings|Overview|Settings section/iu,
+  },
+  {
+    language: 'ar',
+    first: 'هل يمكنني إدارة رسائل إنستغرام من خلال لوحة SamChe؟',
+    second: 'تظهر لي رسالة تعذر الاتصال',
+    context: /إنستغرام/u,
+    problem: /الاتصال|يتصل/u,
+    evidence: /نص الخطأ|لقطة شاشة/u,
+    generic: /Account Settings|Overview|الإعدادات/u,
+  },
+];
+
+for (const sample of instagramRegressions) {
+  test(`${sample.language}: Instagram first turn does not invent a customer-visible capability`, () => {
+    const recovery = buildGroundedSupportRecovery({ language: sample.language, input: sample.first, messages: [] });
+    assert.match(recovery.reply, sample.context);
+    assert.doesNotMatch(recovery.reply, /Channels|Conversations|Web Chat Experience|→|\/app\//iu);
+    assert.doesNotMatch(recovery.reply, INTERNAL_SUPPORT_LEAK);
+    assert.deepEqual(recovery.articleRefs, []);
+  });
+
+  test(`${sample.language}: ambiguous Instagram connection follow-up keeps subject and latest language`, () => {
+    const first = buildGroundedSupportRecovery({ language: sample.language, input: sample.first, messages: [] });
+    const recovery = buildGroundedSupportRecovery({
+      language: sample.language,
+      input: sample.second,
+      messages: [
+        { role: 'user', text: sample.first, language: sample.language },
+        { role: 'assistant', text: first.reply, language: sample.language, articleRefs: first.articleRefs },
+      ],
+    });
+    assert.match(recovery.reply, sample.context);
+    assert.match(recovery.reply, sample.problem);
+    assert.match(recovery.reply, sample.evidence);
+    assert.doesNotMatch(recovery.reply, sample.generic);
+    assert.doesNotMatch(recovery.reply, INTERNAL_SUPPORT_LEAK);
+    assert.deepEqual(recovery.articleRefs, []);
+  });
+}
+
 test('renders a canonical Help Center markdown link only when the slug is supplied', () => {
   const articleUrl = getPublishedArticleUrl('whatsapp-ai-troubleshooting', 'tr');
   const blocks = parseRestrictedMarkdown(`[İlgili doğrulanmış makale](${articleUrl})`, {
@@ -56,9 +116,9 @@ test('Turkish broken-article follow-up recovers the previous article and continu
     messages: [{ role: 'assistant', text: 'WhatsApp kanalını kontrol edin.', articleRefs: ['whatsapp-ai-troubleshooting'] }],
   });
   assert.doesNotMatch(reply, /\]\(\/help\/article\//);
-  assert.match(reply, /bağlantı|açılmadı|adım|devam/i);
   assert.match(reply, /WhatsApp|Channels|Status|Save changes/i);
-  assert.match(reply, /bağlantı|açılmadı|adım|devam/i);
+  assert.match(reply, /hata metni|ekran görüntüsü/i);
+  assert.doesNotMatch(reply, INTERNAL_SUPPORT_LEAK);
 });
 
 test('latest follow-up language wins over the stored locale for English and Arabic', () => {
@@ -66,7 +126,9 @@ test('latest follow-up language wins over the stored locale for English and Arab
   const arabic = buildSalesFallbackReply({ locale: 'en', input: 'الرابط لا يعمل', messages: [{ role: 'assistant', articleRefs: ['whatsapp-ai-troubleshooting'] }] });
   assert.match(english, /article|link|WhatsApp/i);
   assert.doesNotMatch(english, /bağlantı|makale açılmadı/iu);
-  assert.match(arabic, /الرابط|المقالة|واتساب/u);
+  assert.match(arabic, /[؀-ۿ]/u);
+  assert.match(arabic, /WhatsApp|واتساب/u);
+  assert.doesNotMatch(arabic, INTERNAL_SUPPORT_LEAK);
 });
 
 test('conversation language uses the latest detectable message and retains prior language only for neutral input', () => {
@@ -108,7 +170,8 @@ test('network HTTP malformed JSON and timeout recoveries retain the prior langua
     });
     const assistant = resolved.messages.at(-1);
     assert.equal(assistant.language, 'tr');
-    assert.match(assistant.text, /Doğrulanmış|incelemeyi|çalışma alanı|makale/u);
+    assert.match(assistant.text, /sorununu|hata metni|ekran görüntüsü/u);
+    assert.doesNotMatch(assistant.text, INTERNAL_SUPPORT_LEAK);
     assert.deepEqual(assistant.articleRefs, ['whatsapp-ai-not-replying']);
   }
 });
@@ -194,7 +257,8 @@ test('grounded recovery covers verified dashboard modules with canonical routes 
 test('grounded recovery states implementation-managed and unverified boundaries without fake controls', () => {
   for (const input of ['Where is the Integrations settings menu?', 'Where is the AI Visual enable toggle?', 'Where is the AI Voice provider status?']) {
     const recovery = buildGroundedSupportRecovery({ language: 'en', input, messages: [] });
-    assert.match(recovery.reply, /implementation|Support|not verified|no verified customer-facing/i, input);
+    assert.match(recovery.reply, /Dashboard does not include|exact error|screenshot/i, input);
+    assert.doesNotMatch(recovery.reply, INTERNAL_SUPPORT_LEAK, input);
     assert.doesNotMatch(recovery.reply, /open (?:the )?(?:Integrations|AI Visual|AI Voice) (?:settings|menu)|enable toggle|provider status is connected/i, input);
   }
 });
@@ -209,15 +273,15 @@ test('insufficient article recovery expands the prior article and related verifi
   assert.doesNotMatch(recovery.reply, /\]\(\/help\/article\//);
 });
 
-test('screenshot recovery separates visible evidence verified knowledge and remaining investigation', () => {
+test('screenshot recovery uses visible evidence without exposing grounding metadata', () => {
   const recovery = buildGroundedSupportRecovery({
     language: 'en', input: 'What should I do here?', attachment: true,
     messages: [{ role: 'user', text: 'WhatsApp is inactive', imageContext: true, imageSummary: 'Visible inactive channel warning', imageModule: 'WhatsApp AI' }],
   });
   assert.match(recovery.reply, /Visible|screenshot/i);
-  assert.match(recovery.reply, /Verified|documentation/i);
-  assert.match(recovery.reply, /investigat|still need|remaining/i);
   assert.match(recovery.reply, /WhatsApp|Channels|Status/i);
+  assert.match(recovery.reply, /exact error|screenshot/i);
+  assert.doesNotMatch(recovery.reply, INTERNAL_SUPPORT_LEAK);
 });
 
 test('Arabic grounded recovery localizes navigation prose while preserving verified control names', () => {
@@ -240,6 +304,7 @@ test('latest support message module wins over stale screenshot and conversation 
 
 test('Turkish grounded recovery does not leak generic English implementation prose', () => {
   const recovery = buildGroundedSupportRecovery({ language: 'tr', input: 'WhatsApp makalesi açılmıyor', messages: [] });
-  assert.match(recovery.reply, /Doğrulanmış|çalışma alanı|devreye alma/u);
+  assert.match(recovery.reply, /WhatsApp|hata metni|ekran görüntüsü/u);
   assert.doesNotMatch(recovery.reply, /public chatbot|tenantı|provisioning/i);
+  assert.doesNotMatch(recovery.reply, INTERNAL_SUPPORT_LEAK);
 });

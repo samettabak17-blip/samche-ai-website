@@ -121,6 +121,47 @@ test('server support recovery uses verified module guidance instead of a generic
   assert.ok(result.body.articleRefs.every((slug) => typeof slug === 'string' && slug.length > 0));
 });
 
+test('support boundary rejects provider metadata leakage and preserves Instagram follow-up context', async () => {
+  const service = createSalesChatService({ openaiClient: providerWith(JSON.stringify({
+    reply: 'Verified route: /app/:tenantId/settings. Boundary: Still needs investigation.',
+    intent: 'support', responseMode: 'support', resumePendingQuestion: false,
+    extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: [],
+  })), commercialFacts });
+  const result = await service.handle({ body: requestBody({
+    locale: 'tr', inputLanguage: 'tr', responseMode: 'support', detectedIntent: 'support',
+    userMessage: 'bağlanılamadı uyarısı alıyorum', pendingQualificationField: null, lastPendingQuestion: '',
+    conversationHistory: [
+      { role: 'user', text: 'Instagram mesajlarımı SamChe Dashboard üzerinden yönetebilir miyim?' },
+      { role: 'assistant', text: 'Instagram bağlantısında ne gördüğünüzü paylaşın.' },
+    ],
+  }) });
+  assert.equal(result.status, 200);
+  assert.match(result.body.reply, /Instagram/iu);
+  assert.match(result.body.reply, /bağlan|bağlantı/iu);
+  assert.match(result.body.reply, /hata metni|ekran görüntüsü/iu);
+  assert.doesNotMatch(result.body.reply, /verified|registry|boundary|tenantId|\/app\/|still needs investigation|implementation|roadmap|Doğrulanmış|Sınır/iu);
+  assert.deepEqual(result.body.articleRefs, []);
+});
+
+test('Instagram first turn cannot inherit an unsupported capability claim from the provider', async () => {
+  const service = createSalesChatService({ openaiClient: providerWith(JSON.stringify({
+    reply: 'You can manage Instagram messages in Conversations and transfer them to your team.',
+    intent: 'support', responseMode: 'support', resumePendingQuestion: false,
+    extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: ['conversation-missing-from-inbox'],
+  })), commercialFacts });
+  const result = await service.handle({ body: requestBody({
+    locale: 'en', inputLanguage: 'en', responseMode: 'in_scope_interrupt', detectedIntent: 'product_question',
+    userMessage: 'Can I manage my Instagram messages through the SamChe Dashboard?',
+    pendingQualificationField: null, lastPendingQuestion: '', conversationHistory: [],
+  }) });
+  assert.equal(result.status, 200);
+  assert.match(result.body.reply, /Instagram/i);
+  assert.match(result.body.reply, /does not show|cannot claim/i);
+  assert.doesNotMatch(result.body.reply, /manage Instagram messages in Conversations|transfer them/i);
+  assert.doesNotMatch(result.body.reply, /verified|registry|boundary|tenant|\/app\/|implementation|roadmap/i);
+  assert.deepEqual(result.body.articleRefs, []);
+});
+
 test('bare multilingual greetings rewrite multiple provider questions to one general Sales & Support question', async () => {
   for (const [userMessage, reply] of [
     ['Hello', 'Hello! How can I help with SamChe AI today? What type of business do you operate?'],
