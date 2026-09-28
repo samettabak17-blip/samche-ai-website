@@ -79,6 +79,26 @@ test('an explicit WhatsApp topic switch is not overridden by older Instagram con
   assert.ok(recovery.articleRefs.every((slug) => slug.startsWith('whatsapp')));
 });
 
+test('an ambiguous follow-up inherits the most recent explicit subject after a topic switch', () => {
+  const recovery = buildGroundedSupportRecovery({
+    language: 'en', input: 'It still fails',
+    messages: [
+      { role: 'user', text: 'Can I manage Instagram messages in the Dashboard?' },
+      { role: 'user', text: 'My WhatsApp AI is not replying' },
+    ],
+  });
+  assert.match(recovery.reply, /WhatsApp/i);
+  assert.doesNotMatch(recovery.reply, /Instagram/i);
+  assert.ok(recovery.articleRefs.every((slug) => slug.startsWith('whatsapp')));
+});
+
+test('Instagram recovery gives verified checks without stating possible causes as observed facts', () => {
+  const recovery = buildGroundedSupportRecovery({ language: 'en', input: 'Instagram is not replying', messages: [] });
+  assert.match(recovery.reply, /Test Connection/i);
+  assert.match(recovery.reply, /Configure/i);
+  assert.doesNotMatch(recovery.reply, /\n\d+\. (?:Connection test fails|No assistant is selected|AI activation policy does not cover)/i);
+});
+
 test('renders a canonical Help Center markdown link only when the slug is supplied', () => {
   const articleUrl = getPublishedArticleUrl('whatsapp-ai-troubleshooting', 'tr');
   const blocks = parseRestrictedMarkdown(`[İlgili doğrulanmış makale](${articleUrl})`, {

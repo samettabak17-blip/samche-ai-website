@@ -176,10 +176,25 @@ test('internal metadata cannot bypass the boundary through a non-support request
   assert.doesNotMatch(JSON.stringify(result.body), /verified route|tenantId|\/app\//i);
 });
 
+test('unrelated published article refs cannot bypass grounding through a non-support request mode', async () => {
+  const service = createSalesChatService({ openaiClient: providerWith(JSON.stringify({
+    reply: 'Open Channels in the Dashboard.',
+    intent: 'support', responseMode: 'support', resumePendingQuestion: false,
+    extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: ['pipeline-deals'],
+  })), commercialFacts });
+  const result = await service.handle({ body: requestBody({
+    userMessage: 'Where can I find Channels?', responseMode: 'qualification_answer', detectedIntent: 'product_question',
+  }) });
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.body.articleRefs, []);
+});
+
 test('support rejects raw classifications entitlement keys invented controls and unrelated article refs', async () => {
   for (const reply of [
     'The classification is implemented_customer_accessible with entitlement key whatsapp_ai.',
     'Open Channels in the Dashboard and click Repair Everything to restore the connection.',
+    'Open Channels in the Dashboard and click Reset WhatsApp Credentials to restore the connection.',
+    'Dashboard içinde Channels bölümünde Tümünü Onar düğmesine tıklayın; bağlantı düzelecektir.',
   ]) {
     const service = createSalesChatService({ openaiClient: providerWith(JSON.stringify({
       reply, intent: 'support', responseMode: 'support', resumePendingQuestion: false,
@@ -189,7 +204,7 @@ test('support rejects raw classifications entitlement keys invented controls and
       userMessage: 'My WhatsApp AI is not replying', responseMode: 'support', detectedIntent: 'support',
     }) });
     assert.equal(result.status, 200);
-    assert.doesNotMatch(result.body.reply, /implemented_customer_accessible|entitlement key|Repair Everything/i);
+    assert.doesNotMatch(result.body.reply, /implemented_customer_accessible|entitlement key|Repair Everything|Reset WhatsApp Credentials|Tümünü Onar/i);
     assert.ok(result.body.articleRefs.every((slug) => slug.startsWith('whatsapp')));
   }
 });

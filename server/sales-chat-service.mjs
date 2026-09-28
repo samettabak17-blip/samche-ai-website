@@ -358,11 +358,19 @@ function containsUnknownDashboardControlClaim(reply) {
     .flatMap((entry) => [entry.area, entry.nav, ...(entry.controls || [])])
     .filter(Boolean)
     .map(normalizeControlText);
-  const directControlPattern = /\b(?:click|press|select|choose|use)\s+(?:the\s+)?["“]?([^.,;!?\n]{1,70})/gi;
+  const directControlPattern = /\b(click|press|select|choose|use)\s+(?:the\s+)?["“]?([^.,;!?\n]{1,70})/gi;
   for (const match of reply.matchAll(directControlPattern)) {
-    const claimed = normalizeControlText(match[1].split(/\b(?:to|then|and then|when|if)\b/i)[0]);
+    const verb = match[1].toLowerCase();
+    const claimed = normalizeControlText(match[2].split(/\b(?:to|then|and then|when|if)\b/i)[0]);
     if (!claimed) continue;
-    if (!known.some((control) => claimed.includes(control) || control.includes(claimed))) return true;
+    const selectionsMayBeDescriptive = verb === 'select' || verb === 'choose';
+    const knownClaim = known.some((control) => claimed === control || (selectionsMayBeDescriptive && claimed.includes(control)));
+    if (!knownClaim) return true;
+  }
+  const turkishControlPattern = /([\p{L}\p{N}][\p{L}\p{N}\s]{0,60}?)\s+(?:düğmesine|butonuna)\s+(?:tıklayın|basın)/giu;
+  for (const match of reply.matchAll(turkishControlPattern)) {
+    const claimed = normalizeControlText(match[1]);
+    if (!known.some((control) => claimed === control)) return true;
   }
   return false;
 }
@@ -514,7 +522,7 @@ function enforceInterruptResponse(candidate, context, commercialFacts) {
     extractedFields: usable ? sanitizedCandidate.extractedFields : {},
     requestedNextField: context.pendingField || (usable ? sanitizedCandidate.requestedNextField : null),
     resumePendingQuestion: Boolean(context.lastPendingQuestion && context.pendingField), actionIntent: [],
-    articleRefs: usable ? sanitizeArticleRefs(sanitizedCandidate.articleRefs) : [],
+    articleRefs: usable ? sanitizeGroundedArticleRefs(sanitizedCandidate.articleRefs, context) : [],
   };
 }
 
@@ -573,7 +581,7 @@ export function createSalesChatService({ openaiClient, commercialFacts, textMode
           logger?.warn?.('sales_chat_provider_salvaged', { category: 'validator', stage: 'optional_metadata', reason: result.reason });
           if (context.responseMode === 'support') return { status: 200, body: enforceSupportResponse(salvage, context), context };
           if (isInterruptMode(context.responseMode)) return { status: 200, body: enforceInterruptResponse(salvage, context, commercialFacts), context };
-          return { status: 200, body: salvage, context };
+          return { status: 200, body: { ...salvage, articleRefs: sanitizeGroundedArticleRefs(salvage.articleRefs, context) }, context };
         }
         if (context.responseMode === 'support' && !attachment) return { status: 200, body: enforceSupportResponse(null, context), context };
         return { status: 502, body: { error: 'Sales assistant is temporarily unavailable.' }, context };
@@ -589,7 +597,7 @@ export function createSalesChatService({ openaiClient, commercialFacts, textMode
       if (isInterruptMode(context.responseMode)) return { status: 200, body: enforceInterruptResponse(languageValid && questionCountValid ? candidate : null, context, commercialFacts), context };
       if (result.ok && languageValid && questionCountValid) {
         const reply = sanitizeSalesReply(candidate.reply, SALES_CHAT_CAPABILITIES, context.inputLanguage);
-        return { status: 200, body: { ...candidate, reply, actionIntent: reply === candidate.reply ? candidate.actionIntent : [] }, context };
+        return { status: 200, body: { ...candidate, reply, actionIntent: reply === candidate.reply ? candidate.actionIntent : [], articleRefs: sanitizeGroundedArticleRefs(candidate.articleRefs, context) }, context };
       }
       return { status: 502, body: { error: 'Sales assistant is temporarily unavailable.' }, context };
     } catch (error) {
