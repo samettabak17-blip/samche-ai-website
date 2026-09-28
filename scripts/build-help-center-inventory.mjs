@@ -8,14 +8,14 @@ import { getHelpCoverageMatrix } from '../lib/help-center/troubleshooting-schema
 const implementationAreas = new Set(['Integrations', 'AI Visual generation', 'AI Voice']);
 const categoryForArea = new Map([
   ['Dashboard Overview', 'Dashboard / Overview'], ['Analytics', 'Dashboard / Overview'], ['AI Assistants', 'Account / Access'], ['Channels', 'WhatsApp AI'],
-  ['Web Chatbot', 'Web Chatbot'], ['WhatsApp AI', 'WhatsApp AI'], ['AI Guide', 'AI Guide'], ['Knowledge Base', 'Knowledge Intelligence'], ['Knowledge Intelligence', 'Knowledge Intelligence'],
+  ['Web Chatbot', 'Web Chatbot'], ['WhatsApp AI', 'WhatsApp AI'], ['Instagram DM AI', 'Instagram DM AI'], ['AI Guide', 'AI Guide'], ['Knowledge Base', 'Knowledge Intelligence'], ['Knowledge Intelligence', 'Knowledge Intelligence'],
   ['Knowledge Approvals', 'Knowledge Intelligence'], ['Conversations / Shared Inbox', 'Conversations / Shared Inbox'], ['Human Handoff', 'Conversations / Shared Inbox'], ['CRM Contacts', 'CRM / Contacts / Leads / Pipeline'],
   ['CRM Leads', 'CRM / Contacts / Leads / Pipeline'], ['Pipeline', 'CRM / Contacts / Leads / Pipeline'], ['Integrations', 'Integrations'], ['AI Visual generation', 'AI Visual'], ['AI Voice', 'AI Voice'],
   ['Team Management', 'Team / Permissions'], ['Account Settings', 'Account / Access'], ['Support Portal', 'Support / Service'],
 ]);
 const knownEvidenceFiles = {
   'Dashboard Overview': ['src/app/router.tsx', 'src/features/overview/overview-page.tsx'], Analytics: ['src/features/overview/overview-page.tsx'], 'AI Assistants': ['src/features/assistants/assistants-page.tsx'],
-  Channels: ['src/features/channels/channels-page.tsx'], 'Web Chatbot': ['src/features/channels/web-chat-management.tsx'], 'WhatsApp AI': ['src/features/channels/channels-page.tsx', 'src/features/channels/whatsapp-embedded-signup.tsx'],
+  Channels: ['src/features/channels/channels-page.tsx'], 'Web Chatbot': ['src/features/channels/web-chat-management.tsx'], 'WhatsApp AI': ['src/features/channels/channels-page.tsx', 'src/features/channels/whatsapp-embedded-signup.tsx'], 'Instagram DM AI': ['src/features/channels/channels-page.tsx', 'src/features/channels/instagram-connection-card.tsx'],
   'AI Guide': ['src/features/guide-experience/guide-experience-page.tsx'], 'Knowledge Base': ['src/features/knowledge-base/knowledge-base-page.tsx'], 'Knowledge Intelligence': ['src/features/knowledge-intelligence/knowledge-intelligence-page.tsx'],
   'Knowledge Approvals': ['src/features/knowledge-intelligence/knowledge-intelligence-page.tsx'], 'Conversations / Shared Inbox': ['src/features/conversations/conversations-page.tsx'], 'Human Handoff': ['src/features/conversations/conversation-detail-page.tsx'],
   'CRM Leads': ['src/features/leads/leads-page.tsx'], Pipeline: ['src/features/pipeline/pipeline-page.tsx'], 'Team Management': ['src/features/team/team-page.tsx'], 'Account Settings': ['src/features/settings/settings-page.tsx'],
@@ -55,7 +55,7 @@ export function buildInventory({ dashboardRoot }) {
     sourceEvidence: [...new Set(candidates.filter((item) => item.category === row.category).flatMap((item) => item.sourceFiles))],
     remainingDocumentationGaps: row.auditStatus === 'NO VERIFIED CONTENT' ? ['No verified customer-facing behavior is currently documented.'] : [],
   }));
-  return { generatedOn: new Date().toISOString().slice(0, 10), dashboardRoot: root, candidates, coverage };
+  return { generatedOn: new Date().toISOString().slice(0, 10), dashboardRoot: 'dashboard/', candidates, coverage };
 }
 
 export function renderInventoryMarkdown(inventory) {

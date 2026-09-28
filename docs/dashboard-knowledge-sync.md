@@ -10,12 +10,13 @@ Mode: report-only (no automatic publication)
 | Channels | VERIFIED CUSTOMER-ACCESSIBLE | 9 |
 | Web Chatbot | VERIFIED CUSTOMER-ACCESSIBLE | 5 |
 | WhatsApp AI | VERIFIED CUSTOMER-ACCESSIBLE | 9 |
+| Instagram DM AI | VERIFIED CUSTOMER-ACCESSIBLE | 3 |
 | AI Guide | VERIFIED CUSTOMER-ACCESSIBLE | 4 |
 | Knowledge Base | VERIFIED CUSTOMER-ACCESSIBLE | 7 |
 | Knowledge Intelligence | VERIFIED CUSTOMER-ACCESSIBLE | 7 |
 | Knowledge Approvals | VERIFIED CUSTOMER-ACCESSIBLE | 7 |
-| Conversations / Shared Inbox | VERIFIED CUSTOMER-ACCESSIBLE | 4 |
-| Human Handoff | VERIFIED CUSTOMER-ACCESSIBLE | 4 |
+| Conversations / Shared Inbox | VERIFIED CUSTOMER-ACCESSIBLE | 5 |
+| Human Handoff | VERIFIED CUSTOMER-ACCESSIBLE | 5 |
 | CRM Contacts | UNVERIFIED | 4 |
 | CRM Leads | VERIFIED CUSTOMER-ACCESSIBLE | 4 |
 | Pipeline | VERIFIED CUSTOMER-ACCESSIBLE | 4 |

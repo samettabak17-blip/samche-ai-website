@@ -111,6 +111,10 @@ test('Turkish and Arabic localize every customer-facing string from shared platf
   for (const locale of ['tr', 'ar']) {
     for (const source of sharedCopy) {
       if (/^\d[\d,]*$/.test(source) || source === '—') continue;
+      if (source === 'Instagram DM AI') {
+        assert.equal(translateText(source, locale), source, `${locale} product brand changed`);
+        continue;
+      }
       assert.notEqual(translateText(source, locale), source, `${locale} translation missing for: ${source}`);
     }
   }

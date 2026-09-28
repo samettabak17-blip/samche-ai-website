@@ -4,10 +4,15 @@ import { buildInventory } from '../scripts/build-help-center-inventory.mjs';
 
 test('builds a complete mandatory coverage inventory from verified evidence', () => {
   const result = buildInventory({ dashboardRoot: 'C:/Users/smttb/Documents/samche-api-service/dashboard' });
-  assert.equal(result.coverage.length, 17);
+  assert.equal(result.coverage.length, 18);
   assert.ok(result.coverage.every((row) => row.category && row.auditStatus && 'remainingDocumentationGaps' in row));
   assert.ok(result.candidates.some((item) => item.category === 'WhatsApp AI'));
   assert.ok(result.candidates.some((item) => item.category === 'Knowledge Intelligence'));
+  const instagram = result.coverage.find((row) => row.category === 'Instagram DM AI');
+  assert.equal(instagram?.auditStatus, 'VERIFIED CUSTOMER-ACCESSIBLE');
+  assert.equal(instagram?.publishedArticleCount, 3);
+  assert.ok(instagram?.sourceEvidence.includes('dashboard/src/features/channels/instagram-connection-card.tsx'));
+  assert.equal(result.dashboardRoot, 'dashboard/');
 });
 
 test('keeps implementation-managed and unverified areas out of customer route claims', () => {
