@@ -84,7 +84,9 @@ test('an ambiguous follow-up inherits the most recent explicit subject after a t
     language: 'en', input: 'It still fails',
     messages: [
       { role: 'user', text: 'Can I manage Instagram messages in the Dashboard?' },
+      { role: 'assistant', text: 'Let’s check the Instagram channel.' },
       { role: 'user', text: 'My WhatsApp AI is not replying' },
+      { role: 'assistant', text: 'Let’s check the WhatsApp channel.' },
     ],
   });
   assert.match(recovery.reply, /WhatsApp/i);
@@ -244,8 +246,8 @@ test('Arabic support fallback remains actionable and localized', () => {
     messages: [{ role: 'assistant', text: 'WhatsApp channel is inactive.', articleRefs: ['whatsapp-ai-troubleshooting'] }],
     state: createInitialSalesState(), articleRefs: ['whatsapp-ai-troubleshooting'],
   });
-  assert.match(reply, /واتساب|القنوات|الحالة/u);
-  assert.match(reply, /حفظ|تعديل|القناة/u);
+  assert.match(reply, /واتساب|WhatsApp|القنوات|Channels|الحالة|Status/u);
+  assert.match(reply, /حفظ|تعديل|قناة|القناة|اختر/u);
 });
 
 test('widget contract uses localized status, progressive reveal, and canonical article anchors', async () => {

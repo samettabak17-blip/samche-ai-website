@@ -194,7 +194,9 @@ test('support rejects raw classifications entitlement keys invented controls and
     'The classification is implemented_customer_accessible with entitlement key whatsapp_ai.',
     'Open Channels in the Dashboard and click Repair Everything to restore the connection.',
     'Open Channels in the Dashboard and click Reset WhatsApp Credentials to restore the connection.',
+    'Open Channels in the Dashboard and select Reset WhatsApp Credentials to restore the connection.',
     'Dashboard içinde Channels bölümünde Tümünü Onar düğmesine tıklayın; bağlantı düzelecektir.',
+    'افتح Channels في لوحة التحكم واضغط على زر إصلاح الكل لإعادة الاتصال.',
   ]) {
     const service = createSalesChatService({ openaiClient: providerWith(JSON.stringify({
       reply, intent: 'support', responseMode: 'support', resumePendingQuestion: false,
@@ -204,7 +206,7 @@ test('support rejects raw classifications entitlement keys invented controls and
       userMessage: 'My WhatsApp AI is not replying', responseMode: 'support', detectedIntent: 'support',
     }) });
     assert.equal(result.status, 200);
-    assert.doesNotMatch(result.body.reply, /implemented_customer_accessible|entitlement key|Repair Everything|Reset WhatsApp Credentials|Tümünü Onar/i);
+    assert.doesNotMatch(result.body.reply, /implemented_customer_accessible|entitlement key|Repair Everything|Reset WhatsApp Credentials|Tümünü Onar|إصلاح الكل/iu);
     assert.ok(result.body.articleRefs.every((slug) => slug.startsWith('whatsapp')));
   }
 });

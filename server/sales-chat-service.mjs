@@ -364,12 +364,20 @@ function containsUnknownDashboardControlClaim(reply) {
     const claimed = normalizeControlText(match[2].split(/\b(?:to|then|and then|when|if)\b/i)[0]);
     if (!claimed) continue;
     const selectionsMayBeDescriptive = verb === 'select' || verb === 'choose';
-    const knownClaim = known.some((control) => claimed === control || (selectionsMayBeDescriptive && claimed.includes(control)));
+    const claims = claimed.split(/\s+(?:or|and)\s+/).map((part) => selectionsMayBeDescriptive
+      ? part.replace(/^(?:affected|intended|relevant|desired)\s+/, '').replace(/\s+(?:channel|conversation|record)$/, '')
+      : part);
+    const knownClaim = claims.every((claim) => known.some((control) => claim === control || (selectionsMayBeDescriptive && control === `${claim} selection`)));
     if (!knownClaim) return true;
   }
   const turkishControlPattern = /([\p{L}\p{N}][\p{L}\p{N}\s]{0,60}?)\s+(?:düğmesine|butonuna)\s+(?:tıklayın|basın)/giu;
   for (const match of reply.matchAll(turkishControlPattern)) {
     const claimed = normalizeControlText(match[1]);
+    if (!known.some((control) => claimed === control)) return true;
+  }
+  const arabicControlPattern = /(?:اضغط(?:وا)?\s+على\s+زر|اختر(?:وا)?)\s+([^،؛.!?\n]{1,60})/gu;
+  for (const match of reply.matchAll(arabicControlPattern)) {
+    const claimed = normalizeControlText(match[1].split(/\s+(?:لـ|ثم|وذلك)\s+/u)[0]);
     if (!known.some((control) => claimed === control)) return true;
   }
   return false;
