@@ -1,7 +1,7 @@
 import { dashboardSupportMap } from '../lib/support-dashboard-map.mjs';
 import { getHelpArticleSources, getPublishedArticles } from '../lib/help-center/index.mjs';
 import { buildGroundedSupportRecovery, resolveConversationLanguage } from '../lib/samche-sales-chat-client.mjs';
-import { buildSupportRetrievalQuery, containsInternalSupportLeak, findUnconfirmedChannelSubject, toCustomerGroundingPayload } from '../lib/customer-support-grounding.mjs';
+import { buildSupportRetrievalQuery, containsInternalSupportLeak, findGroundingLockedSubject, toCustomerGroundingPayload } from '../lib/customer-support-grounding.mjs';
 const MODEL = 'gpt-4o-mini';
 const VISION_MODEL = 'gpt-4o';
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
@@ -95,6 +95,11 @@ function text(value, limit) { return typeof value === 'string' ? value.slice(0, 
 function sanitizeArticleRefs(value) {
   if (!Array.isArray(value)) return [];
   return [...new Set(value.filter((slug) => typeof slug === 'string' && PUBLISHED_HELP_SLUGS.has(slug)))].slice(0, 3);
+}
+
+function sanitizeGroundedArticleRefs(value, context) {
+  const supplied = new Set((context?.supportGrounding?.articles || []).map((article) => article.articleId));
+  return sanitizeArticleRefs(value).filter((articleId) => supplied.has(articleId));
 }
 
 function supportIntentFor(message) {
@@ -251,8 +256,8 @@ function buildContext(body, commercialFacts) {
     imageContext: message?.imageContext === true,
   })).filter((message) => message.text);
   const supportRetrievalQuery = buildSupportRetrievalQuery({ userMessage: body.userMessage, conversationHistory });
-  const unconfirmedSubject = findUnconfirmedChannelSubject(supportRetrievalQuery, inputLanguage);
-  const helpArticles = unconfirmedSubject ? [] : getHelpArticleSources(supportRetrievalQuery, inputLanguage, 3);
+  const groundingLockedSubject = findGroundingLockedSubject(supportRetrievalQuery, inputLanguage);
+  const helpArticles = getHelpArticleSources(supportRetrievalQuery, inputLanguage, 3);
   return {
     locale: CHAT_LANGUAGES.has(body.locale) ? body.locale : 'en',
     inputLanguage,
@@ -266,7 +271,7 @@ function buildContext(body, commercialFacts) {
     pendingField: ALLOWED_NEXT_FIELDS.has(body.pendingQualificationField ?? body.pendingField) ? (body.pendingQualificationField ?? body.pendingField) : null,
     lastPendingQuestion: text(body.lastPendingQuestion, 500),
     recommendedPlan: text(body.recommendedPlan, 40),
-    responseMode: body.attachment || unconfirmedSubject || supportIntentFor(body.userMessage) || (body.conversationHistory.slice(-4).some((message) => message?.imageContext === true || supportIntentFor(message?.text))) ? 'support' : ALLOWED_RESPONSE_MODES.has(body.responseMode) ? body.responseMode : 'qualification_answer',
+    responseMode: body.attachment || groundingLockedSubject || supportIntentFor(body.userMessage) || (body.conversationHistory.slice(-4).some((message) => message?.imageContext === true || supportIntentFor(message?.text))) ? 'support' : ALLOWED_RESPONSE_MODES.has(body.responseMode) ? body.responseMode : 'qualification_answer',
     detectedIntent: text(body.detectedIntent, 40),
     approvedPlanFacts: commercialFacts.plans.map((plan) => ({ ...plan })),
     approvedProductFacts: commercialFacts.products.map((product) => ({ ...product })),
@@ -327,10 +332,12 @@ export function validateSalesLlmOutput(output, { plans, products, allowedActions
 
 function validateSalesReplyText(reply, { plans, products }) {
   if (typeof reply !== 'string' || !reply.trim() || reply.length > 3000) return failure('invalid_reply', { field: 'reply' });
+  if (containsInternalSupportLeak(reply)) return failure('internal_support_leak', { category: 'customer_response' });
   const amounts = approvedAmounts(plans);
   for (const amount of reply.matchAll(/AED\s*([\d,]+)/gi)) if (!amounts.has(amount[1].replaceAll(',', ''))) return failure('unsupported_commercial_claim', { category: 'amount' });
   if (/(?:discount|free|unlimited|guaranteed)/i.test(reply)) return failure('unsupported_commercial_claim', { category: 'disallowed_term' });
   if (containsUnsupportedDashboardInstruction(reply)) return failure('hallucinated_dashboard_control', { category: 'unverified_navigation' });
+  if (containsUnknownDashboardControlClaim(reply)) return failure('hallucinated_dashboard_control', { category: 'unknown_control' });
   if (/(?:Görsel Ayarları|Veri Entegrasyonu|Eğitim Verisi|Visual Settings|Data Integration Tab|Training Data Tab)/iu.test(reply)) {
     return failure('hallucinated_dashboard_control', { category: 'fake_menu' });
   }
@@ -338,6 +345,26 @@ function validateSalesReplyText(reply, { plans, products }) {
   const unknownProductClaim = [...reply.matchAll(/\b(?:Web Chatbot|WhatsApp AI|AI Guide|Knowledge Intelligence|Live Inbox|CRM & Pipeline)\b/g)].some((match) => knownProducts.length > 0 && !knownProducts.includes(match[0]));
   if (unknownProductClaim) return failure('unsupported_product_claim', { category: 'product_name' });
   return { ok: true, value: reply.trim() };
+}
+
+function normalizeControlText(value) {
+  return String(value || '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+}
+
+function containsUnknownDashboardControlClaim(reply) {
+  if (!/(?:dashboard|channels?|settings|overview|assistants?|knowledge|conversations?|leads?|pipeline|support|menü|ayar|pano)/iu.test(reply)) return false;
+  const known = dashboardSupportMap
+    .filter((entry) => entry.status === 'implemented_customer_accessible')
+    .flatMap((entry) => [entry.area, entry.nav, ...(entry.controls || [])])
+    .filter(Boolean)
+    .map(normalizeControlText);
+  const directControlPattern = /\b(?:click|press|select|choose|use)\s+(?:the\s+)?["“]?([^.,;!?\n]{1,70})/gi;
+  for (const match of reply.matchAll(directControlPattern)) {
+    const claimed = normalizeControlText(match[1].split(/\b(?:to|then|and then|when|if)\b/i)[0]);
+    if (!claimed) continue;
+    if (!known.some((control) => claimed.includes(control) || control.includes(claimed))) return true;
+  }
+  return false;
 }
 
 function containsUnsupportedDashboardInstruction(reply) {
@@ -492,14 +519,14 @@ function enforceInterruptResponse(candidate, context, commercialFacts) {
 }
 
 function enforceSupportResponse(candidate, context) {
-  const unconfirmedSubject = findUnconfirmedChannelSubject(context.supportRetrievalQuery, context.inputLanguage);
-  const isUsable = !unconfirmedSubject && candidate && replyMatchesInputLanguage(candidate.reply, context.inputLanguage)
+  const groundingLockedSubject = findGroundingLockedSubject(context.supportRetrievalQuery, context.inputLanguage);
+  const isUsable = !groundingLockedSubject && candidate && replyMatchesInputLanguage(candidate.reply, context.inputLanguage)
     && !containsInternalSupportLeak(candidate.reply)
     && !unavailableSalesClaims(candidate.reply, SALES_CHAT_CAPABILITIES)
     && (context.hasImage || candidate.responseMode === 'support' || candidate.intent === 'support');
   const recovery = isUsable ? null : safeSupportRecovery(context);
   const reply = isUsable ? candidate.reply : recovery.reply;
-  return { reply, intent: 'support', responseMode: 'support', resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: isUsable ? sanitizeArticleRefs(candidate.articleRefs) : recovery.articleRefs };
+  return { reply, intent: 'support', responseMode: 'support', resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: isUsable ? sanitizeGroundedArticleRefs(candidate.articleRefs, context) : recovery.articleRefs };
 }
 
 export function createSalesChatService({ openaiClient, commercialFacts, textModel = MODEL, visionModel = VISION_MODEL, timeoutMs = 20000, environment = process.env, logger = console } = {}) {

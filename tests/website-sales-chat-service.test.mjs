@@ -140,7 +140,7 @@ test('support boundary rejects provider metadata leakage and preserves Instagram
   assert.match(result.body.reply, /bağlan|bağlantı/iu);
   assert.match(result.body.reply, /hata metni|ekran görüntüsü/iu);
   assert.doesNotMatch(result.body.reply, /verified|registry|boundary|tenantId|\/app\/|still needs investigation|implementation|roadmap|Doğrulanmış|Sınır/iu);
-  assert.deepEqual(result.body.articleRefs, []);
+  assert.ok(result.body.articleRefs.every((slug) => slug.startsWith('instagram-dm-ai')));
 });
 
 test('Instagram first turn cannot inherit an unsupported capability claim from the provider', async () => {
@@ -156,10 +156,42 @@ test('Instagram first turn cannot inherit an unsupported capability claim from t
   }) });
   assert.equal(result.status, 200);
   assert.match(result.body.reply, /Instagram/i);
-  assert.match(result.body.reply, /does not show|cannot claim/i);
+  assert.match(result.body.reply, /Channels|Connect Instagram|Test Connection/i);
   assert.doesNotMatch(result.body.reply, /manage Instagram messages in Conversations|transfer them/i);
   assert.doesNotMatch(result.body.reply, /verified|registry|boundary|tenant|\/app\/|implementation|roadmap/i);
-  assert.deepEqual(result.body.articleRefs, []);
+  assert.ok(result.body.articleRefs.length > 0);
+  assert.ok(result.body.articleRefs.every((slug) => slug.startsWith('instagram-dm-ai')));
+});
+
+test('internal metadata cannot bypass the boundary through a non-support request mode', async () => {
+  const service = createSalesChatService({ openaiClient: providerWith(JSON.stringify({
+    reply: 'The verified route is /app/:tenantId/channels.',
+    intent: 'support', responseMode: 'support', resumePendingQuestion: false,
+    extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: [],
+  })), commercialFacts });
+  const result = await service.handle({ body: requestBody({
+    userMessage: 'Where can I find Channels?', responseMode: 'qualification_answer', detectedIntent: 'product_question',
+  }) });
+  assert.equal(result.status, 502);
+  assert.doesNotMatch(JSON.stringify(result.body), /verified route|tenantId|\/app\//i);
+});
+
+test('support rejects raw classifications entitlement keys invented controls and unrelated article refs', async () => {
+  for (const reply of [
+    'The classification is implemented_customer_accessible with entitlement key whatsapp_ai.',
+    'Open Channels in the Dashboard and click Repair Everything to restore the connection.',
+  ]) {
+    const service = createSalesChatService({ openaiClient: providerWith(JSON.stringify({
+      reply, intent: 'support', responseMode: 'support', resumePendingQuestion: false,
+      extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: ['pipeline-deals'],
+    })), commercialFacts });
+    const result = await service.handle({ body: requestBody({
+      userMessage: 'My WhatsApp AI is not replying', responseMode: 'support', detectedIntent: 'support',
+    }) });
+    assert.equal(result.status, 200);
+    assert.doesNotMatch(result.body.reply, /implemented_customer_accessible|entitlement key|Repair Everything/i);
+    assert.ok(result.body.articleRefs.every((slug) => slug.startsWith('whatsapp')));
+  }
 });
 
 test('bare multilingual greetings rewrite multiple provider questions to one general Sales & Support question', async () => {

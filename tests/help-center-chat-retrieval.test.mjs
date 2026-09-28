@@ -5,7 +5,7 @@ import { getHelpArticleSources } from '../lib/help-center/index.mjs';
 
 const facts = { plans: [], products: [] };
 const base = { userMessage: 'My WhatsApp AI is not replying', locale: 'en', conversationHistory: [], leadState: {} };
-const valid = { reply: 'Open Channels, select the affected WhatsApp channel, and check its visible status.', intent: 'support', responseMode: 'support', resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: ['whatsapp-ai-troubleshooting', 'invented-slug'] };
+const valid = { reply: 'Open Channels, select the affected WhatsApp channel, and check its visible status.', intent: 'support', responseMode: 'support', resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: ['whatsapp-ai-troubleshooting', 'pipeline-deals', 'invented-slug'] };
 
 test('support context exposes only customer-safe grounding and final refs are canonical', async () => {
   let sent;
@@ -44,8 +44,24 @@ test('ambiguous support retrieval query includes the immediately relevant user s
   const context = JSON.parse(sent.messages[1].content);
   assert.match(context.supportRetrievalQuery, /Instagram/i);
   assert.match(context.supportRetrievalQuery, /could not connect/i);
-  assert.deepEqual(context.supportGrounding.articles, []);
-  assert.deepEqual(result.body.articleRefs, []);
+  assert.ok(context.supportGrounding.articles.some((article) => article.articleId.startsWith('instagram-dm-ai')));
+  assert.ok(result.body.articleRefs.every((slug) => slug.startsWith('instagram-dm-ai')));
+});
+
+test('an explicit current product replaces stale retrieval context', async () => {
+  let sent;
+  const openaiClient = { chat: { completions: { create: async (request) => {
+    sent = request;
+    return { choices: [{ message: { content: JSON.stringify(valid) } }] };
+  } } } };
+  await createSalesChatService({ openaiClient, commercialFacts: facts, logger: { warn() {} } }).handle({ body: {
+    ...base,
+    conversationHistory: [{ role: 'user', text: 'Can I connect Instagram?' }],
+  } });
+  const context = JSON.parse(sent.messages[1].content);
+  assert.doesNotMatch(context.supportRetrievalQuery, /Instagram/i);
+  assert.match(context.supportRetrievalQuery, /WhatsApp/i);
+  assert.ok(context.supportGrounding.articles.every((article) => article.articleId.startsWith('whatsapp')));
 });
 
 test('article source retrieval is empty for unrelated queries and remains localized', () => {

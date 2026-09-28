@@ -31,7 +31,7 @@ const instagramRegressions = [
     language: 'ar',
     first: 'هل يمكنني إدارة رسائل إنستغرام من خلال لوحة SamChe؟',
     second: 'تظهر لي رسالة تعذر الاتصال',
-    context: /إنستغرام/u,
+    context: /Instagram|إنستغرام/u,
     problem: /الاتصال|يتصل/u,
     evidence: /نص الخطأ|لقطة شاشة/u,
     generic: /Account Settings|Overview|الإعدادات/u,
@@ -42,9 +42,11 @@ for (const sample of instagramRegressions) {
   test(`${sample.language}: Instagram first turn does not invent a customer-visible capability`, () => {
     const recovery = buildGroundedSupportRecovery({ language: sample.language, input: sample.first, messages: [] });
     assert.match(recovery.reply, sample.context);
-    assert.doesNotMatch(recovery.reply, /Channels|Conversations|Web Chat Experience|→|\/app\//iu);
+    assert.match(recovery.reply, /Channels|Connect Instagram|Test Connection/iu);
+    assert.doesNotMatch(recovery.reply, /transfer|route|\/app\//iu);
     assert.doesNotMatch(recovery.reply, INTERNAL_SUPPORT_LEAK);
-    assert.deepEqual(recovery.articleRefs, []);
+    assert.ok(recovery.articleRefs.length > 0);
+    assert.ok(recovery.articleRefs.every((slug) => slug.startsWith('instagram-dm-ai')));
   });
 
   test(`${sample.language}: ambiguous Instagram connection follow-up keeps subject and latest language`, () => {
@@ -62,9 +64,20 @@ for (const sample of instagramRegressions) {
     assert.match(recovery.reply, sample.evidence);
     assert.doesNotMatch(recovery.reply, sample.generic);
     assert.doesNotMatch(recovery.reply, INTERNAL_SUPPORT_LEAK);
-    assert.deepEqual(recovery.articleRefs, []);
+    assert.ok(recovery.articleRefs.length > 0);
+    assert.ok(recovery.articleRefs.every((slug) => slug.startsWith('instagram-dm-ai')));
   });
 }
+
+test('an explicit WhatsApp topic switch is not overridden by older Instagram context', () => {
+  const recovery = buildGroundedSupportRecovery({
+    language: 'en', input: 'My WhatsApp AI is not replying',
+    messages: [{ role: 'user', text: 'Can I manage Instagram messages in the Dashboard?' }],
+  });
+  assert.match(recovery.reply, /WhatsApp/i);
+  assert.doesNotMatch(recovery.reply, /Instagram/i);
+  assert.ok(recovery.articleRefs.every((slug) => slug.startsWith('whatsapp')));
+});
 
 test('renders a canonical Help Center markdown link only when the slug is supplied', () => {
   const articleUrl = getPublishedArticleUrl('whatsapp-ai-troubleshooting', 'tr');
