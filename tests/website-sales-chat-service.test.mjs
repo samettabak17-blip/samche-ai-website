@@ -121,6 +121,96 @@ test('server support recovery uses verified module guidance instead of a generic
   assert.ok(result.body.articleRefs.every((slug) => typeof slug === 'string' && slug.length > 0));
 });
 
+test('support boundary rejects provider metadata leakage and preserves Instagram follow-up context', async () => {
+  const service = createSalesChatService({ openaiClient: providerWith(JSON.stringify({
+    reply: 'Verified route: /app/:tenantId/settings. Boundary: Still needs investigation.',
+    intent: 'support', responseMode: 'support', resumePendingQuestion: false,
+    extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: [],
+  })), commercialFacts });
+  const result = await service.handle({ body: requestBody({
+    locale: 'tr', inputLanguage: 'tr', responseMode: 'support', detectedIntent: 'support',
+    userMessage: 'bağlanılamadı uyarısı alıyorum', pendingQualificationField: null, lastPendingQuestion: '',
+    conversationHistory: [
+      { role: 'user', text: 'Instagram mesajlarımı SamChe Dashboard üzerinden yönetebilir miyim?' },
+      { role: 'assistant', text: 'Instagram bağlantısında ne gördüğünüzü paylaşın.' },
+    ],
+  }) });
+  assert.equal(result.status, 200);
+  assert.match(result.body.reply, /Instagram/iu);
+  assert.match(result.body.reply, /bağlan|bağlantı/iu);
+  assert.match(result.body.reply, /hata metni|ekran görüntüsü/iu);
+  assert.doesNotMatch(result.body.reply, /verified|registry|boundary|tenantId|\/app\/|still needs investigation|implementation|roadmap|Doğrulanmış|Sınır/iu);
+  assert.ok(result.body.articleRefs.every((slug) => slug.startsWith('instagram-dm-ai')));
+});
+
+test('Instagram first turn cannot inherit an unsupported capability claim from the provider', async () => {
+  const service = createSalesChatService({ openaiClient: providerWith(JSON.stringify({
+    reply: 'You can manage Instagram messages in Conversations and transfer them to your team.',
+    intent: 'support', responseMode: 'support', resumePendingQuestion: false,
+    extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: ['conversation-missing-from-inbox'],
+  })), commercialFacts });
+  const result = await service.handle({ body: requestBody({
+    locale: 'en', inputLanguage: 'en', responseMode: 'in_scope_interrupt', detectedIntent: 'product_question',
+    userMessage: 'Can I manage my Instagram messages through the SamChe Dashboard?',
+    pendingQualificationField: null, lastPendingQuestion: '', conversationHistory: [],
+  }) });
+  assert.equal(result.status, 200);
+  assert.match(result.body.reply, /Instagram/i);
+  assert.match(result.body.reply, /Channels|Connect Instagram|Test Connection/i);
+  assert.doesNotMatch(result.body.reply, /manage Instagram messages in Conversations|transfer them/i);
+  assert.doesNotMatch(result.body.reply, /verified|registry|boundary|tenant|\/app\/|implementation|roadmap/i);
+  assert.ok(result.body.articleRefs.length > 0);
+  assert.ok(result.body.articleRefs.every((slug) => slug.startsWith('instagram-dm-ai')));
+});
+
+test('internal metadata cannot bypass the boundary through a non-support request mode', async () => {
+  const service = createSalesChatService({ openaiClient: providerWith(JSON.stringify({
+    reply: 'The verified route is /app/:tenantId/channels.',
+    intent: 'support', responseMode: 'support', resumePendingQuestion: false,
+    extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: [],
+  })), commercialFacts });
+  const result = await service.handle({ body: requestBody({
+    userMessage: 'Where can I find Channels?', responseMode: 'qualification_answer', detectedIntent: 'product_question',
+  }) });
+  assert.equal(result.status, 502);
+  assert.doesNotMatch(JSON.stringify(result.body), /verified route|tenantId|\/app\//i);
+});
+
+test('unrelated published article refs cannot bypass grounding through a non-support request mode', async () => {
+  const service = createSalesChatService({ openaiClient: providerWith(JSON.stringify({
+    reply: 'Open Channels in the Dashboard.',
+    intent: 'support', responseMode: 'support', resumePendingQuestion: false,
+    extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: ['pipeline-deals'],
+  })), commercialFacts });
+  const result = await service.handle({ body: requestBody({
+    userMessage: 'Where can I find Channels?', responseMode: 'qualification_answer', detectedIntent: 'product_question',
+  }) });
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.body.articleRefs, []);
+});
+
+test('support rejects raw classifications entitlement keys invented controls and unrelated article refs', async () => {
+  for (const reply of [
+    'The classification is implemented_customer_accessible with entitlement key whatsapp_ai.',
+    'Open Channels in the Dashboard and click Repair Everything to restore the connection.',
+    'Open Channels in the Dashboard and click Reset WhatsApp Credentials to restore the connection.',
+    'Open Channels in the Dashboard and select Reset WhatsApp Credentials to restore the connection.',
+    'Dashboard içinde Channels bölümünde Tümünü Onar düğmesine tıklayın; bağlantı düzelecektir.',
+    'افتح Channels في لوحة التحكم واضغط على زر إصلاح الكل لإعادة الاتصال.',
+  ]) {
+    const service = createSalesChatService({ openaiClient: providerWith(JSON.stringify({
+      reply, intent: 'support', responseMode: 'support', resumePendingQuestion: false,
+      extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: ['pipeline-deals'],
+    })), commercialFacts });
+    const result = await service.handle({ body: requestBody({
+      userMessage: 'My WhatsApp AI is not replying', responseMode: 'support', detectedIntent: 'support',
+    }) });
+    assert.equal(result.status, 200);
+    assert.doesNotMatch(result.body.reply, /implemented_customer_accessible|entitlement key|Repair Everything|Reset WhatsApp Credentials|Tümünü Onar|إصلاح الكل/iu);
+    assert.ok(result.body.articleRefs.every((slug) => slug.startsWith('whatsapp')));
+  }
+});
+
 test('bare multilingual greetings rewrite multiple provider questions to one general Sales & Support question', async () => {
   for (const [userMessage, reply] of [
     ['Hello', 'Hello! How can I help with SamChe AI today? What type of business do you operate?'],

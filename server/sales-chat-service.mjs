@@ -1,6 +1,7 @@
 import { dashboardSupportMap } from '../lib/support-dashboard-map.mjs';
 import { getHelpArticleSources, getPublishedArticles } from '../lib/help-center/index.mjs';
 import { buildGroundedSupportRecovery, resolveConversationLanguage } from '../lib/samche-sales-chat-client.mjs';
+import { buildSupportRetrievalQuery, containsInternalSupportLeak, findGroundingLockedSubject, toCustomerGroundingPayload } from '../lib/customer-support-grounding.mjs';
 const MODEL = 'gpt-4o-mini';
 const VISION_MODEL = 'gpt-4o';
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
@@ -19,6 +20,13 @@ export const SALES_CHAT_CAPABILITIES = Object.freeze({
   canSendEmail: false,
 });
 const SYSTEM_PROMPT = `You are the SamChe AI sales and support conversation layer. Return only the requested JSON. CURRENT USER MESSAGE HAS PRIORITY. Reply in the language of the latest user message.
+
+CUSTOMER ANSWER CONTRACT:
+- supportGrounding is an internal evidence payload, not customer copy. Use it to decide what is supported, then write a natural customer-support answer from scratch.
+- Never mention or reproduce internal grounding schemas, article IDs, classifications, source metadata, diagnostic labels, implementation terminology, entitlement/capability keys, placeholders, or developer routes. Never print a path beginning with /app/ or any value containing tenantId.
+- Never use headings or phrases such as "verified documentation", "verified route", "boundary", "still needs investigation", "registry", or localized equivalents. Refer only to Dashboard labels that a customer can see.
+- When the supplied guidance is insufficient, do not invent a feature or fix. Acknowledge the specific subject and ask for the exact visible error or a screenshot.
+- The latest user-message language is authoritative even when retrieved material or earlier turns use another language.
 
 SUPPORT RULES:
 - Support takes priority over sales qualification. If the user reports an issue, error, troubleshooting question, or is an existing customer, use intent "support" and responseMode "support". Never restart sales qualification, ask sales lead fields, or push plans during support turns.
@@ -42,8 +50,8 @@ SALES RULES:
 - Preserve known lead fields, never repeat an already known field, ask at most one useful question, never invent commercial facts, and never claim physical delivery or guaranteed outcomes. For a bare greeting, write a short welcome that identifies you as the SamChe AI sales and support assistant and ask at most one general help question.
 
 HELP CENTER RULES:
-- The context may include verified helpArticles. Use only their supplied content and navigation when grounding support guidance.
-- Return articleRefs containing only the supplied article slugs that directly support the reply. Return [] when no article applies. Never invent a slug or URL.`;
+- The context may include customer-safe supportGrounding articles. Use only their supplied guidance and visible navigation labels.
+- Return articleRefs containing only supplied articleId values that directly support the reply. Return [] when no article applies. Never invent an ID or URL, and never recommend an article for a different product or channel.`;
 const EXTRACTED_ARRAY_FIELDS = new Set(['channels', 'products']);
 const EXTRACTED_FIELD_ALIASES = Object.freeze({
   team_users: 'teamUsers', lead_qualification: 'leadQualification', ai_guide_need: 'aiGuideNeed',
@@ -87,6 +95,11 @@ function text(value, limit) { return typeof value === 'string' ? value.slice(0, 
 function sanitizeArticleRefs(value) {
   if (!Array.isArray(value)) return [];
   return [...new Set(value.filter((slug) => typeof slug === 'string' && PUBLISHED_HELP_SLUGS.has(slug)))].slice(0, 3);
+}
+
+function sanitizeGroundedArticleRefs(value, context) {
+  const supplied = new Set((context?.supportGrounding?.articles || []).map((article) => article.articleId));
+  return sanitizeArticleRefs(value).filter((articleId) => supplied.has(articleId));
 }
 
 function supportIntentFor(message) {
@@ -237,15 +250,19 @@ function buildContext(body, commercialFacts) {
     else if (typeof value === 'string' || typeof value === 'boolean') leadState[key] = value;
   }
   const inputLanguage = resolveInputLanguage(body.userMessage, body.inputLanguage, body.locale);
+  const conversationHistory = body.conversationHistory.slice(-MAX_HISTORY).map((message) => ({
+    role: message?.role === 'assistant' ? 'assistant' : 'user',
+    text: text(message?.text ?? message?.content, MAX_HISTORY_MESSAGE_LENGTH),
+    imageContext: message?.imageContext === true,
+  })).filter((message) => message.text);
+  const supportRetrievalQuery = buildSupportRetrievalQuery({ userMessage: body.userMessage, conversationHistory });
+  const groundingLockedSubject = findGroundingLockedSubject(supportRetrievalQuery, inputLanguage);
+  const helpArticles = getHelpArticleSources(supportRetrievalQuery, inputLanguage, 3);
   return {
     locale: CHAT_LANGUAGES.has(body.locale) ? body.locale : 'en',
     inputLanguage,
     hasImage: Boolean(body.attachment),
-    conversationHistory: body.conversationHistory.slice(-MAX_HISTORY).map((message) => ({
-      role: message?.role === 'assistant' ? 'assistant' : 'user',
-      text: text(message?.text ?? message?.content, MAX_HISTORY_MESSAGE_LENGTH),
-      imageContext: message?.imageContext === true,
-    })).filter((message) => message.text),
+    conversationHistory,
     leadState,
     knownFields: Object.keys(leadState).filter((key) => hasUsableLeadValue(leadState[key])),
     lastQuestion: text(body.lastQuestion, 500),
@@ -254,12 +271,12 @@ function buildContext(body, commercialFacts) {
     pendingField: ALLOWED_NEXT_FIELDS.has(body.pendingQualificationField ?? body.pendingField) ? (body.pendingQualificationField ?? body.pendingField) : null,
     lastPendingQuestion: text(body.lastPendingQuestion, 500),
     recommendedPlan: text(body.recommendedPlan, 40),
-    responseMode: body.attachment || supportIntentFor(body.userMessage) || (body.conversationHistory.slice(-4).some((message) => message?.imageContext === true || supportIntentFor(message?.text))) ? 'support' : ALLOWED_RESPONSE_MODES.has(body.responseMode) ? body.responseMode : 'qualification_answer',
+    responseMode: body.attachment || groundingLockedSubject || supportIntentFor(body.userMessage) || (body.conversationHistory.slice(-4).some((message) => message?.imageContext === true || supportIntentFor(message?.text))) ? 'support' : ALLOWED_RESPONSE_MODES.has(body.responseMode) ? body.responseMode : 'qualification_answer',
     detectedIntent: text(body.detectedIntent, 40),
     approvedPlanFacts: commercialFacts.plans.map((plan) => ({ ...plan })),
     approvedProductFacts: commercialFacts.products.map((product) => ({ ...product })),
-    verifiedDashboardMap: dashboardSupportMap,
-    helpArticles: getHelpArticleSources(text(body.userMessage, MAX_MESSAGE_LENGTH), inputLanguage, 3),
+    supportRetrievalQuery,
+    supportGrounding: toCustomerGroundingPayload({ dashboardEntries: dashboardSupportMap, helpArticles }),
     capabilities: SALES_CHAT_CAPABILITIES,
     allowedActions: [...ALLOWED_ACTIONS],
     userMessage: text(body.userMessage, MAX_MESSAGE_LENGTH),
@@ -315,10 +332,12 @@ export function validateSalesLlmOutput(output, { plans, products, allowedActions
 
 function validateSalesReplyText(reply, { plans, products }) {
   if (typeof reply !== 'string' || !reply.trim() || reply.length > 3000) return failure('invalid_reply', { field: 'reply' });
+  if (containsInternalSupportLeak(reply)) return failure('internal_support_leak', { category: 'customer_response' });
   const amounts = approvedAmounts(plans);
   for (const amount of reply.matchAll(/AED\s*([\d,]+)/gi)) if (!amounts.has(amount[1].replaceAll(',', ''))) return failure('unsupported_commercial_claim', { category: 'amount' });
   if (/(?:discount|free|unlimited|guaranteed)/i.test(reply)) return failure('unsupported_commercial_claim', { category: 'disallowed_term' });
   if (containsUnsupportedDashboardInstruction(reply)) return failure('hallucinated_dashboard_control', { category: 'unverified_navigation' });
+  if (containsUnknownDashboardControlClaim(reply)) return failure('hallucinated_dashboard_control', { category: 'unknown_control' });
   if (/(?:Görsel Ayarları|Veri Entegrasyonu|Eğitim Verisi|Visual Settings|Data Integration Tab|Training Data Tab)/iu.test(reply)) {
     return failure('hallucinated_dashboard_control', { category: 'fake_menu' });
   }
@@ -326,6 +345,42 @@ function validateSalesReplyText(reply, { plans, products }) {
   const unknownProductClaim = [...reply.matchAll(/\b(?:Web Chatbot|WhatsApp AI|AI Guide|Knowledge Intelligence|Live Inbox|CRM & Pipeline)\b/g)].some((match) => knownProducts.length > 0 && !knownProducts.includes(match[0]));
   if (unknownProductClaim) return failure('unsupported_product_claim', { category: 'product_name' });
   return { ok: true, value: reply.trim() };
+}
+
+function normalizeControlText(value) {
+  return String(value || '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+}
+
+function containsUnknownDashboardControlClaim(reply) {
+  if (!/(?:dashboard|channels?|settings|overview|assistants?|knowledge|conversations?|leads?|pipeline|support|menü|ayar|pano)/iu.test(reply)) return false;
+  const known = dashboardSupportMap
+    .filter((entry) => entry.status === 'implemented_customer_accessible')
+    .flatMap((entry) => [entry.area, entry.nav, ...(entry.controls || [])])
+    .filter(Boolean)
+    .map(normalizeControlText);
+  const directControlPattern = /\b(click|press|select|choose|use)\s+(?:the\s+)?["“]?([^.,;!?\n]{1,70})/gi;
+  for (const match of reply.matchAll(directControlPattern)) {
+    const verb = match[1].toLowerCase();
+    const claimed = normalizeControlText(match[2].split(/\b(?:to|then|and then|when|if)\b/i)[0]);
+    if (!claimed) continue;
+    const selectionsMayBeDescriptive = verb === 'select' || verb === 'choose';
+    const claims = claimed.split(/\s+(?:or|and)\s+/).map((part) => selectionsMayBeDescriptive
+      ? part.replace(/^(?:affected|intended|relevant|desired)\s+/, '').replace(/\s+(?:channel|conversation|record)$/, '')
+      : part);
+    const knownClaim = claims.every((claim) => known.some((control) => claim === control || (selectionsMayBeDescriptive && control === `${claim} selection`)));
+    if (!knownClaim) return true;
+  }
+  const turkishControlPattern = /([\p{L}\p{N}][\p{L}\p{N}\s]{0,60}?)\s+(?:düğmesine|butonuna)\s+(?:tıklayın|basın)/giu;
+  for (const match of reply.matchAll(turkishControlPattern)) {
+    const claimed = normalizeControlText(match[1]);
+    if (!known.some((control) => claimed === control)) return true;
+  }
+  const arabicControlPattern = /(?:اضغط(?:وا)?\s+على\s+زر|اختر(?:وا)?)\s+([^،؛.!?\n]{1,60})/gu;
+  for (const match of reply.matchAll(arabicControlPattern)) {
+    const claimed = normalizeControlText(match[1].split(/\s+(?:لـ|ثم|وذلك)\s+/u)[0]);
+    if (!known.some((control) => claimed === control)) return true;
+  }
+  return false;
 }
 
 function containsUnsupportedDashboardInstruction(reply) {
@@ -475,17 +530,19 @@ function enforceInterruptResponse(candidate, context, commercialFacts) {
     extractedFields: usable ? sanitizedCandidate.extractedFields : {},
     requestedNextField: context.pendingField || (usable ? sanitizedCandidate.requestedNextField : null),
     resumePendingQuestion: Boolean(context.lastPendingQuestion && context.pendingField), actionIntent: [],
-    articleRefs: usable ? sanitizeArticleRefs(sanitizedCandidate.articleRefs) : [],
+    articleRefs: usable ? sanitizeGroundedArticleRefs(sanitizedCandidate.articleRefs, context) : [],
   };
 }
 
 function enforceSupportResponse(candidate, context) {
-  const isUsable = candidate && replyMatchesInputLanguage(candidate.reply, context.inputLanguage)
+  const groundingLockedSubject = findGroundingLockedSubject(context.supportRetrievalQuery, context.inputLanguage);
+  const isUsable = !groundingLockedSubject && candidate && replyMatchesInputLanguage(candidate.reply, context.inputLanguage)
+    && !containsInternalSupportLeak(candidate.reply)
     && !unavailableSalesClaims(candidate.reply, SALES_CHAT_CAPABILITIES)
     && (context.hasImage || candidate.responseMode === 'support' || candidate.intent === 'support');
   const recovery = isUsable ? null : safeSupportRecovery(context);
   const reply = isUsable ? candidate.reply : recovery.reply;
-  return { reply, intent: 'support', responseMode: 'support', resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: isUsable ? sanitizeArticleRefs(candidate.articleRefs) : recovery.articleRefs };
+  return { reply, intent: 'support', responseMode: 'support', resumePendingQuestion: false, extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: isUsable ? sanitizeGroundedArticleRefs(candidate.articleRefs, context) : recovery.articleRefs };
 }
 
 export function createSalesChatService({ openaiClient, commercialFacts, textModel = MODEL, visionModel = VISION_MODEL, timeoutMs = 20000, environment = process.env, logger = console } = {}) {
@@ -532,7 +589,7 @@ export function createSalesChatService({ openaiClient, commercialFacts, textMode
           logger?.warn?.('sales_chat_provider_salvaged', { category: 'validator', stage: 'optional_metadata', reason: result.reason });
           if (context.responseMode === 'support') return { status: 200, body: enforceSupportResponse(salvage, context), context };
           if (isInterruptMode(context.responseMode)) return { status: 200, body: enforceInterruptResponse(salvage, context, commercialFacts), context };
-          return { status: 200, body: salvage, context };
+          return { status: 200, body: { ...salvage, articleRefs: sanitizeGroundedArticleRefs(salvage.articleRefs, context) }, context };
         }
         if (context.responseMode === 'support' && !attachment) return { status: 200, body: enforceSupportResponse(null, context), context };
         return { status: 502, body: { error: 'Sales assistant is temporarily unavailable.' }, context };
@@ -548,7 +605,7 @@ export function createSalesChatService({ openaiClient, commercialFacts, textMode
       if (isInterruptMode(context.responseMode)) return { status: 200, body: enforceInterruptResponse(languageValid && questionCountValid ? candidate : null, context, commercialFacts), context };
       if (result.ok && languageValid && questionCountValid) {
         const reply = sanitizeSalesReply(candidate.reply, SALES_CHAT_CAPABILITIES, context.inputLanguage);
-        return { status: 200, body: { ...candidate, reply, actionIntent: reply === candidate.reply ? candidate.actionIntent : [] }, context };
+        return { status: 200, body: { ...candidate, reply, actionIntent: reply === candidate.reply ? candidate.actionIntent : [], articleRefs: sanitizeGroundedArticleRefs(candidate.articleRefs, context) }, context };
       }
       return { status: 502, body: { error: 'Sales assistant is temporarily unavailable.' }, context };
     } catch (error) {
