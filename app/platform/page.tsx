@@ -1,16 +1,16 @@
-import type { Metadata } from 'next';
 import Link from '../components/internal-link';
 import { demoLinks, productModules } from '../../lib/site-data.mjs';
 import { ProductScreenshot } from '../components/product-screenshot';
 import { PlatformFAQ } from '../components/platform-faq';
 import { PageIntro, ProductCTA, SectionEyebrow, SiteShell } from '../components/site-shell';
+import { buildPageMetadata } from '../../lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: 'Platform',
   description: 'Explore SamChe AI: AI Assistants, Instagram DM AI, Knowledge Intelligence, Live Inbox, CRM & Pipeline, and AI Guide.',
+  path: '/platform',
   keywords: ['Instagram DM AI', 'Instagram Messaging AI', 'AI customer conversations', 'CRM lead creation', 'SamChe AI platform'],
-  alternates: { canonical: 'https://samche.ai/platform' },
-};
+});
 
 export default function PlatformPage() {
   return <SiteShell><main id="main-content">

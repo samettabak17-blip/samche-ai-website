@@ -3,7 +3,6 @@ import "./globals.css";
 import { SiteLocalizationProvider } from "./components/site-localization";
 
 const softwareApplication = {
-  "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   name: "SamChe AI Platform",
   applicationCategory: "BusinessApplication",
@@ -11,6 +10,15 @@ const softwareApplication = {
   operatingSystem: "Web",
   url: "https://samche.ai/",
   description: "A multi-tenant AI SaaS platform for assistants, Instagram DM AI, knowledge, live conversations, and CRM lead workflows with controlled human intervention.",
+};
+
+const siteStructuredData = {
+  "@context": "https://schema.org",
+  "@graph": [
+    { "@type": "Organization", name: "SamChe AI", url: "https://samche.ai/", logo: "https://samche.ai/samche-ai-platform-approved.png", email: "support@samchecompany.com" },
+    { "@type": "WebSite", name: "SamChe AI", url: "https://samche.ai/", description: "SamChe AI customer-facing AI platform and product support resources." },
+    softwareApplication,
+  ],
 };
 
 export const metadata: Metadata = {
@@ -40,7 +48,7 @@ export default function RootLayout({
     <html lang="en" dir="ltr">
       <body className="antialiased">
         <SiteLocalizationProvider>{children}</SiteLocalizationProvider>
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplication) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(siteStructuredData) }} />
       </body>
     </html>
   );

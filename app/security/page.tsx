@@ -1,12 +1,12 @@
-import type { Metadata } from 'next';
 import Link from '../components/internal-link';
 import { PageIntro, ProductCTA, SectionEyebrow, SiteShell } from '../components/site-shell';
+import { buildPageMetadata } from '../../lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: 'Security & Privacy',
   description: 'A factual overview of SamChe AI tenant workspaces, team access, product data workflows, and privacy boundaries.',
-  alternates: { canonical: 'https://samche.ai/security' },
-};
+  path: '/security',
+});
 
 export default function SecurityPage() {
   return <SiteShell><main id="main-content">

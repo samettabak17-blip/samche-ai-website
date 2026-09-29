@@ -1,17 +1,16 @@
-import type { Metadata } from 'next';
 import Link from './components/internal-link';
 import { addons, demoLinks, plans } from '../lib/site-data.mjs';
 import { PricingTable } from './components/pricing-table';
 import { ProductScreenshot } from './components/product-screenshot';
 import { ProductCTA, SectionEyebrow, SiteShell } from './components/site-shell';
+import { buildPageMetadata } from '../lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: 'SamChe AI Platform | One AI Platform. Every Customer Conversation.',
   description: 'SamChe AI connects AI assistants, Instagram DM AI, customer conversations, knowledge and CRM in one multi-tenant SaaS platform.',
+  path: '/',
   keywords: ['Instagram DM AI', 'AI-powered Instagram messaging', 'Instagram lead qualification', 'Instagram CRM automation', 'SamChe AI'],
-  alternates: { canonical: 'https://samche.ai/' },
-  openGraph: { title: 'SamChe AI Platform', description: 'AI customer operations in one multi-tenant SaaS workspace.', url: 'https://samche.ai/', siteName: 'SamChe AI', type: 'website' },
-};
+});
 
 const capabilities = [
   ['01', 'AI Assistants', 'Configure business-specific assistants and manage their behavior from the tenant workspace.'],

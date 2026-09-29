@@ -1,12 +1,12 @@
-import type { Metadata } from 'next';
 import Link from '../components/internal-link';
 import { PageIntro, SectionEyebrow, SiteShell } from '../components/site-shell';
+import { buildPageMetadata } from '../../lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: 'Privacy Policy',
   description: 'Privacy information for the SamChe AI website, product demo links, and contact request flow.',
-  alternates: { canonical: 'https://samche.ai/privacy' },
-};
+  path: '/privacy',
+});
 
 export default function PrivacyPage() {
   return <SiteShell><main id="main-content">

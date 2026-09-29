@@ -1,13 +1,13 @@
-import type { Metadata } from 'next';
 import { PricingTable } from '../components/pricing-table';
 import { SectionEyebrow, SiteShell } from '../components/site-shell';
+import { buildPageMetadata } from '../../lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: 'Pricing',
   description: 'Compare SamChe AI plans, including Instagram DM AI availability, interaction allowances, implementation and approved add-ons.',
+  path: '/pricing',
   keywords: ['Instagram DM AI pricing', 'AI messaging plans', 'SamChe AI pricing'],
-  alternates: { canonical: 'https://samche.ai/pricing' },
-};
+});
 
 export default function PricingPage() {
   return <SiteShell><main id="main-content" className="pricing-wrap">

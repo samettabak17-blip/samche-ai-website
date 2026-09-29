@@ -1,13 +1,13 @@
-import type { Metadata } from 'next';
 import { demoLinks, planFromSearch, plans } from '../../lib/site-data.mjs';
 import { ContactForm } from '../components/contact-form';
 import { PageIntro, SectionEyebrow, SiteShell } from '../components/site-shell';
+import { buildPageMetadata } from '../../lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: 'Contact',
   description: 'Request a SamChe AI product demo or ask about a subscription plan.',
-  alternates: { canonical: 'https://samche.ai/contact' },
-};
+  path: '/contact',
+});
 
 export default async function ContactPage({ searchParams }: { searchParams: Promise<{ plan?: string; interest?: string }> }) {
   const params = await searchParams;

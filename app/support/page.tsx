@@ -1,12 +1,12 @@
-import type { Metadata } from 'next';
 import { PageIntro, SiteShell } from '../components/site-shell';
 import { SupportPortal } from '../components/support-portal';
+import { buildPageMetadata } from '../../lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = buildPageMetadata({
   title: 'Support Center',
   description: 'SamChe AI Support Center: platform troubleshooting, plan-based entitlements, knowledge base, and support request submission.',
-  alternates: { canonical: 'https://samche.ai/support' },
-};
+  path: '/support',
+});
 
 export default function SupportPage() {
   return (
