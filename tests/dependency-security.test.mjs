@@ -44,8 +44,10 @@ test('direct framework and build dependencies stay on the audited safe patch lin
   assert.equal(packageJson.devDependencies.vinext, '1.0.0-beta.12');
   assert.equal(packageJson.devDependencies.vite, '8.3.1');
   assert.equal(packageJson.devDependencies['@vitejs/plugin-rsc'], '0.5.34');
-  assert.equal(packageJson.devDependencies['@cloudflare/vite-plugin'], '1.60.1');
-  assert.equal(packageJson.devDependencies.wrangler, '4.140.0');
+  assert.equal(packageJson.devDependencies['@cloudflare/vite-plugin'], '1.62.2');
+  assert.equal(packageJson.devDependencies.wrangler, '4.144.0');
+  assert.equal(packageJson.devDependencies['drizzle-kit'], undefined);
+  assert.equal(packageJson.scripts['db:generate'], undefined);
 });
 
 test('every locked critical or high package occurrence is on its patched release', () => {
@@ -56,7 +58,8 @@ test('every locked critical or high package occurrence is on its patched release
   assertEveryLockedVersion('vite', '8.3.1');
   assertEveryLockedVersion('react-server-dom-webpack', '19.2.8');
   assertEveryLockedVersion('ws', '8.21.0');
-  assertEveryLockedVersion('undici', '7.29.0');
+  assertEveryLockedVersion('undici', '7.29.1');
+  assert.equal(lockedVersions('esbuild').some((version) => parts(version)[0] === 0 && parts(version)[1] < 28), false, 'all resolved esbuild versions must be on the patched 0.28 line');
 });
 
 test('AVIF optimization stays disabled while supported screenshot and vision formats remain available', async () => {
