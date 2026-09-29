@@ -100,10 +100,10 @@ function renderAssistantText(text: string) {
   });
 }
 
-export function SamCheChatWidget({ configuration }: { configuration?: Record<string, unknown> }) {
+export function SamCheChatWidget({ configuration, initiallyOpen = false }: { configuration?: Record<string, unknown>; initiallyOpen?: boolean }) {
   const { locale } = useSiteLocale();
   const config = resolveSamcheChatConfig(configuration, locale);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initiallyOpen);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>(() => [welcomeMessage(config)]);
   const [salesState, setSalesState] = useState<SalesState>(createInitialSalesState);
@@ -196,7 +196,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
         conversationLanguageRef.current = saved.conversationLanguage as ChatLanguage;
         setConversationLanguage(saved.conversationLanguage as ChatLanguage);
         chatContextRef.current = (saved.context as ChatContext) || deriveChatContext(saved.state as SalesState, saved.messages as Message[]);
-        setOpen(saved.open);
+        setOpen(saved.open || initiallyOpen);
         if (saved.sessionId) sessionIdRef.current = saved.sessionId;
       } else {
         const initial = createInitialSalesState();
@@ -207,7 +207,7 @@ export function SamCheChatWidget({ configuration }: { configuration?: Record<str
         conversationLanguageRef.current = locale;
         setConversationLanguage(locale);
         chatContextRef.current = deriveChatContext(initial, []);
-        setOpen(false);
+        setOpen(initiallyOpen);
       }
       setHydrated(true);
     });

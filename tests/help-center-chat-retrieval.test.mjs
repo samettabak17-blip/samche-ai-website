@@ -12,7 +12,7 @@ test('support context exposes only customer-safe grounding and final refs are ca
   const openaiClient = { chat: { completions: { create: async (request) => { sent = request; return { choices: [{ message: { content: JSON.stringify(valid) } }] }; } } } };
   const result = await createSalesChatService({ openaiClient, commercialFacts: facts, logger: { warn() {} } }).handle({ body: base });
   assert.equal(result.status, 200);
-  const context = JSON.parse(sent.messages[1].content);
+  const context = JSON.parse(sent.messages.at(-1).content);
   assert.equal(context.verifiedDashboardMap, undefined);
   assert.equal(context.helpArticles, undefined);
   assert.ok(context.supportGrounding.articles.some((article) => article.articleId === 'whatsapp-ai-troubleshooting'));
@@ -41,7 +41,7 @@ test('ambiguous support retrieval query includes the immediately relevant user s
   };
   const result = await createSalesChatService({ openaiClient, commercialFacts: facts, logger: { warn() {} } }).handle({ body });
   assert.equal(result.status, 200);
-  const context = JSON.parse(sent.messages[1].content);
+  const context = JSON.parse(sent.messages.at(-1).content);
   assert.match(context.supportRetrievalQuery, /Instagram/i);
   assert.match(context.supportRetrievalQuery, /could not connect/i);
   assert.ok(context.supportGrounding.articles.some((article) => article.articleId.startsWith('instagram-dm-ai')));
@@ -58,7 +58,7 @@ test('an explicit current product replaces stale retrieval context', async () =>
     ...base,
     conversationHistory: [{ role: 'user', text: 'Can I connect Instagram?' }],
   } });
-  const context = JSON.parse(sent.messages[1].content);
+  const context = JSON.parse(sent.messages.at(-1).content);
   assert.doesNotMatch(context.supportRetrievalQuery, /Instagram/i);
   assert.match(context.supportRetrievalQuery, /WhatsApp/i);
   assert.ok(context.supportGrounding.articles.every((article) => article.articleId.startsWith('whatsapp')));

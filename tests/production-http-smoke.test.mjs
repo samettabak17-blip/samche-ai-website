@@ -144,6 +144,14 @@ test('built production server serves documents, assets, RSC, and same-origin API
     assert.match(script.headers.get('content-type') || '', /^(?:text|application)\/javascript\b/i);
   });
 
+  await t.test('closed chatbot launcher is server-visible without eager widget or Help Center chunks', () => {
+    assert.match(rootHtml, /id="samche-chat-launcher"/);
+    const initialAssets = [...rootHtml.matchAll(/(?:src|href)="([^"]+\.(?:js|css))"/g)].map((match) => match[1]);
+    assert.ok(initialAssets.length > 0);
+    assert.equal(initialAssets.some((asset) => /samche-chat-widget-/i.test(asset)), false);
+    assert.equal(initialAssets.some((asset) => /help-center-/i.test(asset)), false);
+  });
+
   await t.test('public image assets retain the correct MIME type', async () => {
     const response = await fetch(`${baseUrl}/samche-ai-platform-approved.png`);
     assert.equal(response.status, 200);

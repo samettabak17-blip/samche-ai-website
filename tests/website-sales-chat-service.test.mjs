@@ -143,6 +143,93 @@ test('support boundary rejects provider metadata leakage and preserves Instagram
   assert.ok(result.body.articleRefs.every((slug) => slug.startsWith('instagram-dm-ai')));
 });
 
+test('bounded dialogue is sent as real roles and a safe Instagram follow-up is not replaced by recovery', async () => {
+  let providerRequest;
+  const safeReply = 'Önceki kontrol tamamlandıysa sıradaki doğrulanabilir adım, Configure bölümündeki bağlantı bilgilerini kontrol etmektir.';
+  const service = createSalesChatService({ openaiClient: { chat: { completions: { create: async (payload) => {
+    providerRequest = payload;
+    return { choices: [{ message: { content: JSON.stringify({
+      reply: safeReply, intent: 'support', responseMode: 'support', resumePendingQuestion: false,
+      extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: ['instagram-dm-ai-setup'],
+    }) } }] };
+  } } } }, commercialFacts });
+
+  const history = [
+    { role: 'user', text: 'Instagram bağlantısında sorun yaşıyorum.' },
+    { role: 'assistant', text: 'Önce Test Connection kontrolünü çalıştırın.' },
+  ];
+  const result = await service.handle({ body: requestBody({
+    locale: 'tr', inputLanguage: 'tr', responseMode: 'support', detectedIntent: 'support',
+    userMessage: 'bunu yaptım yine bağlanmadı', conversationHistory: history,
+    pendingQualificationField: null, lastPendingQuestion: '',
+  }) });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.reply, safeReply);
+  assert.deepEqual(providerRequest.messages.slice(1, -1).map(({ role, content }) => ({ role, content })), [
+    { role: 'user', content: history[0].text },
+    { role: 'assistant', content: history[1].text },
+  ]);
+  assert.equal(providerRequest.messages.at(-1).role, 'user');
+  const finalContext = JSON.parse(providerRequest.messages.at(-1).content);
+  assert.equal(finalContext.userMessage, 'bunu yaptım yine bağlanmadı');
+  assert.equal(Object.hasOwn(finalContext, 'conversationHistory'), false);
+});
+
+test('safe grounded follow-ups remain model-composed in Turkish, English, and Arabic', async () => {
+  const cases = [
+    {
+      locale: 'tr', subject: 'Instagram bağlantısında sorun yaşıyorum.',
+      assistant: 'Önce Test Connection kontrolünü çalıştırın.', latest: 'bunu yaptım yine olmadı',
+      reply: 'Önceki kontrol sonuç vermediyse sıradaki doğrulanabilir adım Configure bölümündeki bağlantı bilgilerini incelemektir.',
+    },
+    {
+      locale: 'en', subject: 'I am having trouble connecting Instagram.',
+      assistant: 'First run Test Connection.', latest: 'I did that and it still failed',
+      reply: 'Since that check failed, the next supported step is to review the connection details under Configure.',
+    },
+    {
+      locale: 'ar', subject: 'أواجه مشكلة في ربط إنستغرام.',
+      assistant: 'ابدأ بفحص Test Connection.', latest: 'نفذت ذلك ولم ينجح',
+      reply: 'بما أن الفحص السابق لم ينجح، فالخطوة التالية هي مراجعة بيانات الاتصال في Configure.',
+    },
+  ];
+
+  for (const item of cases) {
+    const service = createSalesChatService({ openaiClient: providerWith(JSON.stringify({
+      reply: item.reply, intent: 'support', responseMode: 'support', resumePendingQuestion: false,
+      extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: ['instagram-dm-ai-setup'],
+    })), commercialFacts });
+    const result = await service.handle({ body: requestBody({
+      locale: item.locale, inputLanguage: item.locale, responseMode: 'support', detectedIntent: 'support',
+      userMessage: item.latest, conversationHistory: [
+        { role: 'user', text: item.subject },
+        { role: 'assistant', text: item.assistant },
+      ], pendingQualificationField: null, lastPendingQuestion: '',
+    }) });
+    assert.equal(result.status, 200, item.locale);
+    assert.equal(result.body.reply, item.reply, item.locale);
+  }
+});
+
+test('a link-access follow-up is answered as the latest intent instead of restarting connection steps', async () => {
+  const reply = 'Yardım makalesi bağlantısı açılmıyorsa bağlantıyı yeni sekmede açmayı deneyin; sorun sürerse görünen tarayıcı hatasını paylaşın.';
+  const service = createSalesChatService({ openaiClient: providerWith(JSON.stringify({
+    reply, intent: 'support', responseMode: 'support', resumePendingQuestion: false,
+    extractedFields: {}, requestedNextField: null, actionIntent: [], articleRefs: ['instagram-dm-ai-connection-troubleshooting'],
+  })), commercialFacts });
+  const result = await service.handle({ body: requestBody({
+    locale: 'tr', inputLanguage: 'tr', responseMode: 'support', detectedIntent: 'support',
+    userMessage: 'makale açılmıyor', conversationHistory: [
+      { role: 'user', text: 'Instagram bağlantısında sorun yaşıyorum.' },
+      { role: 'assistant', text: 'Önce Test Connection kontrolünü çalıştırın.' },
+    ], pendingQualificationField: null, lastPendingQuestion: '',
+  }) });
+  assert.equal(result.status, 200);
+  assert.equal(result.body.reply, reply);
+  assert.doesNotMatch(result.body.reply, /Test Connection|bağlantı bilgilerini kontrol/i);
+});
+
 test('Instagram first turn cannot inherit an unsupported capability claim from the provider', async () => {
   const service = createSalesChatService({ openaiClient: providerWith(JSON.stringify({
     reply: 'You can manage Instagram messages in Conversations and transfer them to your team.',

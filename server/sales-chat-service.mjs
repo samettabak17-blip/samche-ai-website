@@ -30,6 +30,10 @@ CUSTOMER ANSWER CONTRACT:
 
 SUPPORT RULES:
 - Support takes priority over sales qualification. If the user reports an issue, error, troubleshooting question, or is an existing customer, use intent "support" and responseMode "support". Never restart sales qualification, ask sales lead fields, or push plans during support turns.
+- Read the supplied user and assistant messages as one conversation. The latest user message determines what the customer wants now; an earlier subject supplies context but is not itself the answer.
+- Answer the immediate latest-turn intent first. Treat recent assistant guidance as steps already suggested, and do not repeat those steps unless the customer's latest result makes repetition necessary.
+- When the customer says a previous step was completed or failed, progress to the next supported diagnostic action. Ask one clarification only when the verified grounding and dialogue genuinely lack what is needed.
+- If the latest user message explicitly names a different product or subject, abandon the inherited subject and answer the new one.
 - Sequence for support:
   1. Understand the problem and affected system (Web Chatbot, WhatsApp AI, AI Guide, AI Voice, AI Visual, Knowledge Intelligence, Live Inbox, CRM & Pipeline, Integrations).
   2. Plan entitlement awareness:
@@ -195,7 +199,7 @@ function unavailableSalesClaims(reply, capabilities) {
       const email = /\b(?:send|sent|email|emailed|receive|received|will\s+email|going to\s+email)\b.{0,80}\b(?:confirmation|confirming|email)\b|\b(?:confirmation email|email confirmation|email is on the way|check your inbox)\b/i.test(affirmative)
         || /(?:أرسلنا|ارسلنا|سنرسل|نرسل|سيرسل|سيصلك|ستصلك|إرسال|ارسال|بريد|رسالة|إيميل|ايميل).{0,80}(?:تأكيد|موعد|عرض)/u.test(affirmative)
         || /(?:onay\s+e-?postası|onay\s+maili|e-?posta|email|mail).{0,80}(?:gönder|göndereceğiz|göndereceğim|onay)/iu.test(affirmative);
-      const fakeAction = /\b(?:transferring\s+you\s+to\s+live\s+support|connecting\s+(?:you\s+)?to\s+an?\s+agent|opened\s+a\s+ticket|created\s+ticket\s+#?\d+|ticket\s+#\d+\s+created|ticket\s+#\d+|escalated\s+to\s+(?:engineering|technical\s+team))\b/i.test(affirmative)
+      const fakeAction = /\b(?:transferring\s+you\s+to\s+live\s+support|connecting\s+(?:you\s+)?to\s+an?\s+agent|opened\s+a\s+ticket|created\s+ticket\s+#?\d+|ticket\s+#\d+\s+created|ticket\s+#\d+|escalated\s+to\s+(?:engineering|technical\s+team)|transfer(?:ring)?\s+(?:them|messages?|conversations?|requests?)\s+to\s+(?:your\s+)?team)\b/i.test(affirmative)
         || /(?:sizi\s+canlı\s+desteğe\s+aktarıyorum|canlı\s+desteğe\s+bağlıyorum|temsilciye\s+bağlıyorum|temsilciye\s+aktarıyorum|ticket\s+#?\d+|ticket\s+oluştur|bilet\s+#?\d+|bilet\s+oluştur|talep\s+#?\d+|talep\s+oluştur|teknik\s+ekibe\s+aktar|mühendislik\s+ekibine\s+ilet)/iu.test(affirmative)
         || /(?:تحويلكم\s+إلى\s+الدعم\s+المباشر|ربطكم\s+بممثل\s+الدعم|تم\s+إنشاء\s+تذكرة\s+#?\d+|أنشأت\s+تذكرة|تم\s+التصعيد\s+للفريق\s+الفني)/u.test(affirmative);
       if (fakeAction) return 'fake_action';
@@ -535,8 +539,7 @@ function enforceInterruptResponse(candidate, context, commercialFacts) {
 }
 
 function enforceSupportResponse(candidate, context) {
-  const groundingLockedSubject = findGroundingLockedSubject(context.supportRetrievalQuery, context.inputLanguage);
-  const isUsable = !groundingLockedSubject && candidate && replyMatchesInputLanguage(candidate.reply, context.inputLanguage)
+  const isUsable = candidate && replyMatchesInputLanguage(candidate.reply, context.inputLanguage)
     && !containsInternalSupportLeak(candidate.reply)
     && !unavailableSalesClaims(candidate.reply, SALES_CHAT_CAPABILITIES)
     && (context.hasImage || candidate.responseMode === 'support' || candidate.intent === 'support');
@@ -565,12 +568,14 @@ export function createSalesChatService({ openaiClient, commercialFacts, textMode
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
+      const providerContext = { ...context, conversationHistory: undefined };
       const userContent = attachment ? [
-        { type: 'text', text: JSON.stringify({ ...context, attachment: { mimeType: attachment.mimeType, transient: true } }) },
+        { type: 'text', text: JSON.stringify({ ...providerContext, attachment: { mimeType: attachment.mimeType, transient: true } }) },
         { type: 'image_url', image_url: { url: `data:${attachment.mimeType};base64,${body.attachment.data}` } },
-      ] : JSON.stringify(context);
+      ] : JSON.stringify(providerContext);
+      const dialogue = context.conversationHistory.map((message) => ({ role: message.role, content: message.text }));
       const completion = await openaiClient.chat.completions.create({ model: attachment ? visionModel : textModel, response_format: SALES_CHAT_RESPONSE_FORMAT, messages: [
-        { role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: userContent },
+        { role: 'system', content: SYSTEM_PROMPT }, ...dialogue, { role: 'user', content: userContent },
       ] }, { signal: controller.signal });
       const content = completion?.choices?.[0]?.message?.content;
       if (attachment && typeof content === 'string') logger?.info?.('sales_chat_vision_request_succeeded', { model: visionModel, responseChars: content.length });

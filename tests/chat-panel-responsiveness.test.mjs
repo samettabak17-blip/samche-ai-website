@@ -25,6 +25,24 @@ test('chat restoration is independent from the launcher click path', async () =>
   assert.match(source, /requestAnimationFrame/);
 });
 
+test('lightweight launcher is server-visible and defers the full widget dependency', async () => {
+  const loader = await readFile(new URL('../app/components/samche-chat-loader.tsx', import.meta.url), 'utf8');
+  const shell = await readFile(new URL('../app/components/site-shell.tsx', import.meta.url), 'utf8');
+  assert.match(loader, /id="samche-chat-launcher"/);
+  assert.match(loader, /lazy\(\(\) => import\('\.\/samche-chat-widget'\)/);
+  assert.doesNotMatch(loader, /help-center|samche-sales-assistant|samche-chat-persistence/);
+  assert.match(loader, /initiallyOpen=\{openRequested\}/);
+  assert.match(shell, /SamCheChatLoader/);
+  assert.doesNotMatch(shell, /SamCheChatWidget/);
+});
+
+test('lazy widget restores persisted state while honoring an opening launcher interaction', async () => {
+  const source = await readFile(new URL('../app/components/samche-chat-widget.tsx', import.meta.url), 'utf8');
+  assert.match(source, /initiallyOpen\s*=\s*false/);
+  assert.match(source, /setOpen\(saved\.open \|\| initiallyOpen\)/);
+  assert.match(source, /setOpen\(initiallyOpen\)/);
+});
+
 test('chat open path emits browser timing marks for panel visibility and composer readiness', async () => {
   const source = await readFile(new URL('../app/components/samche-chat-widget.tsx', import.meta.url), 'utf8');
   assert.match(source, /samche-chat-open-click/);

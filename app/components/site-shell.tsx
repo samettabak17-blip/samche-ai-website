@@ -1,6 +1,6 @@
 import Link from './internal-link';
 import Image from 'next/image';
-import { SamCheChatWidget } from './samche-chat-widget';
+import { SamCheChatLoader } from './samche-chat-loader';
 import { LanguageSwitcher } from './site-localization';
 import { SiteHeaderNavigation } from './site-header-navigation';
 
@@ -22,7 +22,7 @@ export function SiteFooter() {
 }
 
 export function SiteShell({ children }: { children: React.ReactNode }) {
-  return <><a className="skip-link" href="#main-content">Skip to content</a><SiteHeader />{children}<SiteFooter /><SamCheChatWidget /></>;
+  return <><a className="skip-link" href="#main-content">Skip to content</a><SamCheChatLoader /><SiteHeader />{children}<SiteFooter /></>;
 }
 
 export function SectionEyebrow({ children }: { children: React.ReactNode }) {
