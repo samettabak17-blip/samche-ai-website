@@ -208,10 +208,20 @@ test('approved add-ons and external demos use the approved values', () => {
   assert.deepEqual(addons.map((addon) => addon.name), [
     'Enhanced AI Capability', 'AI Voice Receptionist', 'Voice AI Pro',
   ]);
-  assert.equal(demoLinks.webChatbot, 'https://demo.samchecompany.com/');
+  assert.equal(demoLinks.webChatbot, 'https://webdemo.samche.ai/');
   assert.equal(demoLinks.whatsapp, 'https://wa.me/971506941372?text=Hello%2C%20I%20would%20like%20to%20try%20the%20SamChe%20AI%20demo.');
-  assert.equal(demoLinks.aiGuide, 'https://rehber.samchecompany.ae/');
+  assert.equal(demoLinks.aiGuide, 'https://guidedemo.samche.ai/');
   assert.match(productScreenshots.knowledgeIntelligence, /^https:\/\/assets\.zyrosite\.com\//);
+});
+
+test('public demo buttons consume the canonical SamChe AI demo domains', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const files = ['../app/page.tsx', '../app/platform/page.tsx', '../app/contact/page.tsx', '../lib/site-data.mjs'];
+  for (const file of files) {
+    const source = await readFile(new URL(file, import.meta.url), 'utf8');
+    assert.doesNotMatch(source, /(?:rehber\.samchecompany\.ae|demo\.samchecompany\.com)/i, `${file} should not expose a legacy demo URL`);
+  }
+  assert.ok(files.some((file) => file.includes('site-data')));
 });
 
 test('comparison source data remains limited to approved plan features', () => {
