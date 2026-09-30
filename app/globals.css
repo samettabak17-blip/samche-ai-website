@@ -251,7 +251,7 @@ button, a, select, summary { -webkit-tap-highlight-color: transparent; }
 .comparison-heading .eyebrow { margin-bottom:12px; }
 .comparison-heading h2 { margin:0; font-size:clamp(28px,3vw,40px); font-weight:500; letter-spacing:-.05em; }
 .comparison-heading > p { margin:8px 0 0; color:var(--muted); font-size:13px; }
-.comparison-scroll { overflow-x:auto; overflow-y:hidden; overscroll-behavior-inline:contain; border:1px solid rgba(220,185,145,.14); border-radius:10px; scrollbar-color:#8d3945 #100b0e; scrollbar-gutter:stable; -webkit-overflow-scrolling:touch; }
+.comparison-scroll { width:100%; max-width:100%; overflow-x:visible; overflow-y:visible; border:1px solid rgba(220,185,145,.14); border-radius:10px; }
 .plan-comparison { width:100%; min-width:0; table-layout:fixed; border-collapse:separate; border-spacing:0; background:rgba(7,7,9,.28); }
 .plan-comparison th, .plan-comparison td { padding:12px 14px; border-bottom:1px solid rgba(220,185,145,.1); font-size:11px; line-height:1.5; text-align:left; vertical-align:middle; }
 .plan-comparison thead th { position:sticky; top:0; z-index:3; color:#f8f2ef; background:#1b1015; font-size:10px; letter-spacing:.09em; }
@@ -280,7 +280,6 @@ button, a, select, summary { -webkit-tap-highlight-color: transparent; }
 .plan-comparison thead th[data-plan="growth"] { color:#f3d37c; }
 .plan-comparison thead th[data-plan="business"] { color:#e18be7; }
 .plan-comparison thead th[data-plan="enterprise"] { color:#7ecaff; }
-.table-scroll-hint { display:none; }
 .addons { margin-top: 65px; }
 .addons > h2 { margin: 0 0 7px; font-size: 30px; font-weight: 500; letter-spacing: -.04em; }
 .addons-intro { margin: 0 0 22px; color: var(--muted); font-size: 14px; }
@@ -1051,15 +1050,14 @@ body { background:radial-gradient(ellipse at 50% -22%,rgba(143,10,30,.23),transp
 @media (max-width:760px) {
   .comparison-desktop-label { display:none; }
   .comparison-mobile-label { display:inline; }
-  .comparison-scroll { width:100%; max-width:100%; overflow-x:auto; }
-  .plan-comparison { width:100%; min-width:720px; table-layout:fixed; }
-  .plan-comparison th:first-child { width:31%; }
-  .plan-comparison th[data-plan], .plan-comparison td[data-plan] { width:17.25%; }
-  .plan-comparison th, .plan-comparison td { padding:7px 6px; overflow-wrap:normal; word-break:normal; font-size:10px; line-height:1.35; }
-  .plan-comparison thead th { font-size:9px; letter-spacing:.025em; }
+  .comparison-scroll { width:100%; max-width:100%; overflow-x:visible; overflow-y:visible; }
+  .plan-comparison { width:100%; max-width:100%; min-width:0; table-layout:fixed; }
+  .plan-comparison th:first-child { width:30%; }
+  .plan-comparison th[data-plan], .plan-comparison td[data-plan] { width:17.5%; }
+  .plan-comparison th, .plan-comparison td { padding:7px 5px; overflow-wrap:anywhere; word-break:normal; font-size:10px; line-height:1.35; }
+  .plan-comparison thead th { font-size:8px; letter-spacing:.015em; }
   .plan-comparison .comparison-group th { padding-block:7px; font-size:11px; }
   .comparison-state { display:inline; padding:0; border:0; border-radius:0; background:transparent; font-size:10px; line-height:1.3; }
-  .table-scroll-hint { display:block; }
   .plan-support { min-block-size:auto; }
   .samche-chat-panel.samche-keyboard-open { bottom:max(10px,calc(100vh - var(--samche-visual-viewport-height) + 10px)); height:min(420px,calc(var(--samche-visual-viewport-height) * .62)); max-height:calc(var(--samche-visual-viewport-height) * .62); }
   .samche-chat-panel.samche-keyboard-open .samche-chat-header { min-height:58px; }

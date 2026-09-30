@@ -44,12 +44,14 @@ test('structured data is truthful and multilingual URLs are not overstated', asy
   assert.match(robots, /Sitemap:\s*https:\/\/samche\.ai\/sitemap\.xml/);
 });
 
-test('public tables remain semantically scrollable instead of forcing page overflow', async () => {
+test('public comparison table remains full-width without forcing horizontal scrolling', async () => {
   const component = await readFile(new URL('../app/components/pricing-table.tsx', import.meta.url), 'utf8');
   const css = await readFile(new URL('../app/globals.css', import.meta.url), 'utf8');
   assert.match(component, /<table className="plan-comparison">/);
   assert.match(component, /<thead>/);
   assert.match(component, /<tbody>/);
-  assert.match(css, /\.comparison-scroll\s*\{[^}]*overflow-x:\s*auto/s);
+  assert.match(css, /\.comparison-scroll\s*\{[^}]*overflow-x:\s*visible/s);
+  assert.doesNotMatch(css, /\.comparison-scroll\s*\{[^}]*overflow-x:\s*(?:auto|scroll)/s);
+  assert.doesNotMatch(css, /\.plan-comparison\s*\{[^}]*min-width:\s*\d+px/s);
   assert.doesNotMatch(css, /html\s*,\s*body\s*\{[^}]*overflow-x:\s*hidden/s);
 });

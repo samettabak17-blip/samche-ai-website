@@ -89,8 +89,7 @@ export function PricingTable() {
     </div>
     <section className="comparison-section" aria-labelledby="compare-plans-heading">
       <div className="comparison-heading"><SectionEyebrow>Platform capabilities</SectionEyebrow><h2 id="compare-plans-heading">Platform Feature Comparison</h2><p>Compare the channels, intelligence, CRM, integration and operational capabilities included at each SamChe AI plan level.</p></div>
-      <p className="table-scroll-hint">Scroll horizontally to compare all plans.</p>
-      <div className="comparison-scroll" role="region" aria-label="SamChe AI plan comparison" tabIndex={0}>
+      <div className="comparison-scroll" role="region" aria-label="SamChe AI plan comparison">
         <table className="plan-comparison">
           <thead><tr><th scope="col">FEATURE</th>{plans.map((plan) => <th scope="col" data-plan={plan.slug} key={plan.slug}>{plan.name}</th>)}</tr></thead>
           <tbody>{platformFeatureGroups.map((group) => <Fragment key={group.label}><tr className="comparison-group"><th colSpan={5}>{group.label}</th></tr>{group.rows.map((row) => <tr key={`${group.label}-${row.label}`}><th scope="row">{row.label}</th>{row.values.map((value, index) => <td data-plan={plans[index].slug} key={plans[index].slug}><span className={`comparison-state comparison-state-${comparisonStateClass(value)}`} aria-label={value}><span className="comparison-desktop-label">{value}</span><span className="comparison-mobile-label">{comparisonMobileLabel(value)}</span></span></td>)}</tr>)}{group.label === 'Integrations & Automation' && <tr className="comparison-group-note"><th colSpan={5}>{agenticExpansionNote}</th></tr>}</Fragment>)}</tbody>

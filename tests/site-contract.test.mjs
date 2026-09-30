@@ -117,14 +117,14 @@ test('pricing cards and comparison table keep aligned readable responsive struct
   const component = await readFile(new URL('../app/components/pricing-table.tsx', import.meta.url), 'utf8');
   const css = await readFile(new URL('../app/globals.css', import.meta.url), 'utf8');
   assert.match(component, /feature-unavailable/);
-  assert.match(component, /table-scroll-hint/);
-  assert.match(component, /Scroll horizontally to compare all plans/);
+  assert.doesNotMatch(component, /table-scroll-hint/);
+  assert.doesNotMatch(component, /Scroll horizontally to compare all plans/);
   assert.match(css, /\.plan-features\s*\{[^}]*flex:\s*1 1 auto/s);
   assert.match(css, /\.plan-support\s*\{[^}]*min-block-size:/s);
   assert.match(css, /\.plan-feature-unavailable[^}]*color:/s);
-  assert.match(css, /\.comparison-scroll\s*\{[^}]*overflow-x:\s*auto/s);
+  assert.doesNotMatch(css, /\.comparison-scroll\s*\{[^}]*overflow-x:\s*(?:auto|scroll)/s);
   assert.match(css, /\.plan-comparison th:first-child\s*\{[^}]*inset-inline-start:\s*0/s);
-  assert.match(css, /@media \(max-width:\s*760px\)[\s\S]*?\.plan-comparison\s*\{[^}]*min-width:\s*720px/s);
+  assert.doesNotMatch(css, /@media \(max-width:\s*760px\)[\s\S]*?\.plan-comparison\s*\{[^}]*min-width:\s*720px/s);
   assert.doesNotMatch(css, /\.plan-comparison thead th\s*\{\s*font-size:\s*6\.5px/);
 });
 
@@ -274,7 +274,7 @@ test('pricing renderer exposes controlled multimodal notes and concise mobile va
     assert.ok(component.includes(compact), `missing compact label ${compact}`);
   }
   assert.match(component, /normalized\.startsWith\('upgrade'\)/);
-  assert.match(css, /\.comparison-scroll\s*\{[^}]*overflow-x\s*:\s*auto/s);
+  assert.doesNotMatch(css, /\.comparison-scroll\s*\{[^}]*overflow-x\s*:\s*(?:auto|scroll)/s);
   assert.match(css, /\.plan-comparison\s*\{[^}]*table-layout\s*:\s*fixed/s);
   assert.doesNotMatch(css, /@media[^}]+\{[\s\S]*?\.plan-comparison[^}]+display\s*:\s*none/s);
 });
@@ -510,6 +510,20 @@ test('shared footer unifies the CTA and contact details without public GitHub re
   assert.doesNotMatch(shell, /samchecompany/i);
 });
 
+test('mobile comparison keeps every plan visible without a scroll affordance', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const component = await readFile(new URL('../app/components/pricing-table.tsx', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../app/globals.css', import.meta.url), 'utf8');
+  assert.doesNotMatch(component, /Scroll horizontally to compare all plans\./);
+  assert.doesNotMatch(css, /@media\s*\(max-width:\s*760px\)[\s\S]*?\.comparison-scroll\s*\{[^}]*overflow-x\s*:\s*(?:auto|scroll)/s);
+  assert.doesNotMatch(css, /@media\s*\(max-width:\s*760px\)[\s\S]*?\.plan-comparison\s*\{[^}]*min-width\s*:\s*\d+px/s);
+  assert.match(css, /@media\s*\(max-width:\s*760px\)[\s\S]*?\.comparison-scroll\s*\{[^}]*overflow-x\s*:\s*visible/s);
+  assert.match(css, /@media\s*\(max-width:\s*760px\)[\s\S]*?\.plan-comparison\s*\{[^}]*width\s*:\s*100%[^}]*max-width\s*:\s*100%[^}]*table-layout\s*:\s*fixed/s);
+  assert.match(css, /@media\s*\(max-width:\s*760px\)[\s\S]*?\.plan-comparison th:first-child\s*\{[^}]*width\s*:\s*30%/s);
+  assert.match(css, /@media\s*\(max-width:\s*760px\)[\s\S]*?\.plan-comparison th\[data-plan\], \.plan-comparison td\[data-plan\]\s*\{[^}]*width\s*:\s*17\.5%/s);
+  assert.match(css, /@media\s*\(max-width:\s*760px\)[\s\S]*?\.plan-comparison th, \.plan-comparison td\s*\{[^}]*overflow-wrap\s*:\s*anywhere/s);
+});
+
 test('public structured data uses the current SamChe AI support email', async () => {
   const { readFile } = await import('node:fs/promises');
   const layout = await readFile(new URL('../app/layout.tsx', import.meta.url), 'utf8');
@@ -599,9 +613,9 @@ test('website chat presentation defaults cover dashboard-compatible content and 
   assert.match(css, /@media\s*\(max-width:\s*350px\)[\s\S]*?\.samche-chat-panel/);
   assert.match(css, /\.samche-chat-header\s*>\s*\.samche-header-orb\s*\{[^}]*width:\s*42px[^}]*height:\s*42px/s);
   assert.doesNotMatch(css, /@media\s*\(max-width:\s*430px\)[\s\S]*?\.samche-chat-title small\s*\{\s*display:\s*none/);
-  assert.match(css, /\.comparison-scroll\s*\{[^}]*overflow-x\s*:\s*auto/s);
+  assert.doesNotMatch(css, /\.comparison-scroll\s*\{[^}]*overflow-x\s*:\s*(?:auto|scroll)/s);
   assert.match(css, /\.plan-comparison\s*\{[^}]*table-layout\s*:\s*fixed/s);
-  assert.match(css, /@media\s*\(max-width:\s*760px\)[\s\S]*?\.plan-comparison\s*\{[^}]*min-width\s*:\s*720px/s);
+  assert.doesNotMatch(css, /@media\s*\(max-width:\s*760px\)[\s\S]*?\.plan-comparison\s*\{[^}]*min-width\s*:\s*720px/s);
   assert.match(css, /\.samche-chat-panel\s*\{[^}]*100dvh/s);
   assert.match(css, /\.samche-chat-panel[\s\S]*env\(safe-area-inset-bottom/s);
   assert.match(css, /\.samche-chat-panel\s*\{[^}]*calc\(100%\s*-\s*24px\)/s);
@@ -632,7 +646,7 @@ test('mobile comparison uses concise labels without internal authoring notes', a
   assert.doesNotMatch(data, /if authoritative|current authoritative plan data|if current product data supports it/i);
   assert.match(component, /comparisonMobileLabel/);
   assert.match(component, /aria-label=\{value\}/);
-  assert.match(css, /@media \(max-width:760px\)[\s\S]*?\.plan-comparison th, \.plan-comparison td \{[^}]*overflow-wrap:normal[^}]*word-break:normal/s);
+  assert.match(css, /@media \(max-width:760px\)[\s\S]*?\.plan-comparison th, \.plan-comparison td \{[^}]*overflow-wrap:anywhere[^}]*word-break:normal/s);
   assert.match(css, /@media \(max-width:760px\)[\s\S]*?\.comparison-state \{[^}]*padding:0[^}]*border:0/s);
 });
 
