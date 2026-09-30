@@ -147,6 +147,34 @@ test('Instagram DM AI productization is visible on the requested public surfaces
   assert.match(sources[0], /CRM lead workflows/);
 });
 
+test('live AI experience capability cards replace only the homepage Instagram explanatory block', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { translateText } = await import('../lib/samche-localization.mjs');
+  const homepage = await readFile(new URL('../app/page.tsx', import.meta.url), 'utf8');
+  const localization = await readFile(new URL('../lib/samche-localization.mjs', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../app/globals.css', import.meta.url), 'utf8');
+  assert.match(homepage, /className="live-capabilities-grid"/);
+  for (const title of ['Web Chatbot', 'AI Guide', 'WhatsApp AI']) assert.match(homepage, new RegExp(`>${title}<`));
+  assert.match(homepage, /From support to conversion\./);
+  assert.match(homepage, /Discovery → planning → recommendation → next step\./);
+  assert.match(homepage, /configured Visual AI for customer-specific business visuals/i);
+  assert.doesNotMatch(homepage, /className="architecture-note"/);
+  assert.doesNotMatch(homepage, /Instagram DM AI · AI-powered Instagram messaging/);
+  assert.match(localization, /From support to conversion\./);
+  assert.match(localization, /Destekten dönüşüme\./);
+  assert.match(localization, /من الدعم إلى التحويل\./);
+  assert.match(localization, /Discovery → planning → recommendation → next step\./);
+  assert.match(localization, /اكتشاف → تخطيط → توصية → خطوة تالية\./);
+  assert.equal(translateText('From support to conversion.', 'tr'), 'Destekten dönüşüme.');
+  assert.equal(translateText('From support to conversion.', 'ar'), 'من الدعم إلى التحويل.');
+  assert.equal(translateText('Configured Visual AI for customer-specific business visuals', 'tr'), 'Müşteriye özel iş görselleri için yapılandırılmış Görsel AI');
+  assert.equal(translateText('Configured Visual AI for customer-specific business visuals', 'ar'), 'ذكاء بصري مهيأ لإنشاء مرئيات أعمال مخصصة للعميل');
+  assert.match(css, /\.live-capabilities-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3,/s);
+  assert.match(css, /@media \(max-width:\s*760px\)[\s\S]*?\.live-capabilities-grid\s*\{[^}]*grid-template-columns:\s*1fr/s);
+  assert.match(css, /\.live-capability-card\s*\{[^}]*min-width:\s*0/s);
+  assert.doesNotMatch(css, /\.live-capabilities-grid\s*\{[^}]*min-width:\s*\d{3,}px/s);
+});
+
 test('Enterprise visual and voice commercial entitlements remain bounded and separate', () => {
   const enterprise = plans.find((plan) => plan.slug === 'enterprise');
   assert.match(enterprise.description, /visual AI.*voice AI.*multi-brand.*operational control/i);
