@@ -389,7 +389,7 @@ test('homepage is a product-led SaaS sales journey with real-product evidence', 
   for (const required of [
     'ONE AI PLATFORM', 'LIVE PRODUCTS', 'ONE DASHBOARD', 'REAL PRODUCT SCREENSHOTS',
     'WEB CHATBOT VS AI GUIDE', 'KNOWLEDGE INTELLIGENCE', 'LIVE INBOX + CRM',
-    'Which plan is right for you?', 'Automation / Agentic AI', 'sales@samche.ai',
+    'Which plan is right for you?', 'Automation / Agentic AI',
   ]) assert.ok(home.includes(required), `homepage should include ${required}`);
   assert.ok(home.includes('ProductScreenshot'), 'homepage should show verified product evidence');
   assert.ok(!home.match(/consulting|consultancy|agency|company formation|custom IT project/i));
@@ -489,13 +489,32 @@ test('contact form submits enquiries to the approved endpoint with professional 
   assert.ok(form.includes('email: lead.email'));
 });
 
-test('footer includes the approved SamChe AI GitHub project link', async () => {
+test('shared footer unifies the CTA and contact details without public GitHub references', async () => {
   const { readFile } = await import('node:fs/promises');
   const shell = await readFile(new URL('../app/components/site-shell.tsx', import.meta.url), 'utf8');
-  assert.ok(shell.includes('samche.ai'));
-  assert.match(shell, /https:\/\/github\.com\/samchecompany\/samche-ai-platform/);
-  assert.match(shell, /aria-label="SamChe AI Platform on GitHub"/);
-  assert.match(shell, /target="_blank" rel="noopener noreferrer"/);
+  assert.match(shell, /site-footer-cta/);
+  assert.match(shell, /Request Demo/);
+  assert.match(shell, /href="mailto:sales@samche\.ai"/);
+  assert.match(shell, /href="mailto:support@samche\.ai"/);
+  assert.doesNotMatch(shell, /github/i);
+  assert.doesNotMatch(shell, /samchecompany/i);
+});
+
+test('public structured data uses the current SamChe AI support email', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const layout = await readFile(new URL('../app/layout.tsx', import.meta.url), 'utf8');
+  assert.match(layout, /email: "support@samche\.ai"/);
+  assert.doesNotMatch(layout, /samchecompany/i);
+});
+
+test('public support content uses the current support mailbox', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const files = ['../app/page.tsx', '../app/contact/page.tsx', '../app/privacy/page.tsx', '../app/security/page.tsx'];
+  for (const file of files) {
+    const source = await readFile(new URL(file, import.meta.url), 'utf8');
+    assert.match(source, /support@samche\.ai/);
+    assert.doesNotMatch(source, /support@samchecompany/i);
+  }
 });
 
 test('SamChe chatbot refuses unrelated questions and answers approved product topics', () => {

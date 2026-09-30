@@ -15,7 +15,7 @@ const softwareApplication = {
 const siteStructuredData = {
   "@context": "https://schema.org",
   "@graph": [
-    { "@type": "Organization", name: "SamChe AI", url: "https://samche.ai/", logo: "https://samche.ai/samche-ai-platform-approved.png", email: "support@samchecompany.com" },
+    { "@type": "Organization", name: "SamChe AI", url: "https://samche.ai/", logo: "https://samche.ai/samche-ai-platform-approved.png", email: "support@samche.ai" },
     { "@type": "WebSite", name: "SamChe AI", url: "https://samche.ai/", description: "SamChe AI customer-facing AI platform and product support resources." },
     softwareApplication,
   ],
