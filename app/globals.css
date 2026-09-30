@@ -197,6 +197,14 @@ button, a, select, summary { -webkit-tap-highlight-color: transparent; }
 .live-capability-card li { min-width:0; overflow-wrap:anywhere; }
 .live-capability-card li:before { margin-right:8px; color:#e3b94f; content:"•"; }
 .live-capability-whatsapp li:before { color:#72d69a; }
+.live-capability-example { display:grid; gap:5px; margin-top:18px; padding-top:13px; border-top:1px solid rgba(255,255,255,.1); color:#d9d2d2; font-size:10px; line-height:1.5; }
+.live-capability-example strong { color:#e3b94f; font-size:9px; letter-spacing:.12em; }
+.live-capability-visual { display:grid; gap:8px; margin-top:18px; padding:14px; border:1px solid rgba(114,214,154,.35); border-radius:6px; background:linear-gradient(145deg,rgba(70,190,115,.12),rgba(255,255,255,.025)); }
+.live-capability-visual > span { color:#76d69b; font-size:9px; font-weight:800; letter-spacing:.16em; }
+.live-capability-visual strong { color:#f3f0ed; font-size:14px; line-height:1.2; }
+.live-capability-visual p { color:#bfe5ca; font-size:10px; line-height:1.5; }
+.live-capability-visual p b { color:#8df1ad; }
+.live-capability-visual small { color:#c9c5c6; font-size:10px; line-height:1.5; }
 .availability-badge { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 19px; padding: 7px 10px; border: 1px solid rgba(232,189,104,.28); border-radius: 5px; color: var(--mint); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
 .availability-badge.roadmap { color: #e7aaa9; border-color: rgba(209,91,99,.34); }
 

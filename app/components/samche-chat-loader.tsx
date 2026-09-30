@@ -2,6 +2,7 @@
 
 import { lazy, useEffect, useState } from 'react';
 import { useSiteLocale } from './site-localization';
+import { loadChatSession } from '../../lib/samche-chat-persistence.mjs';
 
 const LazySamCheChatWidget = lazy(() => import('./samche-chat-widget').then(({ SamCheChatWidget }) => ({ default: SamCheChatWidget })));
 
@@ -16,15 +17,13 @@ export function SamCheChatLoader() {
   const [openRequested, setOpenRequested] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-    const load = () => { if (!cancelled) setLoadFullWidget(true); };
-    const browser = window as Window & { requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
-    if (browser.requestIdleCallback) {
-      const id = browser.requestIdleCallback(load, { timeout: 2500 });
-      return () => { cancelled = true; browser.cancelIdleCallback?.(id); };
+    const saved = loadChatSession();
+    if (saved?.open) {
+      // Restore an explicitly open persisted session without delaying the visible launcher.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setOpenRequested(true);
+      setLoadFullWidget(true);
     }
-    const id = window.setTimeout(load, 0);
-    return () => { cancelled = true; window.clearTimeout(id); };
   }, []);
 
   if (loadFullWidget) return <LazySamCheChatWidget initiallyOpen={openRequested} />;

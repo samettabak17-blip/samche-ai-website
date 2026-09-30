@@ -30,7 +30,8 @@ test('lightweight launcher is server-visible and defers the full widget dependen
   const shell = await readFile(new URL('../app/components/site-shell.tsx', import.meta.url), 'utf8');
   assert.match(loader, /id="samche-chat-launcher"/);
   assert.match(loader, /lazy\(\(\) => import\('\.\/samche-chat-widget'\)/);
-  assert.doesNotMatch(loader, /help-center|samche-sales-assistant|samche-chat-persistence/);
+  assert.doesNotMatch(loader, /help-center|samche-sales-assistant/);
+  assert.match(loader, /loadChatSession/);
   assert.match(loader, /initiallyOpen=\{openRequested\}/);
   assert.match(shell, /SamCheChatLoader/);
   assert.doesNotMatch(shell, /SamCheChatWidget/);
